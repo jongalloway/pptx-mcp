@@ -1,0 +1,91 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+          dotnet-version: "10.0.x"
+
+      - name: Display .NET info
+        run: dotnet --info
+
+      - name: Restore dependencies
+        id: restore
+        run: dotnet restore PptxMcp.slnx
+
+      - name: Build
+        id: build
+        run: dotnet build PptxMcp.slnx --no-restore --configuration Release
+
+      - name: Test
+        id: test
+        run: dotnet test --solution PptxMcp.slnx --no-build --configuration Release --verbosity normal -- --coverage --coverage-output-format cobertura
+
+      - name: Collect coverage artifact
+        id: collect_coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          coverage_file=$(find tests/PptxMcp.Tests/bin/Release -name '*.cobertura.xml' | head -n 1)
+          if [[ -z "${coverage_file}" ]]; then
+            echo "Warning: No coverage file found" >&2
+            exit 0
+          fi
+          echo "Found coverage file: ${coverage_file}"
+          cp "${coverage_file}" coverage.cobertura.xml
+
+      - name: Upload coverage artifact
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-cobertura
+          path: coverage.cobertura.xml
+          if-no-files-found: warn
+
+      - name: Write workflow summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## pptx-mcp CI summary"
+            echo ""
+            echo "- Workflow: \`${{ github.workflow }}\`"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Ref: \`${{ github.ref }}\`"
+            echo "- SHA: \`${{ github.sha }}\`"
+            echo ""
+            echo "### Step outcomes"
+            echo "| Step | Outcome |"
+            echo "| --- | --- |"
+            echo "| Setup .NET | ${{ steps.setup_dotnet.outcome }} |"
+            echo "| Restore | ${{ steps.restore.outcome }} |"
+            echo "| Build | ${{ steps.build.outcome }} |"
+            echo "| Test (+coverage) | ${{ steps.test.outcome }} |"
+            echo "| Collect coverage | ${{ steps.collect_coverage.outcome }} |"
+          } >> "${GITHUB_STEP_SUMMARY}"
