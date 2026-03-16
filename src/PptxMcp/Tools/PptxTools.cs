@@ -149,6 +149,31 @@ public sealed partial class PptxTools
         }
     }
 
+    /// <summary>
+    /// Set or replace the speaker notes on a slide. Pass append: true to add text after the existing notes.
+    /// Use newlines (\n) in the notes string to create separate paragraphs.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideIndex">Zero-based index of the slide.</param>
+    /// <param name="notes">Text to write as speaker notes. Use \n to separate paragraphs.</param>
+    /// <param name="append">When true, appends to any existing notes instead of replacing them. Defaults to false.</param>
+    [McpServerTool(Title = "Write Notes")]
+    public Task<string> pptx_write_notes(string filePath, int slideIndex, string notes, bool append = false)
+    {
+        if (!File.Exists(filePath))
+            return Task.FromResult($"Error: File not found: {filePath}");
+        try
+        {
+            _service.WriteNotes(filePath, slideIndex, notes, append);
+            var mode = append ? "appended to" : "written to";
+            return Task.FromResult($"Notes {mode} slide {slideIndex} successfully.");
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult($"Error: {ex.Message}");
+        }
+    }
+
     /// <summary>Insert an image onto a slide.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideIndex">Zero-based index of the slide.</param>

@@ -65,6 +65,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_update_text` | Update text in a placeholder on a slide by index |
 | `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for data-driven updates |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
+| `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
 | `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
