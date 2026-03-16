@@ -1,0 +1,286 @@
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Presentation;
+using PptxMcp.Models;
+using A = DocumentFormat.OpenXml.Drawing;
+using P = DocumentFormat.OpenXml.Presentation;
+
+namespace PptxMcp.Services;
+
+public class PresentationService
+{
+    public Task<IReadOnlyList<SlideInfo>> GetSlidesAsync(string filePath) =>
+        Task.Run<IReadOnlyList<SlideInfo>>(() => GetSlides(filePath));
+
+    public Task<IReadOnlyList<SlideLayoutInfo>> GetLayoutsAsync(string filePath) =>
+        Task.Run<IReadOnlyList<SlideLayoutInfo>>(() => GetLayouts(filePath));
+
+    public Task<int> AddSlideAsync(string filePath, string? layoutName) =>
+        Task.Run(() => AddSlide(filePath, layoutName));
+
+    public Task UpdateTextPlaceholderAsync(string filePath, int slideIndex, int placeholderIndex, string text) =>
+        Task.Run(() => UpdateTextPlaceholder(filePath, slideIndex, placeholderIndex, text));
+
+    public Task InsertImageAsync(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height) =>
+        Task.Run(() => InsertImage(filePath, slideIndex, imagePath, x, y, width, height));
+
+    public Task<string> GetSlideXmlAsync(string filePath, int slideIndex) =>
+        Task.Run(() => GetSlideXml(filePath, slideIndex));
+
+    private IReadOnlyList<SlideInfo> GetSlides(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var presentation = doc.PresentationPart!.Presentation;
+        var slideIdList = presentation.SlideIdList;
+        if (slideIdList is null) return [];
+
+        var result = new List<SlideInfo>();
+        int index = 0;
+        foreach (SlideId slideId in slideIdList.Elements<SlideId>())
+        {
+            var slidePart = (SlidePart)doc.PresentationPart.GetPartById(slideId.RelationshipId!.Value!);
+            var slide = slidePart.Slide;
+
+            string? title = GetSlideTitle(slide);
+            string? notes = GetSlideNotes(slidePart);
+            int placeholderCount = GetPlaceholderCount(slide);
+
+            result.Add(new SlideInfo(index, title, notes, placeholderCount));
+            index++;
+        }
+        return result;
+    }
+
+    private static string? GetSlideTitle(Slide slide)
+    {
+        // Title placeholder has type "ctrTitle" or "title" or idx=0
+        foreach (var shape in slide.CommonSlideData!.ShapeTree!.Elements<Shape>())
+        {
+            var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
+            if (ph is not null)
+            {
+                var phType = ph.Type?.Value;
+                if (phType == PlaceholderValues.Title || phType == PlaceholderValues.CenteredTitle)
+                {
+                    return shape.TextBody?.InnerText;
+                }
+            }
+        }
+        // Fallback: first placeholder
+        foreach (var shape in slide.CommonSlideData!.ShapeTree!.Elements<Shape>())
+        {
+            var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
+            if (ph is not null && (ph.Index is null || ph.Index.Value == 0))
+            {
+                return shape.TextBody?.InnerText;
+            }
+        }
+        return null;
+    }
+
+    private static string? GetSlideNotes(SlidePart slidePart)
+    {
+        if (slidePart.NotesSlidePart is null) return null;
+        var notesSlide = slidePart.NotesSlidePart.NotesSlide;
+        // Notes body placeholder has type "body" or idx=1
+        foreach (var shape in notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>())
+        {
+            var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
+            if (ph is not null && ph.Type?.Value == PlaceholderValues.Body)
+            {
+                var text = shape.TextBody?.InnerText;
+                return string.IsNullOrEmpty(text) ? null : text;
+            }
+        }
+        return null;
+    }
+
+    private static int GetPlaceholderCount(Slide slide)
+    {
+        int count = 0;
+        foreach (var shape in slide.CommonSlideData!.ShapeTree!.Elements<Shape>())
+        {
+            if (shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape is not null)
+                count++;
+        }
+        return count;
+    }
+
+    private IReadOnlyList<SlideLayoutInfo> GetLayouts(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var result = new List<SlideLayoutInfo>();
+        int index = 0;
+        foreach (var masterPart in doc.PresentationPart!.SlideMasterParts)
+        {
+            foreach (var layoutPart in masterPart.SlideLayoutParts)
+            {
+                var name = layoutPart.SlideLayout.CommonSlideData?.Name?.Value ?? $"Layout {index}";
+                result.Add(new SlideLayoutInfo(index, name));
+                index++;
+            }
+        }
+        return result;
+    }
+
+    private int AddSlide(string filePath, string? layoutName)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var presentation = presentationPart.Presentation;
+
+        // Find layout
+        SlideLayoutPart? targetLayoutPart = null;
+        foreach (var masterPart in presentationPart.SlideMasterParts)
+        {
+            foreach (var layoutPart in masterPart.SlideLayoutParts)
+            {
+                var name = layoutPart.SlideLayout.CommonSlideData?.Name?.Value;
+                if (layoutName is null || name == layoutName)
+                {
+                    targetLayoutPart = layoutPart;
+                    break;
+                }
+            }
+            if (targetLayoutPart is not null) break;
+        }
+
+        // Fallback to very first layout if not found
+        if (targetLayoutPart is null)
+        {
+            targetLayoutPart = presentationPart.SlideMasterParts.First().SlideLayoutParts.First();
+        }
+
+        // Create new slide part
+        var slidePart = presentationPart.AddNewPart<SlidePart>();
+        var slide = new Slide(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1, Name = "" },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(new A.TransformGroup()))),
+            new ColorMapOverride(new A.MasterColorMapping()));
+
+        slidePart.Slide = slide;
+        slidePart.AddPart(targetLayoutPart);
+
+        // Add to presentation slide list
+        var slideIdList = presentation.SlideIdList ??= new SlideIdList();
+        uint maxId = slideIdList.Elements<SlideId>().Any()
+            ? slideIdList.Elements<SlideId>().Max(s => s.Id!.Value)
+            : 255;
+        var newSlideId = new SlideId
+        {
+            Id = maxId + 1,
+            RelationshipId = presentationPart.GetIdOfPart(slidePart)
+        };
+        slideIdList.Append(newSlideId);
+
+        presentation.Save();
+
+        return slideIdList.Elements<SlideId>().ToList().IndexOf(newSlideId);
+    }
+
+    private void UpdateTextPlaceholder(string filePath, int slideIndex, int placeholderIndex, string text)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slidePart = GetSlidePart(doc, slideIndex);
+        var slide = slidePart.Slide;
+
+        var placeholders = slide.CommonSlideData!.ShapeTree!.Elements<Shape>()
+            .Where(s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape is not null)
+            .ToList();
+
+        if (placeholderIndex < 0 || placeholderIndex >= placeholders.Count)
+            throw new ArgumentOutOfRangeException(nameof(placeholderIndex), $"Placeholder index {placeholderIndex} is out of range. Slide has {placeholders.Count} placeholder(s).");
+
+        var shape = placeholders[placeholderIndex];
+        var textBody = shape.TextBody;
+        if (textBody is null)
+        {
+            textBody = new TextBody(new A.BodyProperties(), new A.Paragraph());
+            shape.Append(textBody);
+        }
+
+        // Replace all paragraphs with single paragraph containing the text
+        foreach (var para in textBody.Elements<A.Paragraph>().ToList())
+            para.Remove();
+
+        var paragraph = new A.Paragraph(new A.Run(new A.Text(text)));
+        textBody.Append(paragraph);
+
+        slide.Save();
+    }
+
+    private void InsertImage(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slidePart = GetSlidePart(doc, slideIndex);
+
+        var imagePartType = GetImagePartType(imagePath);
+
+        var imagePart = slidePart.AddImagePart(imagePartType);
+        using (var stream = File.OpenRead(imagePath))
+            imagePart.FeedData(stream);
+
+        var imageRelId = slidePart.GetIdOfPart(imagePart);
+
+        // Get next shape ID
+        var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
+        uint maxId = 1;
+        foreach (var sp in shapeTree.Elements<Shape>())
+        {
+            var id = sp.NonVisualShapeProperties?.NonVisualDrawingProperties?.Id?.Value ?? 0;
+            if (id > maxId) maxId = id;
+        }
+        uint newId = maxId + 1;
+
+        var picture = new Picture(
+            new P.NonVisualPictureProperties(
+                new P.NonVisualDrawingProperties { Id = newId, Name = $"Image{newId}" },
+                new P.NonVisualPictureDrawingProperties(
+                    new A.PictureLocks { NoChangeAspect = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.BlipFill(
+                new A.Blip { Embed = imageRelId },
+                new A.Stretch(new A.FillRectangle())),
+            new P.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset { X = x, Y = y },
+                    new A.Extents { Cx = width, Cy = height }),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
+
+        shapeTree.Append(picture);
+        slidePart.Slide.Save();
+    }
+
+    private string GetSlideXml(string filePath, int slideIndex)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var slidePart = GetSlidePart(doc, slideIndex);
+        using var ms = new System.IO.MemoryStream();
+        slidePart.Slide.Save(ms);
+        return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+    }
+
+    private static SlidePart GetSlidePart(PresentationDocument doc, int slideIndex)
+    {
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        if (slideIndex < 0 || slideIndex >= slideIds.Count)
+            throw new ArgumentOutOfRangeException(nameof(slideIndex), $"Slide index {slideIndex} is out of range. Presentation has {slideIds.Count} slide(s).");
+        return (SlidePart)doc.PresentationPart.GetPartById(slideIds[slideIndex].RelationshipId!.Value!);
+    }
+
+    private static PartTypeInfo GetImagePartType(string imagePath) =>
+        Path.GetExtension(imagePath).ToLowerInvariant() switch
+        {
+            ".png" => ImagePartType.Png,
+            ".jpg" or ".jpeg" => ImagePartType.Jpeg,
+            ".gif" => ImagePartType.Gif,
+            ".bmp" => ImagePartType.Bmp,
+            _ => ImagePartType.Png
+        };
+}
