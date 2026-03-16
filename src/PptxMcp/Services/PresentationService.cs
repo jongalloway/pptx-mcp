@@ -70,7 +70,12 @@ public class PresentationService
             var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
             if (ph is not null && ph.Type?.Value == PlaceholderValues.Body)
             {
-                var text = shape.TextBody?.InnerText;
+                var paraTexts = shape.TextBody?
+                    .Elements<A.Paragraph>()
+                    .Select(p => p.InnerText)
+                    .ToList();
+                if (paraTexts is not { Count: > 0 }) return null;
+                var text = string.Join("\n", paraTexts);
                 return string.IsNullOrEmpty(text) ? null : text;
             }
         }
@@ -232,6 +237,128 @@ public class PresentationService
             PreviousText: previousText,
             NewText: newText,
             Message: $"Updated shape '{target.Name}' on slide {slideNumber}.");
+    }
+
+    public void WriteNotes(string filePath, int slideIndex, string notes, bool append = false)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slidePart = GetSlidePart(doc, slideIndex);
+
+        var notesMasterPart = EnsureNotesMasterPart(presentationPart);
+        var lines = notes.Split('\n');
+
+        if (slidePart.NotesSlidePart is null)
+        {
+            CreateNotesSlidePart(slidePart, notesMasterPart, lines);
+        }
+        else
+        {
+            if (slidePart.NotesSlidePart.NotesMasterPart is null)
+                slidePart.NotesSlidePart.AddPart(notesMasterPart);
+            if (append)
+            {
+                var existing = GetSlideNotes(slidePart) ?? string.Empty;
+                var combined = string.IsNullOrEmpty(existing) ? notes : existing + "\n" + notes;
+                lines = combined.Split('\n');
+            }
+            UpdateNotesSlideContent(slidePart.NotesSlidePart, lines);
+        }
+    }
+
+    private static NotesMasterPart EnsureNotesMasterPart(PresentationPart presentationPart)
+    {
+        if (presentationPart.NotesMasterPart is not null)
+            return presentationPart.NotesMasterPart;
+
+        var notesMasterPart = presentationPart.AddNewPart<NotesMasterPart>();
+        notesMasterPart.NotesMaster = new NotesMaster(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1U, Name = string.Empty },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(new A.TransformGroup()))),
+            new P.ColorMap
+            {
+                Background1 = A.ColorSchemeIndexValues.Light1,
+                Text1 = A.ColorSchemeIndexValues.Dark1,
+                Background2 = A.ColorSchemeIndexValues.Light2,
+                Text2 = A.ColorSchemeIndexValues.Dark2,
+                Accent1 = A.ColorSchemeIndexValues.Accent1,
+                Accent2 = A.ColorSchemeIndexValues.Accent2,
+                Accent3 = A.ColorSchemeIndexValues.Accent3,
+                Accent4 = A.ColorSchemeIndexValues.Accent4,
+                Accent5 = A.ColorSchemeIndexValues.Accent5,
+                Accent6 = A.ColorSchemeIndexValues.Accent6,
+                Hyperlink = A.ColorSchemeIndexValues.Hyperlink,
+                FollowedHyperlink = A.ColorSchemeIndexValues.FollowedHyperlink
+            });
+        notesMasterPart.NotesMaster.Save();
+        return notesMasterPart;
+    }
+
+    private static void CreateNotesSlidePart(SlidePart slidePart, NotesMasterPart notesMasterPart, string[] paragraphs)
+    {
+        var notesSlidePart = slidePart.AddNewPart<NotesSlidePart>();
+        notesSlidePart.NotesSlide = new NotesSlide(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1U, Name = string.Empty },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(new A.TransformGroup()),
+                    BuildNotesBodyShape(paragraphs))),
+            new ColorMapOverride(new A.MasterColorMapping()));
+        notesSlidePart.AddPart(slidePart);
+        notesSlidePart.AddPart(notesMasterPart);
+        notesSlidePart.NotesSlide.Save();
+    }
+
+    private static void UpdateNotesSlideContent(NotesSlidePart notesSlidePart, string[] paragraphs)
+    {
+        var notesSlide = notesSlidePart.NotesSlide;
+        var shapeTree = notesSlide.CommonSlideData!.ShapeTree!;
+        foreach (var shape in shapeTree.Elements<Shape>())
+        {
+            var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
+            if (ph is not null && ph.Type?.Value == PlaceholderValues.Body)
+            {
+                if (shape.TextBody is null)
+                    shape.Append(new TextBody(new A.BodyProperties(), new A.ListStyle()));
+                var textBody = shape.TextBody!;
+                foreach (var para in textBody.Elements<A.Paragraph>().ToList())
+                    para.Remove();
+                foreach (var line in paragraphs)
+                    textBody.Append(new A.Paragraph(
+                        new A.Run(new A.Text(line)),
+                        new A.EndParagraphRunProperties()));
+                notesSlide.Save();
+                return;
+            }
+        }
+        // Body placeholder not found — add one to make the write reliable
+        shapeTree.Append(BuildNotesBodyShape(paragraphs));
+        notesSlide.Save();
+    }
+
+    private static Shape BuildNotesBodyShape(string[] paragraphs)
+    {
+        var textBody = new TextBody(new A.BodyProperties(), new A.ListStyle());
+        foreach (var line in paragraphs)
+            textBody.Append(new A.Paragraph(
+                new A.Run(new A.Text(line)),
+                new A.EndParagraphRunProperties()));
+        return new Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = 2U, Name = "Notes Placeholder 2" },
+                new P.NonVisualShapeDrawingProperties(),
+                new ApplicationNonVisualDrawingProperties(
+                    new PlaceholderShape { Type = PlaceholderValues.Body, Index = 1U })),
+            new ShapeProperties(),
+            textBody);
     }
 
     public void InsertImage(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height)
@@ -552,6 +679,23 @@ public class PresentationService
         using var doc = PresentationDocument.Open(filePath, false);
         var slidePart = GetSlidePart(doc, slideIndex);
         return GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+    }
+
+    public IReadOnlyList<SlideContent> GetAllSlideContents(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        if (slideIdList is null)
+            return [];
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        var result = new List<SlideContent>(slideIds.Count);
+        for (int i = 0; i < slideIds.Count; i++)
+        {
+            var slidePart = GetSlidePart(doc, i);
+            result.Add(GetSlideContent(doc.PresentationPart!, slidePart, i));
+        }
+        return result;
     }
 
     public MarkdownExportResult ExportMarkdown(string filePath, string? outputPath = null)
@@ -1156,6 +1300,92 @@ public class PresentationService
         placeholderType is nameof(PlaceholderValues.Title) or nameof(PlaceholderValues.CenteredTitle);
 
     private sealed record TalkingPointCandidate(string Text, string Key, int Score, long Y, int Order, bool IsTitleCandidate);
+
+    public void MoveSlide(string filePath, int slideNumber, int targetPosition)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (slideNumber < 1 || slideNumber > count)
+            throw new ArgumentOutOfRangeException(nameof(slideNumber), $"slideNumber {slideNumber} is out of range. Presentation has {count} slide(s).");
+        if (targetPosition < 1 || targetPosition > count)
+            throw new ArgumentOutOfRangeException(nameof(targetPosition), $"targetPosition {targetPosition} is out of range. Presentation has {count} slide(s).");
+        if (slideNumber == targetPosition)
+            return;
+
+        var slideIdToMove = slideIds[slideNumber - 1];
+        slideIdToMove.Remove();
+
+        var updatedSlideIds = slideIdList.Elements<SlideId>().ToList();
+        var insertBeforeIndex = targetPosition - 1;
+
+        if (insertBeforeIndex >= updatedSlideIds.Count)
+            slideIdList.Append((SlideId)slideIdToMove.CloneNode(true));
+        else
+            slideIdList.InsertBefore((SlideId)slideIdToMove.CloneNode(true), updatedSlideIds[insertBeforeIndex]);
+
+        presentationPart.Presentation.Save();
+    }
+
+    public void DeleteSlide(string filePath, int slideNumber)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (count == 1)
+            throw new InvalidOperationException("Cannot delete the only slide in a presentation.");
+        if (slideNumber < 1 || slideNumber > count)
+            throw new ArgumentOutOfRangeException(nameof(slideNumber), $"slideNumber {slideNumber} is out of range. Presentation has {count} slide(s).");
+
+        var slideId = slideIds[slideNumber - 1];
+        var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
+
+        slideId.Remove();
+        presentationPart.DeletePart(slidePart);
+
+        presentationPart.Presentation.Save();
+    }
+
+    public void ReorderSlides(string filePath, int[] newOrder)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (newOrder.Length != count)
+            throw new ArgumentException($"newOrder must contain exactly {count} element(s), one per slide. Received {newOrder.Length}.", nameof(newOrder));
+
+        var sorted = newOrder.OrderBy(n => n).ToList();
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            if (sorted[i] != i + 1)
+                throw new ArgumentException($"newOrder must be a permutation of 1..{count}. Found invalid value {sorted[i]}.", nameof(newOrder));
+        }
+
+        var reordered = newOrder.Select(n => (SlideId)slideIds[n - 1].CloneNode(true)).ToList();
+
+        foreach (var slideId in slideIds)
+            slideId.Remove();
+
+        foreach (var slideId in reordered)
+            slideIdList.Append(slideId);
+
+        presentationPart.Presentation.Save();
+    }
 }
 
 
