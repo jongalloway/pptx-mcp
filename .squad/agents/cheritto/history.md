@@ -38,6 +38,14 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Slide data update tool (2026-03-16)
+- `PresentationService.UpdateSlideData(...)` uses 1-based slide numbers for the write-facing MCP tool and resolves targets by case-insensitive shape name first, with zero-based text-shape index fallback.
+- Preserving PowerPoint formatting means cloning the existing `TextBody` body/list style plus paragraph and run properties, then replacing only the text paragraphs instead of rebuilding the shape from scratch.
+- `pptx_get_slide_content` is the discovery step for write operations: agents should inspect shape `Name` values before calling `pptx_update_slide_data` so updates stay deterministic on real decks.
+
+### Shape targeting recovery (2026-03-16)
+- `pptx_update_slide_data` failure messages should include `index:name` listings for available text-capable shapes so an agent can recover with a follow-up call instead of re-inspecting the deck.
+
 ### Markdown Export Tool (2026-03-16)
 - `pptx_export_markdown` should keep tool logic thin and delegate markdown generation to `PresentationService.ExportMarkdown(...)`.
 - Phase 1 markdown export excludes speaker notes even though notes are available elsewhere in `PresentationService`.

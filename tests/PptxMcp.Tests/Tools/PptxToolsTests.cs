@@ -84,6 +84,50 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
+    public async Task pptx_update_slide_data_ReturnsStructuredJson()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["12%"]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_update_slide_data(path, 1, "Revenue Value", null, string.Empty);
+        var updateResult = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
+
+        Assert.NotNull(updateResult);
+        Assert.True(updateResult.Success);
+        Assert.Equal("Revenue Value", updateResult.ResolvedShapeName);
+        Assert.Equal(string.Empty, updateResult.NewText);
+
+        var slideContent = _service.GetSlideContent(path, 0);
+        var updatedShape = Assert.Single(slideContent.Shapes, shape => shape.Name == "Revenue Value");
+        Assert.Equal(string.Empty, updatedShape.Text);
+    }
+
+    [Fact]
+    public async Task pptx_update_slide_data_ReturnsStructuredFailureJson()
+    {
+        var path = CreateTempPptx();
+
+        var result = await _tools.pptx_update_slide_data(path, 3, "Missing Shape", null, "Updated");
+        var updateResult = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
+
+        Assert.NotNull(updateResult);
+        Assert.False(updateResult.Success);
+        Assert.Contains("out of range", updateResult.Message);
+    }
+
+    [Fact]
     public async Task pptx_get_slide_xml_ReturnsXml()
     {
         var path = CreateTempPptx();

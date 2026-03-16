@@ -1,11 +1,12 @@
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using PptxMcp.Models;
 using PptxMcp.Services;
 
 namespace PptxMcp.Tools;
 
 [McpServerToolType]
-public sealed class PptxTools
+public sealed partial class PptxTools
 {
     private readonly PresentationService _service;
 
@@ -87,6 +88,64 @@ public sealed class PptxTools
         catch (Exception ex)
         {
             return Task.FromResult($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Update a named slide shape with replacement text while preserving the shape's existing formatting.
+    /// Prefer shapeName from pptx_get_slide_content; placeholderIndex is a zero-based fallback across text-capable shapes on the slide.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideNumber">1-based slide number to update.</param>
+    /// <param name="shapeName">Optional shape name to match exactly, ignoring case. When supplied and found, it takes precedence over placeholderIndex.</param>
+    /// <param name="placeholderIndex">Optional zero-based fallback index across text-capable shapes on the slide.</param>
+    /// <param name="newText">Replacement text for the target shape. Newlines create separate paragraphs.</param>
+    [McpServerTool(Title = "Update Slide Data")]
+    public partial Task<string> pptx_update_slide_data(string filePath, int slideNumber, string? shapeName = null, int? placeholderIndex = null, string newText = "")
+    {
+        if (!File.Exists(filePath))
+        {
+            var missingFileResult = new SlideDataUpdateResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                RequestedShapeName: shapeName,
+                RequestedPlaceholderIndex: placeholderIndex,
+                MatchedBy: null,
+                ResolvedShapeName: null,
+                ResolvedShapeIndex: null,
+                ResolvedShapeId: null,
+                PlaceholderType: null,
+                LayoutPlaceholderIndex: null,
+                PreviousText: null,
+                NewText: newText,
+                Message: $"File not found: {filePath}");
+
+            return Task.FromResult(JsonSerializer.Serialize(missingFileResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        try
+        {
+            var result = _service.UpdateSlideData(filePath, slideNumber, shapeName, placeholderIndex, newText);
+            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            var failureResult = new SlideDataUpdateResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                RequestedShapeName: shapeName,
+                RequestedPlaceholderIndex: placeholderIndex,
+                MatchedBy: null,
+                ResolvedShapeName: null,
+                ResolvedShapeIndex: null,
+                ResolvedShapeId: null,
+                PlaceholderType: null,
+                LayoutPlaceholderIndex: null,
+                PreviousText: null,
+                NewText: newText,
+                Message: $"Error: {ex.Message}");
+
+            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
         }
     }
 

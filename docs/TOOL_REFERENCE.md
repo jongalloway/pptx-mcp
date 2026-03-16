@@ -14,6 +14,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_insert_image](#pptx_insert_image)
 - [pptx_list_layouts](#pptx_list_layouts)
 - [pptx_list_slides](#pptx_list_slides)
+- [pptx_update_slide_data](#pptx_update_slide_data)
 - [pptx_update_text](#pptx_update_text)
 
 ---
@@ -648,3 +649,76 @@ Error: File not found: /path/to/presentation.pptx
 Placeholder 0 on slide 0 updated successfully.
 ```
 
+---
+
+## pptx_update_slide_data
+
+**Description:** Update text in a named slide shape while preserving the shape's existing formatting. Prefer `shapeName` from `pptx_get_slide_content`; `placeholderIndex` is a zero-based fallback across text-capable slide shapes in slide order.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `slideNumber` | integer | ✅ Required | 1-based slide number to update. |
+| `shapeName` | string | ❌ Optional | Shape name to match exactly, ignoring case. When provided and found, it takes precedence over `placeholderIndex`. |
+| `placeholderIndex` | integer | ❌ Optional | Zero-based fallback index across text-capable slide shapes on the slide. |
+| `newText` | string | ✅ Required | Replacement text for the target shape. Newlines create separate paragraphs. Empty text is allowed. |
+
+### Returns
+
+A JSON result describing whether the update succeeded and which shape was updated.
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 3,
+  "RequestedShapeName": "ARR Value",
+  "RequestedPlaceholderIndex": null,
+  "MatchedBy": "shapeName",
+  "ResolvedShapeName": "ARR Value",
+  "ResolvedShapeIndex": 2,
+  "ResolvedShapeId": 5,
+  "PlaceholderType": "body",
+  "LayoutPlaceholderIndex": null,
+  "PreviousText": "$4.2M",
+  "NewText": "$4.6M",
+  "Message": "Updated shape 'ARR Value' on slide 3."
+}
+```
+
+On failure, `Success` is `false` and `Message` explains what was missing or out of range.
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_update_slide_data",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "slideNumber": 3,
+    "shapeName": "ARR Value",
+    "newText": "$4.6M"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "Success": true,
+  "SlideNumber": 3,
+  "RequestedShapeName": "ARR Value",
+  "RequestedPlaceholderIndex": null,
+  "MatchedBy": "shapeName",
+  "ResolvedShapeName": "ARR Value",
+  "ResolvedShapeIndex": 2,
+  "ResolvedShapeId": 5,
+  "PlaceholderType": "body",
+  "LayoutPlaceholderIndex": null,
+  "PreviousText": "$4.2M",
+  "NewText": "$4.6M",
+  "Message": "Updated shape 'ARR Value' on slide 3."
+}
+```

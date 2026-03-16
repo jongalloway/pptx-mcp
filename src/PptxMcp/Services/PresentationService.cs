@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using PptxMcp.Models;
@@ -177,22 +178,60 @@ public class PresentationService
         if (placeholderIndex < 0 || placeholderIndex >= placeholders.Count)
             throw new ArgumentOutOfRangeException(nameof(placeholderIndex), $"Placeholder index {placeholderIndex} is out of range. Slide has {placeholders.Count} placeholder(s).");
 
-        var shape = placeholders[placeholderIndex];
-        var textBody = shape.TextBody;
-        if (textBody is null)
-        {
-            textBody = new TextBody(new A.BodyProperties(), new A.Paragraph());
-            shape.Append(textBody);
-        }
-
-        // Replace all paragraphs with single paragraph containing the text
-        foreach (var para in textBody.Elements<A.Paragraph>().ToList())
-            para.Remove();
-
-        var paragraph = new A.Paragraph(new A.Run(new A.Text(text)));
-        textBody.Append(paragraph);
-
+        ReplaceShapeTextPreservingFormatting(placeholders[placeholderIndex], text);
         slide.Save();
+    }
+
+    public SlideDataUpdateResult UpdateSlideData(string filePath, int slideNumber, string? shapeName, int? placeholderIndex, string newText)
+    {
+        if (slideNumber <= 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "slideNumber must be 1 or greater.");
+
+        if (placeholderIndex is < 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "placeholderIndex must be zero or greater.");
+
+        if (string.IsNullOrWhiteSpace(shapeName) && placeholderIndex is null)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Provide either shapeName or placeholderIndex.");
+
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        var slideIds = slideIdList?.Elements<SlideId>().ToList() ?? [];
+        if (slideIds.Count == 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Presentation has no slides.");
+
+        if (slideNumber > slideIds.Count)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+
+        var slidePart = GetSlidePart(doc, slideNumber - 1);
+        if (slidePart.Slide is null)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"Slide {slideNumber} could not be loaded.");
+
+        var textShapeTargets = GetTextShapeTargets(slidePart.Slide).ToList();
+        if (textShapeTargets.Count == 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"Slide {slideNumber} does not contain any text-capable shapes.");
+
+        var target = ResolveTextShapeTarget(textShapeTargets, shapeName, placeholderIndex, out var matchedBy, out var failureMessage);
+        if (target is null)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, failureMessage ?? "Unable to resolve a target shape.");
+
+        var previousText = GetShapeText(target.Shape);
+        ReplaceShapeTextPreservingFormatting(target.Shape, newText);
+        slidePart.Slide.Save();
+
+        return new SlideDataUpdateResult(
+            Success: true,
+            SlideNumber: slideNumber,
+            RequestedShapeName: shapeName,
+            RequestedPlaceholderIndex: placeholderIndex,
+            MatchedBy: matchedBy,
+            ResolvedShapeName: target.Name,
+            ResolvedShapeIndex: target.Index,
+            ResolvedShapeId: target.ShapeId,
+            PlaceholderType: target.PlaceholderType,
+            LayoutPlaceholderIndex: target.LayoutPlaceholderIndex,
+            PreviousText: previousText,
+            NewText: newText,
+            Message: $"Updated shape '{target.Name}' on slide {slideNumber}.");
     }
 
     public void InsertImage(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height)
@@ -279,6 +318,203 @@ public class PresentationService
             ".bmp" => ImagePartType.Bmp,
             _ => ImagePartType.Png
         };
+
+    private static SlideDataUpdateResult CreateSlideDataUpdateFailure(int slideNumber, string? shapeName, int? placeholderIndex, string newText, string message) =>
+        new(
+            Success: false,
+            SlideNumber: slideNumber,
+            RequestedShapeName: shapeName,
+            RequestedPlaceholderIndex: placeholderIndex,
+            MatchedBy: null,
+            ResolvedShapeName: null,
+            ResolvedShapeIndex: null,
+            ResolvedShapeId: null,
+            PlaceholderType: null,
+            LayoutPlaceholderIndex: null,
+            PreviousText: null,
+            NewText: newText,
+            Message: message);
+
+    private static IReadOnlyList<TextShapeTarget> GetTextShapeTargets(Slide slide)
+    {
+        var shapeTree = slide.CommonSlideData?.ShapeTree;
+        if (shapeTree is null)
+            return [];
+
+        return shapeTree.Elements<Shape>()
+            .Select((shape, index) =>
+            {
+                var drawingProperties = shape.NonVisualShapeProperties?.NonVisualDrawingProperties;
+                var placeholderShape = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
+                var name = drawingProperties?.Name?.Value;
+
+                return new TextShapeTarget(
+                    Shape: shape,
+                    Index: index,
+                    Name: string.IsNullOrWhiteSpace(name) ? $"Shape {index}" : name,
+                    ShapeId: drawingProperties?.Id?.Value,
+                    PlaceholderType: placeholderShape?.Type?.Value.ToString(),
+                    LayoutPlaceholderIndex: placeholderShape?.Index?.Value);
+            })
+            .ToList();
+    }
+
+    private static TextShapeTarget? ResolveTextShapeTarget(
+        IReadOnlyList<TextShapeTarget> textShapeTargets,
+        string? shapeName,
+        int? placeholderIndex,
+        out string? matchedBy,
+        out string? failureMessage)
+    {
+        matchedBy = null;
+        failureMessage = null;
+
+        if (!string.IsNullOrWhiteSpace(shapeName))
+        {
+            var trimmedShapeName = shapeName.Trim();
+            var matches = textShapeTargets
+                .Where(target => string.Equals(target.Name, trimmedShapeName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matches.Count == 1)
+            {
+                matchedBy = "shapeName";
+                return matches[0];
+            }
+
+            if (matches.Count > 1)
+            {
+                failureMessage = $"Multiple text-capable shapes named '{trimmedShapeName}' were found on slide. Use placeholderIndex to disambiguate.";
+                return null;
+            }
+        }
+
+        if (placeholderIndex is null)
+        {
+            failureMessage = $"No text-capable shape named '{shapeName}' was found. Available shapes: {DescribeTextShapeTargets(textShapeTargets)}";
+            return null;
+        }
+
+        if (placeholderIndex.Value >= textShapeTargets.Count)
+        {
+            failureMessage = $"placeholderIndex {placeholderIndex.Value} is out of range. Slide has {textShapeTargets.Count} text-capable shape(s): {DescribeTextShapeTargets(textShapeTargets)}";
+            return null;
+        }
+
+        matchedBy = string.IsNullOrWhiteSpace(shapeName)
+            ? "placeholderIndex"
+            : "placeholderIndexFallback";
+        return textShapeTargets[placeholderIndex.Value];
+    }
+
+    private static string DescribeTextShapeTargets(IEnumerable<TextShapeTarget> textShapeTargets) =>
+        string.Join(", ",
+            textShapeTargets.Select(target => $"{target.Index}:{target.Name}"));
+
+    private static string? GetShapeText(Shape shape)
+    {
+        var paragraphs = shape.TextBody?
+            .Elements<A.Paragraph>()
+            .Select(paragraph => paragraph.InnerText)
+            .ToList();
+
+        return paragraphs is { Count: > 0 }
+            ? string.Join("\n", paragraphs)
+            : null;
+    }
+
+    private static void ReplaceShapeTextPreservingFormatting(Shape shape, string text)
+    {
+        var existingTextBody = shape.TextBody ?? new TextBody(new A.BodyProperties(), new A.ListStyle(), new A.Paragraph(new A.EndParagraphRunProperties()));
+        var paragraphTemplates = existingTextBody.Elements<A.Paragraph>().ToArray();
+        if (paragraphTemplates.Length == 0)
+            paragraphTemplates = [new A.Paragraph(new A.EndParagraphRunProperties())];
+
+        var replacementTextBody = new TextBody(
+            existingTextBody.BodyProperties is null
+                ? new A.BodyProperties()
+                : (A.BodyProperties)existingTextBody.BodyProperties.CloneNode(true),
+            existingTextBody.ListStyle is null
+                ? new A.ListStyle()
+                : (A.ListStyle)existingTextBody.ListStyle.CloneNode(true));
+
+        var replacementParagraphs = GetReplacementParagraphs(text);
+        for (var index = 0; index < replacementParagraphs.Count; index++)
+        {
+            var template = paragraphTemplates[Math.Min(index, paragraphTemplates.Length - 1)];
+            replacementTextBody.Append(CreateParagraphFromTemplate(template, replacementParagraphs[index]));
+        }
+
+        var existingTextBodyElement = shape.TextBody;
+        if (existingTextBodyElement is not null)
+        {
+            shape.ReplaceChild(replacementTextBody, existingTextBodyElement);
+            return;
+        }
+
+        DocumentFormat.OpenXml.OpenXmlElement? insertAfter = null;
+        var shapeProperties = shape.GetFirstChild<P.ShapeProperties>();
+        var shapeStyle = shape.GetFirstChild<P.ShapeStyle>();
+
+        if (shapeStyle is not null)
+            insertAfter = shapeStyle;
+        else if (shapeProperties is not null)
+            insertAfter = shapeProperties;
+
+        if (insertAfter is not null)
+        {
+            shape.InsertAfter(replacementTextBody, insertAfter);
+            return;
+        }
+
+        var extensionList = shape.GetFirstChild<P.ExtensionList>();
+        if (extensionList is not null)
+            shape.InsertBefore(replacementTextBody, extensionList);
+        else
+            shape.Append(replacementTextBody);
+    }
+
+    private static IReadOnlyList<string> GetReplacementParagraphs(string text)
+    {
+        var normalizedText = text
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n');
+
+        return normalizedText.Split('\n', StringSplitOptions.None);
+    }
+
+    private static A.Paragraph CreateParagraphFromTemplate(A.Paragraph template, string text)
+    {
+        var paragraph = new A.Paragraph();
+        if (template.ParagraphProperties is not null)
+            paragraph.Append((A.ParagraphProperties)template.ParagraphProperties.CloneNode(true));
+
+        var runTemplate = template.Elements<A.Run>().FirstOrDefault()?.RunProperties;
+        var runProperties = runTemplate is null
+            ? new A.RunProperties()
+            : (A.RunProperties)runTemplate.CloneNode(true);
+
+        var textElement = new A.Text(text);
+        textElement.SetAttribute(new OpenXmlAttribute("xml", "space", "http://www.w3.org/XML/1998/namespace", "preserve"));
+
+        paragraph.Append(new A.Run(runProperties, textElement));
+
+        var templateEndParagraphRunProperties = template.Elements<A.EndParagraphRunProperties>().FirstOrDefault();
+        var endParagraphRunProperties = templateEndParagraphRunProperties is null
+            ? new A.EndParagraphRunProperties()
+            : (A.EndParagraphRunProperties)templateEndParagraphRunProperties.CloneNode(true);
+        paragraph.Append(endParagraphRunProperties);
+
+        return paragraph;
+    }
+
+    private sealed record TextShapeTarget(
+        Shape Shape,
+        int Index,
+        string Name,
+        uint? ShapeId,
+        string? PlaceholderType,
+        uint? LayoutPlaceholderIndex);
 
     public IReadOnlyList<SlideTalkingPoints> ExtractTalkingPoints(string filePath, int topN = 5)
     {
