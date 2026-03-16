@@ -103,7 +103,7 @@ internal static class TestPptxHelper
 
         presentationPart.Presentation = new Presentation(
             new SlideIdList(slideId),
-            new SlideSize { Cx = 9144000, Cy = 5143500, Type = SlideSizeValues.Screen4x3 },
+            new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
             new NotesSize { Cx = 6858000, Cy = 9144000 });
 
         var slideMasterIdList = new SlideMasterIdList(

@@ -8,28 +8,7 @@ namespace PptxMcp.Services;
 
 public class PresentationService
 {
-    public Task<IReadOnlyList<SlideInfo>> GetSlidesAsync(string filePath) =>
-        Task.Run<IReadOnlyList<SlideInfo>>(() => GetSlides(filePath));
-
-    public Task<IReadOnlyList<SlideLayoutInfo>> GetLayoutsAsync(string filePath) =>
-        Task.Run<IReadOnlyList<SlideLayoutInfo>>(() => GetLayouts(filePath));
-
-    public Task<int> AddSlideAsync(string filePath, string? layoutName) =>
-        Task.Run(() => AddSlide(filePath, layoutName));
-
-    public Task UpdateTextPlaceholderAsync(string filePath, int slideIndex, int placeholderIndex, string text) =>
-        Task.Run(() => UpdateTextPlaceholder(filePath, slideIndex, placeholderIndex, text));
-
-    public Task InsertImageAsync(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height) =>
-        Task.Run(() => InsertImage(filePath, slideIndex, imagePath, x, y, width, height));
-
-    public Task<string> GetSlideXmlAsync(string filePath, int slideIndex) =>
-        Task.Run(() => GetSlideXml(filePath, slideIndex));
-
-    public Task<SlideContent> GetSlideContentAsync(string filePath, int slideIndex) =>
-        Task.Run(() => GetSlideContent(filePath, slideIndex));
-
-    private IReadOnlyList<SlideInfo> GetSlides(string filePath)
+    public IReadOnlyList<SlideInfo> GetSlides(string filePath)
     {
         using var doc = PresentationDocument.Open(filePath, false);
         var presentation = doc.PresentationPart!.Presentation;
@@ -108,7 +87,7 @@ public class PresentationService
         return count;
     }
 
-    private IReadOnlyList<SlideLayoutInfo> GetLayouts(string filePath)
+    public IReadOnlyList<SlideLayoutInfo> GetLayouts(string filePath)
     {
         using var doc = PresentationDocument.Open(filePath, false);
         var result = new List<SlideLayoutInfo>();
@@ -125,7 +104,7 @@ public class PresentationService
         return result;
     }
 
-    private int AddSlide(string filePath, string? layoutName)
+    public int AddSlide(string filePath, string? layoutName)
     {
         using var doc = PresentationDocument.Open(filePath, true);
         var presentationPart = doc.PresentationPart!;
@@ -185,7 +164,7 @@ public class PresentationService
         return slideIdList.Elements<SlideId>().ToList().IndexOf(newSlideId);
     }
 
-    private void UpdateTextPlaceholder(string filePath, int slideIndex, int placeholderIndex, string text)
+    public void UpdateTextPlaceholder(string filePath, int slideIndex, int placeholderIndex, string text)
     {
         using var doc = PresentationDocument.Open(filePath, true);
         var slidePart = GetSlidePart(doc, slideIndex);
@@ -216,7 +195,7 @@ public class PresentationService
         slide.Save();
     }
 
-    private void InsertImage(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height)
+    public void InsertImage(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height)
     {
         using var doc = PresentationDocument.Open(filePath, true);
         var slidePart = GetSlidePart(doc, slideIndex);
@@ -229,14 +208,9 @@ public class PresentationService
 
         var imageRelId = slidePart.GetIdOfPart(imagePart);
 
-        // Get next shape ID
+        // Get next shape ID by scanning all shape-tree children that carry NonVisualDrawingProperties
         var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
-        uint maxId = 1;
-        foreach (var sp in shapeTree.Elements<Shape>())
-        {
-            var id = sp.NonVisualShapeProperties?.NonVisualDrawingProperties?.Id?.Value ?? 0;
-            if (id > maxId) maxId = id;
-        }
+        uint maxId = GetMaxShapeId(shapeTree);
         uint newId = maxId + 1;
 
         var picture = new Picture(
@@ -258,13 +232,32 @@ public class PresentationService
         slidePart.Slide.Save();
     }
 
-    private string GetSlideXml(string filePath, int slideIndex)
+    public string GetSlideXml(string filePath, int slideIndex)
     {
         using var doc = PresentationDocument.Open(filePath, false);
         var slidePart = GetSlidePart(doc, slideIndex);
         using var ms = new System.IO.MemoryStream();
         slidePart.Slide.Save(ms);
         return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+    }
+
+    private static uint GetMaxShapeId(ShapeTree shapeTree)
+    {
+        uint maxId = 1;
+        foreach (var child in shapeTree.ChildElements)
+        {
+            uint? id = child switch
+            {
+                Shape s => s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Id?.Value,
+                Picture p => p.NonVisualPictureProperties?.NonVisualDrawingProperties?.Id?.Value,
+                P.GraphicFrame gf => gf.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Id?.Value,
+                P.GroupShape gs => gs.NonVisualGroupShapeProperties?.NonVisualDrawingProperties?.Id?.Value,
+                P.ConnectionShape cs => cs.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties?.Id?.Value,
+                _ => null
+            };
+            if (id.HasValue && id.Value > maxId) maxId = id.Value;
+        }
+        return maxId;
     }
 
     private static SlidePart GetSlidePart(PresentationDocument doc, int slideIndex)
@@ -287,7 +280,7 @@ public class PresentationService
             _ => ImagePartType.Png
         };
 
-    private SlideContent GetSlideContent(string filePath, int slideIndex)
+    public SlideContent GetSlideContent(string filePath, int slideIndex)
     {
         using var doc = PresentationDocument.Open(filePath, false);
         var presentationPart = doc.PresentationPart!;

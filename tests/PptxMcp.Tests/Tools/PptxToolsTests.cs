@@ -1,5 +1,3 @@
-using DocumentFormat.OpenXml.Packaging;
-
 namespace PptxMcp.Tests.Tools;
 
 public class PptxToolsTests : IDisposable
@@ -21,7 +19,7 @@ public class PptxToolsTests : IDisposable
 
     private string CreateTempPptx()
     {
-        var path = Path.GetTempFileName() + ".pptx";
+        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
         _tempFiles.Add(path);
         TestPptxHelper.CreateMinimalPresentation(path, "Test Slide");
         return path;
