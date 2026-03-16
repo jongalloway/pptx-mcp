@@ -280,12 +280,46 @@ public class PresentationService
             _ => ImagePartType.Png
         };
 
+    public IReadOnlyList<SlideTalkingPoints> ExtractTalkingPoints(string filePath, int topN = 5)
+    {
+        if (topN <= 0)
+            throw new ArgumentOutOfRangeException(nameof(topN), "topN must be greater than zero.");
+
+        using var doc = PresentationDocument.Open(filePath, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        if (slideIdList is null)
+            return [];
+
+        var talkingPoints = new List<SlideTalkingPoints>();
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        for (int slideIndex = 0; slideIndex < slideIds.Count; slideIndex++)
+        {
+            var slidePart = GetSlidePart(doc, slideIndex);
+            try
+            {
+                var slideContent = GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+                var title = GetSlideTitle(slidePart.Slide);
+                var points = RankTalkingPoints(slideContent, topN);
+                talkingPoints.Add(new SlideTalkingPoints(slideIndex, title, points));
+            }
+            catch
+            {
+                talkingPoints.Add(new SlideTalkingPoints(slideIndex, null, []));
+            }
+        }
+
+        return talkingPoints;
+    }
+
     public SlideContent GetSlideContent(string filePath, int slideIndex)
     {
         using var doc = PresentationDocument.Open(filePath, false);
-        var presentationPart = doc.PresentationPart!;
         var slidePart = GetSlidePart(doc, slideIndex);
+        return GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+    }
 
+    private static SlideContent GetSlideContent(PresentationPart presentationPart, SlidePart slidePart, int slideIndex)
+    {
         // Slide dimensions from the presentation-level SlideSize element
         var slideSize = presentationPart.Presentation.SlideSize;
         long slideWidth = slideSize?.Cx?.Value ?? 9144000;
@@ -378,7 +412,6 @@ public class PresentationService
         var drawingProps = nvProps?.NonVisualDrawingProperties;
         var xfrm = frame.Transform;
 
-        // Try to extract table content
         IReadOnlyList<IReadOnlyList<string>>? tableRows = null;
         var graphic = frame.Graphic;
         var graphicData = graphic?.GraphicData;
@@ -461,4 +494,161 @@ public class PresentationService
             Paragraphs: null,
             TableRows: null);
     }
+
+    private static IReadOnlyList<string> RankTalkingPoints(SlideContent slideContent, int topN)
+    {
+        var candidates = new List<TalkingPointCandidate>();
+        int order = 0;
+
+        foreach (var shape in slideContent.Shapes)
+        {
+            if (!string.Equals(shape.ShapeType, "Text", StringComparison.OrdinalIgnoreCase) || shape.Paragraphs is null)
+                continue;
+
+            if (ShouldIgnoreShape(shape))
+                continue;
+
+            for (int paragraphIndex = 0; paragraphIndex < shape.Paragraphs.Count; paragraphIndex++)
+            {
+                var text = NormalizeText(shape.Paragraphs[paragraphIndex]);
+                if (ShouldIgnoreParagraph(text))
+                    continue;
+
+                var score = ScoreTalkingPoint(shape, text);
+                if (score <= 0)
+                    continue;
+
+                candidates.Add(new TalkingPointCandidate(
+                    text,
+                    NormalizeKey(text),
+                    score,
+                    shape.Y ?? long.MaxValue,
+                    order++,
+                    IsTitlePlaceholder(shape.PlaceholderType)));
+            }
+        }
+
+        var selectedCandidates = candidates
+            .GroupBy(candidate => candidate.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(candidate => candidate.Score).ThenBy(candidate => candidate.Order).First())
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Y)
+            .ThenBy(candidate => candidate.Order)
+            .Take(topN)
+            .ToList();
+
+        var hasVisualOnlyContent = slideContent.Shapes.Any(shape =>
+            !string.Equals(shape.ShapeType, "Text", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(shape.ShapeType, "Connector", StringComparison.OrdinalIgnoreCase));
+
+        if (hasVisualOnlyContent && selectedCandidates.Count > 0 && selectedCandidates.All(candidate => candidate.IsTitleCandidate))
+            return [];
+
+        return selectedCandidates
+            .OrderBy(candidate => candidate.Y)
+            .ThenBy(candidate => candidate.Order)
+            .Select(candidate => candidate.Text)
+            .ToList();
+    }
+
+    private static bool ShouldIgnoreShape(ShapeContent shape)
+    {
+        if (ContainsNoiseMarker(shape.Name))
+            return true;
+
+        return shape.PlaceholderType switch
+        {
+            nameof(PlaceholderValues.DateAndTime) => true,
+            nameof(PlaceholderValues.Footer) => true,
+            nameof(PlaceholderValues.Header) => true,
+            nameof(PlaceholderValues.SlideNumber) => true,
+            _ => false
+        };
+    }
+
+    private static bool ShouldIgnoreParagraph(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        if (!text.Any(char.IsLetterOrDigit))
+            return true;
+
+        if (ContainsNoiseMarker(text))
+            return true;
+
+        return text.StartsWith("Click to add ", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ScoreTalkingPoint(ShapeContent shape, string text)
+    {
+        int score = shape.PlaceholderType switch
+        {
+            nameof(PlaceholderValues.Body) => 90,
+            nameof(PlaceholderValues.Object) => 80,
+            nameof(PlaceholderValues.SubTitle) => 60,
+            nameof(PlaceholderValues.Title) => 45,
+            nameof(PlaceholderValues.CenteredTitle) => 45,
+            _ when shape.IsPlaceholder => 55,
+            _ => 65
+        };
+
+        if ((shape.Paragraphs?.Count ?? 0) > 1)
+            score += 20;
+
+        if (LooksLikeBullet(text))
+            score += 25;
+
+        if (text.Length >= 15 && text.Length <= 160)
+            score += 10;
+        else if (text.Length > 200)
+            score -= 10;
+
+        if (IsLikelyHeading(text))
+            score -= 15;
+
+        return score;
+    }
+
+    private static bool LooksLikeBullet(string text)
+    {
+        var trimmed = text.TrimStart();
+        if (trimmed.Length == 0)
+            return false;
+
+        return trimmed[0] switch
+        {
+            '-' => true,
+            '*' => true,
+            '•' => true,
+            '◦' => true,
+            '–' => true,
+            _ => trimmed.Length > 2 && char.IsDigit(trimmed[0]) && (trimmed[1] == '.' || trimmed[1] == ')')
+        };
+    }
+
+    private static bool IsLikelyHeading(string text)
+    {
+        if (text.Contains(':') || text.Contains('.') || text.Contains(';'))
+            return false;
+
+        return text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length <= 5;
+    }
+
+    private static string NormalizeText(string text) =>
+        string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string NormalizeKey(string text) =>
+        NormalizeText(text).TrimEnd('.', ';', ':', '!', '?').ToUpperInvariant();
+
+    private static bool ContainsNoiseMarker(string text) =>
+        text.Contains("presenter notes", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("speaker notes", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("notes placeholder", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTitlePlaceholder(string? placeholderType) =>
+        placeholderType is nameof(PlaceholderValues.Title) or nameof(PlaceholderValues.CenteredTitle);
+
+    private sealed record TalkingPointCandidate(string Text, string Key, int Score, long Y, int Order, bool IsTitleCandidate);
 }
+

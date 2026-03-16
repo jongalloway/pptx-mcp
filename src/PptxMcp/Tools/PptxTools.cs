@@ -165,4 +165,29 @@ public sealed class PptxTools
             return Task.FromResult($"Error: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Extract the highest-signal talking points from each slide in a PowerPoint presentation.
+    /// The tool prioritizes body text and bullet-like content, filters common noise such as presenter notes labels
+    /// and formatting-only text, and returns up to the requested number of points per slide.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="topN">Maximum number of talking points to return per slide. Defaults to 5.</param>
+    [McpServerTool(Title = "Extract Talking Points", ReadOnly = true, Idempotent = true)]
+    public Task<string> pptx_extract_talking_points(string filePath, int topN = 5)
+    {
+        if (!File.Exists(filePath))
+            return Task.FromResult($"Error: File not found: {filePath}");
+        try
+        {
+            var talkingPoints = _service.ExtractTalkingPoints(filePath, topN);
+            return Task.FromResult(JsonSerializer.Serialize(talkingPoints, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult($"Error: {ex.Message}");
+        }
+    }
+
 }
+

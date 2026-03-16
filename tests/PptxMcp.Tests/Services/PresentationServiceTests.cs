@@ -1,3 +1,5 @@
+using DocumentFormat.OpenXml.Presentation;
+
 namespace PptxMcp.Tests.Services;
 
 public class PresentationServiceTests : IDisposable
@@ -7,15 +9,23 @@ public class PresentationServiceTests : IDisposable
 
     public void Dispose()
     {
-        foreach (var f in _tempFiles)
-            if (File.Exists(f)) File.Delete(f);
+        foreach (var file in _tempFiles)
+            if (File.Exists(file)) File.Delete(file);
     }
 
     private string CreateTempPptx(string? titleText = "Test Slide")
     {
-        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
         _tempFiles.Add(path);
         TestPptxHelper.CreateMinimalPresentation(path, titleText);
+        return path;
+    }
+
+    private string CreateCustomPptx(params TestSlideDefinition[] slides)
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        _tempFiles.Add(path);
+        TestPptxHelper.CreatePresentation(path, slides);
         return path;
     }
 
@@ -56,7 +66,7 @@ public class PresentationServiceTests : IDisposable
     {
         var path = CreateTempPptx();
         var layouts = _service.GetLayouts(path);
-        Assert.All(layouts, l => Assert.NotNull(l.Name));
+        Assert.All(layouts, layout => Assert.NotNull(layout.Name));
     }
 
     [Fact]
@@ -133,7 +143,7 @@ public class PresentationServiceTests : IDisposable
     {
         var path = CreateTempPptx("My Title");
         var content = _service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(s => s.IsPlaceholder);
+        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
         Assert.NotNull(titleShape);
         Assert.Equal("My Title", titleShape.Text);
     }
@@ -143,7 +153,7 @@ public class PresentationServiceTests : IDisposable
     {
         var path = CreateTempPptx();
         var content = _service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(s => s.IsPlaceholder);
+        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
         Assert.NotNull(titleShape);
         Assert.Equal("Text", titleShape.ShapeType);
     }
@@ -153,7 +163,7 @@ public class PresentationServiceTests : IDisposable
     {
         var path = CreateTempPptx();
         var content = _service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(s => s.IsPlaceholder);
+        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
         Assert.NotNull(titleShape);
         Assert.NotNull(titleShape.PlaceholderType);
     }
@@ -164,5 +174,181 @@ public class PresentationServiceTests : IDisposable
         var path = CreateTempPptx();
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             _service.GetSlideContent(path, 99));
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_ReturnsRankedBodyPoints()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Release Overview",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Faster startup across workloads",
+                            "Improved diagnostics for production",
+                            "Native AOT reduces deployment size"
+                        ]
+                    }
+                ]
+            });
+
+        var talkingPoints = _service.ExtractTalkingPoints(path, 2);
+
+        Assert.Single(talkingPoints);
+        Assert.Equal(
+            [
+                "Faster startup across workloads",
+                "Improved diagnostics for production"
+            ],
+            talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_FiltersPresenterNotesAndFormattingOnlyText()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Presenter Notes",
+                        Paragraphs = ["Presenter Notes"]
+                    },
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["***", "Key metric improved 25%"]
+                    }
+                ]
+            });
+
+        var talkingPoints = _service.ExtractTalkingPoints(path);
+
+        Assert.Single(talkingPoints[0].Points);
+        Assert.Equal("Key metric improved 25%", talkingPoints[0].Points[0]);
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_ReturnsEmptyForImageOnlySlide()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                IncludeImage = true
+            });
+
+        var talkingPoints = _service.ExtractTalkingPoints(path);
+
+        Assert.Empty(talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_ReturnsEmptyForEmptySlide()
+    {
+        var path = CreateCustomPptx(new TestSlideDefinition());
+
+        var talkingPoints = _service.ExtractTalkingPoints(path);
+
+        Assert.Empty(talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_TitleOnlySlideFallsBackToTitle()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Quarterly Update"
+            });
+
+        var talkingPoints = _service.ExtractTalkingPoints(path);
+
+        Assert.Single(talkingPoints[0].Points);
+        Assert.Equal("Quarterly Update", talkingPoints[0].Points[0]);
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_InvalidTopN_ThrowsException()
+    {
+        var path = CreateTempPptx();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => _service.ExtractTalkingPoints(path, 0));
+    }
+
+    [Fact]
+    public void ExtractTalkingPoints_ProcessesRealisticMultiSlideDeck()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Executive Summary",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Launch completed in 3 regions",
+                            "Error rate dropped below 1%",
+                            "Support volume stayed flat"
+                        ]
+                    }
+                ]
+            },
+            new TestSlideDefinition
+            {
+                TitleText = "Architecture",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Presenter Notes",
+                        Paragraphs = ["Presenter Notes"]
+                    },
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 2",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Thin MCP tools delegate to PresentationService",
+                            "OpenXML parsing remains centralized"
+                        ]
+                    }
+                ]
+            },
+            new TestSlideDefinition
+            {
+                IncludeImage = true
+            });
+
+        var talkingPoints = _service.ExtractTalkingPoints(path, 2);
+
+        Assert.Equal(3, talkingPoints.Count);
+        Assert.Equal(
+            [
+                "Launch completed in 3 regions",
+                "Error rate dropped below 1%"
+            ],
+            talkingPoints[0].Points);
+        Assert.Equal(
+            [
+                "Thin MCP tools delegate to PresentationService",
+                "OpenXML parsing remains centralized"
+            ],
+            talkingPoints[1].Points);
+        Assert.Empty(talkingPoints[2].Points);
     }
 }

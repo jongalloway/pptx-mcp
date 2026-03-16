@@ -24,4 +24,10 @@
 - Dependency: Both #17 and #15 depend on #19 (core tool implementation) being complete
 - Timeline: Phase 2 estimated 3–4 weeks after Phase 1 stabilization
 
+### Talking points extraction tool (2026-03-17)
+- `src/PptxMcp/Tools/PptxTools.cs` now exposes `pptx_extract_talking_points(filePath, topN = 5)` as a read-only MCP tool that returns per-slide JSON with `SlideIndex`, `Title`, and ranked `Points`.
+- `src/PptxMcp/Services/PresentationService.cs` reuses slide-content extraction and ranks text candidates by placeholder type, bullet-like structure, and text quality while filtering noise markers like `Presenter Notes`, placeholder prompts, and formatting-only text.
+- Title text is used as a fallback talking point for title-only slides, but slides that are otherwise just visual content return no extracted points.
+- `tests/PptxMcp.Tests/TestPptxHelper.cs` is the canonical fixture builder for realistic PPTX tests; it supports title/body placeholders and embedded images for service-level integration coverage.
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
