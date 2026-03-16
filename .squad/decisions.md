@@ -6,7 +6,10 @@
 **By:** Jon (user directive)
 **Status:** Active
 
-All PRs created by squad members must request review from Copilot. Use `--reviewer copilot` on `gh pr create` calls.
+All PRs created by squad members must request review from Copilot. Use `"@copilot"` (double-quoted) for reviewer assignment:
+- On create: `gh pr create ... --reviewer "@copilot"`
+- On existing: `gh pr edit {number} --add-reviewer "@copilot"`
+Note: `--reviewer copilot` (unquoted, no @) fails with "not found".
 
 ### Ralph: Copilot Branch → PR Detection (2026-03-16)
 **By:** Jon (user directive)
