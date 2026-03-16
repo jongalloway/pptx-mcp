@@ -7,6 +7,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 ## Table of Contents
 
 - [pptx_add_slide](#pptx_add_slide)
+- [pptx_delete_slide](#pptx_delete_slide)
 - [pptx_export_markdown](#pptx_export_markdown)
 - [pptx_extract_talking_points](#pptx_extract_talking_points)
 - [pptx_get_slide_content](#pptx_get_slide_content)
@@ -14,6 +15,8 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_insert_image](#pptx_insert_image)
 - [pptx_list_layouts](#pptx_list_layouts)
 - [pptx_list_slides](#pptx_list_slides)
+- [pptx_move_slide](#pptx_move_slide)
+- [pptx_reorder_slides](#pptx_reorder_slides)
 - [pptx_update_slide_data](#pptx_update_slide_data)
 - [pptx_update_text](#pptx_update_text)
 
@@ -771,5 +774,125 @@ On failure, `Success` is `false` and `Message` explains what was missing or out 
   "PreviousText": null,
   "NewText": "$4.6M",
   "Message": "No shape named 'Revenue Total' found on slide 3, and no placeholderIndex was supplied."
+}
+```
+
+---
+
+## pptx_move_slide
+
+**Description:** Move a slide to a different position in the presentation. All other slides shift to fill the gap.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `slideNumber` | integer | ✅ Required | 1-based number of the slide to move. |
+| `targetPosition` | integer | ✅ Required | 1-based position to move the slide to. |
+
+### Returns
+
+A plain-text confirmation message on success, or an error message prefixed with `Error:`.
+
+### Examples
+
+Move slide 1 to the end of a 4-slide deck:
+
+```json
+{
+  "name": "pptx_move_slide",
+  "arguments": {
+    "filePath": "/presentations/quarterly.pptx",
+    "slideNumber": 1,
+    "targetPosition": 4
+  }
+}
+```
+
+Move the last slide to the front:
+
+```json
+{
+  "name": "pptx_move_slide",
+  "arguments": {
+    "filePath": "/presentations/quarterly.pptx",
+    "slideNumber": 4,
+    "targetPosition": 1
+  }
+}
+```
+
+---
+
+## pptx_delete_slide
+
+**Description:** Delete a slide from a presentation by its 1-based slide number. The presentation must contain at least two slides; deleting the last remaining slide is not allowed.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `slideNumber` | integer | ✅ Required | 1-based number of the slide to delete. |
+
+### Returns
+
+A plain-text confirmation message on success, or an error message prefixed with `Error:`.
+
+### Examples
+
+Delete the second slide:
+
+```json
+{
+  "name": "pptx_delete_slide",
+  "arguments": {
+    "filePath": "/presentations/quarterly.pptx",
+    "slideNumber": 2
+  }
+}
+```
+
+---
+
+## pptx_reorder_slides
+
+**Description:** Reorder all slides in a presentation by providing the desired sequence as a 1-based array. Every slide must appear exactly once. Use `pptx_list_slides` first to identify the current slide numbers.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `newOrder` | integer[] | ✅ Required | Array of 1-based slide numbers in the desired order. Must be a permutation of `1..n` where `n` is the total slide count. |
+
+### Returns
+
+A plain-text confirmation message on success, or an error message prefixed with `Error:`.
+
+### Examples
+
+Reverse a 3-slide deck:
+
+```json
+{
+  "name": "pptx_reorder_slides",
+  "arguments": {
+    "filePath": "/presentations/quarterly.pptx",
+    "newOrder": [3, 2, 1]
+  }
+}
+```
+
+Move the appendix slides (4 and 5) before the content slides (2 and 3), keeping the title slide (1) first:
+
+```json
+{
+  "name": "pptx_reorder_slides",
+  "arguments": {
+    "filePath": "/presentations/quarterly.pptx",
+    "newOrder": [1, 4, 5, 2, 3]
+  }
 }
 ```
