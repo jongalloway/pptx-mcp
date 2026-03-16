@@ -12,4 +12,10 @@
 
 ## Learnings
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
+### PRD Structure & Scope (2026-03-15)
+- Created PRD at `docs/PRD.md` based on PR #1 bootstrap and Jon's vision
+- Phase 1 (Content Reading) focuses on two high-value tools: extract talking points + export markdown
+- Phase 2 (Intelligent Updates) deferred pending Phase 1 validation; planned for multi-source composition (pptx-mcp + external data MCPs)
+- **Key decision:** Non-goals explicitly exclude GUI, legacy formats, and advanced design features to keep scope bounded
+- **Recommended 4 GitHub issues** for Phase 1: two tool implementations, one E2E test, one docs pass
+- Timeline estimate: 2–3 weeks Phase 1, 3–4 weeks Phase 2 (estimate includes +20% buffer)
