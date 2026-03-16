@@ -270,6 +270,68 @@ public sealed partial class PptxTools
             return Task.FromResult($"Error: {ex.Message}");
         }
     }
+
+    /// <summary>Move a slide to a different position in the presentation.</summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideNumber">1-based number of the slide to move.</param>
+    /// <param name="targetPosition">1-based position to move the slide to.</param>
+    [McpServerTool(Title = "Move Slide")]
+    public Task<string> pptx_move_slide(string filePath, int slideNumber, int targetPosition)
+    {
+        if (!File.Exists(filePath))
+            return Task.FromResult($"Error: File not found: {filePath}");
+        try
+        {
+            _service.MoveSlide(filePath, slideNumber, targetPosition);
+            return Task.FromResult($"Slide {slideNumber} moved to position {targetPosition} successfully.");
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>Delete a slide from the presentation by its 1-based slide number.</summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideNumber">1-based number of the slide to delete.</param>
+    [McpServerTool(Title = "Delete Slide")]
+    public Task<string> pptx_delete_slide(string filePath, int slideNumber)
+    {
+        if (!File.Exists(filePath))
+            return Task.FromResult($"Error: File not found: {filePath}");
+        try
+        {
+            _service.DeleteSlide(filePath, slideNumber);
+            return Task.FromResult($"Slide {slideNumber} deleted successfully.");
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Reorder all slides in a presentation by providing the new sequence as a 1-based array.
+    /// Every slide must appear exactly once in the new order.
+    /// For example, to reverse a 3-slide deck, pass [3, 2, 1].
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="newOrder">Array specifying the new slide order using 1-based slide numbers. Must be a permutation of 1..n.</param>
+    [McpServerTool(Title = "Reorder Slides")]
+    public Task<string> pptx_reorder_slides(string filePath, int[] newOrder)
+    {
+        if (!File.Exists(filePath))
+            return Task.FromResult($"Error: File not found: {filePath}");
+        try
+        {
+            _service.ReorderSlides(filePath, newOrder);
+            return Task.FromResult($"Slides reordered successfully.");
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult($"Error: {ex.Message}");
+        }
+    }
 }
 
 
