@@ -29,3 +29,13 @@
 - Both `pptx_extract_talking_points` and `pptx_export_markdown` are now exercised against multi-slide decks with bullets, tables, images, empty slides, image-only slides, Unicode text, and speaker notes that must stay out of Phase 1 outputs.
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Phase 2 Completion (2026-03-16)
+- **Issues #17 & #15:** Completed and merged (PR #32 & #31)
+- **Testing scope:** Issue #17 (tool testing) + Issue #15 (E2E scenario)
+- **Test cases:** 7 integration tests (edge cases, format preservation, Unicode)
+- **E2E scenario:** 4-slide KPI dashboard, dual targeting (shapeName + placeholderIndex), format fidelity verification
+- **Quality:** Realistic fixtures (TestPptxHelper), OpenXML Validator zero errors, PowerPoint round-trip verified
+- **Coverage:** 66/66 tests passing (up from 52), includes speaker notes integrity check
+- **Dependency satisfaction:** Both issues unblocked by #19 (Cheritto's tool) and #18 (Copilot's docs)
+- **Result:** Phase 2 testing complete, validates PowerPoint compatibility and multi-source composition pattern
