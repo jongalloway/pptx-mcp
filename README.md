@@ -1,5 +1,15 @@
 # pptx-mcp
 
-A .NET MCP server for reading and modifying PowerPoint (.pptx) files with OpenXML.
+A .NET MCP server for reading and updating PowerPoint (.pptx) files with the OpenXML SDK.
 
-Current content-extraction tools include `pptx_get_slide_content` and `pptx_extract_talking_points` for higher-level slide analysis workflows.
+## Available tools
+
+- `pptx_list_slides`
+- `pptx_list_layouts`
+- `pptx_add_slide`
+- `pptx_update_text`
+- `pptx_insert_image`
+- `pptx_get_slide_xml`
+- `pptx_get_slide_content`
+- `pptx_extract_talking_points`
+- `pptx_export_markdown` — exports a presentation to markdown, writes a `.md` file, and extracts images to a sibling `_images` folder using relative paths.
