@@ -13,6 +13,8 @@ This guide shows how to configure different MCP clients to use **pptx-mcp**, a .
   - [Codeium / Windsurf](#codeium--windsurf)
 - [Command-Line / Custom Clients](#command-line--custom-clients)
 - [Local LLMs](#local-llms)
+- [Configuring Multiple MCPs](#configuring-multiple-mcps)
+- [Composition Tips](#composition-tips)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -335,6 +337,84 @@ env:     (no special environment variables required)
 
 ---
 
+## Configuring Multiple MCPs
+
+pptx-mcp is designed to be composed with other MCP servers. A common pattern is to pair it with a data source MCP so an AI agent can fetch live data and update slides in a single prompt — no glue code required.
+
+### Claude Desktop — multiple servers
+
+Add each server as a separate entry under `mcpServers`. Claude Desktop loads all configured servers at startup and makes all their tools available to the agent simultaneously:
+
+```json
+{
+  "mcpServers": {
+    "pptx-mcp": {
+      "command": "pptx-mcp"
+    },
+    "mock-data-mcp": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "/absolute/path/to/pptx-mcp/examples/mock-data-mcp",
+        "--configuration",
+        "Release"
+      ]
+    }
+  }
+}
+```
+
+### VS Code (Copilot) — multiple servers
+
+Add each server to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "pptx-mcp": {
+      "type": "stdio",
+      "command": "pptx-mcp"
+    },
+    "mock-data-mcp": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/examples/mock-data-mcp",
+        "--configuration",
+        "Release"
+      ]
+    }
+  }
+}
+```
+
+The agent sees tools from all configured servers and selects the right one based on each tool's description.
+
+See [docs/MULTI_SOURCE_COMPOSITION.md](MULTI_SOURCE_COMPOSITION.md) for full configuration examples and step-by-step walkthroughs, including the built-in [mock-data-mcp](../examples/mock-data-mcp/) server you can run locally without any API keys.
+
+---
+
+## Composition Tips
+
+These guidelines apply when pptx-mcp is used alongside other MCP servers:
+
+- **Inspect before writing.** Call `pptx_get_slide_content` on the target slide before making updates. This gives the agent the exact shape names and indices needed to target the right element, and avoids overwriting the wrong content.
+
+- **Prefer `pptx_update_slide_data` for named shapes.** When a shape has a descriptive name (visible as `Name` in `pptx_get_slide_content`), use `pptx_update_slide_data` with `shapeName`. It preserves the shape's existing formatting and is more resilient to deck layout changes than index-based addressing.
+
+- **Anchor updates to slide titles.** In agent prompts, say "update the slide titled 'KPI Summary'" rather than "update slide 3". Slide positions can shift as decks evolve; titles are stable.
+
+- **Be explicit about which server to use for each step.** Telling the agent "use `get_weekly_metrics` from mock-data-mcp, then update the deck using pptx-mcp" reduces ambiguity and prevents the agent from guessing which tool to invoke.
+
+- **Specify the update scope.** Clarify which placeholders to change and which to leave alone — for example, "update the body placeholder but keep the title unchanged". This prevents unintended overwrites.
+
+- **Use absolute paths.** Always pass absolute file paths to pptx-mcp tools. Relative paths resolve against the server's working directory, which may not be what you expect.
+
+---
+
 ## Troubleshooting
 
 ### `pptx-mcp` command not found
@@ -413,8 +493,10 @@ Once connected, the following MCP tools are available:
 | `pptx_get_slide_content` | Get structured content (shapes, text, positions) for a slide |
 | `pptx_get_slide_xml` | Get the raw XML of a slide (advanced) |
 | `pptx_add_slide` | Add a new slide with a specified layout |
-| `pptx_update_text` | Update the text of a placeholder on a slide |
+| `pptx_update_text` | Update the text of a placeholder on a slide by index |
 | `pptx_update_slide_data` | Update a named or indexed slide shape while preserving formatting |
 | `pptx_insert_image` | Insert an image onto a slide |
+| `pptx_extract_talking_points` | Extract ranked talking points from each slide |
+| `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
 A good first test after connecting is to call `pptx_list_slides` with a known `.pptx` file path. A successful response confirms the server is connected and operational.

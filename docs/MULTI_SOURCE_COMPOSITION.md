@@ -33,9 +33,11 @@ Multi-source composition is the practice of configuring an AI agent with two or 
         │ get_weekly_    │           │ pptx_get_slide_ │
         │ metrics        │           │   content       │
         │ get_team_      │           │ pptx_update_    │
-        │ updates        │           │   text          │
-        │ get_latest_    │           │ pptx_add_slide  │
-        │ blog_posts     │           │ pptx_insert_    │
+        │ updates        │           │   slide_data    │
+        │ get_latest_    │           │ pptx_update_    │
+        │ blog_posts     │           │   text          │
+        │                │           │ pptx_add_slide  │
+        │                │           │ pptx_insert_    │
         └────────────────┘           │   image         │
                                      └─────────────────┘
 ```
@@ -282,19 +284,19 @@ Response (excerpt):
 }
 ```
 
-**Step 5 — Update KPI placeholders with fresh data**
+**Step 5 — Update KPI shapes by name with fresh data**
 
-The agent makes one `pptx_update_text` call per placeholder:
+Because the KPI shapes have descriptive names (`ARR`, `MRR`, etc.), the agent can target them directly without relying on placeholder indices:
 
 ```json
 {
   "server": "pptx-mcp",
-  "name": "pptx_update_text",
+  "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
-    "slideIndex": 1,
-    "placeholderIndex": 1,
-    "text": "$19.6M ARR (+3.3%)"
+    "slideNumber": 2,
+    "shapeName": "ARR",
+    "newText": "$19.6M ARR (+3.3%)"
   }
 }
 ```
@@ -302,17 +304,19 @@ The agent makes one `pptx_update_text` call per placeholder:
 ```json
 {
   "server": "pptx-mcp",
-  "name": "pptx_update_text",
+  "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
-    "slideIndex": 1,
-    "placeholderIndex": 2,
-    "text": "$1.63M MRR"
+    "slideNumber": 2,
+    "shapeName": "MRR",
+    "newText": "$1.63M MRR"
   }
 }
 ```
 
 *(… repeated for NRR, New Logos, and Churn)*
+
+`pptx_update_slide_data` preserves the existing font, size, and colour of the target shape. Use `pptx_update_text` when the slide uses anonymous placeholders and you only have an index.
 
 **Step 6 — Update team updates slide**
 
@@ -321,12 +325,12 @@ After inspecting slide 2 with `pptx_get_slide_content`, the agent updates the bo
 ```json
 {
   "server": "pptx-mcp",
-  "name": "pptx_update_text",
+  "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
-    "slideIndex": 2,
-    "placeholderIndex": 1,
-    "text": "Engineering: on-track — shipped v3.4.0, latency down 12%\nSales: ahead — $2.1M pipeline, 46% win rate\nSupport: on-track — CSAT 4.6/5.0, 2h first response\nMarketing: on-track — 1,400 blog views, 330 webinar registrations"
+    "slideNumber": 3,
+    "shapeName": "Updates",
+    "newText": "Engineering: on-track — shipped v3.4.0, latency down 12%\nSales: ahead — $2.1M pipeline, 46% win rate\nSupport: on-track — CSAT 4.6/5.0, 2h first response\nMarketing: on-track — 1,400 blog views, 330 webinar registrations"
   }
 }
 ```
@@ -336,12 +340,12 @@ After inspecting slide 2 with `pptx_get_slide_content`, the agent updates the bo
 ```json
 {
   "server": "pptx-mcp",
-  "name": "pptx_update_text",
+  "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
-    "slideIndex": 0,
+    "slideNumber": 1,
     "placeholderIndex": 1,
-    "text": "Week of June 9–15, 2025"
+    "newText": "Week of June 9–15, 2025"
   }
 }
 ```
@@ -491,13 +495,19 @@ The agent decides which server to query at each step based on the task. MCP tool
 
 The pptx-mcp side of the workflow stays unchanged.
 
-### Using `pptx_update_text` vs. a future `pptx_update_slide_data`
+### Using `pptx_update_slide_data` vs. `pptx_update_text`
 
-The current examples use `pptx_update_text`, which updates one placeholder at a time. This works but requires:
-1. An inspection call (`pptx_get_slide_content`) to find placeholder indices
-2. One `pptx_update_text` call per value
+**Prefer `pptx_update_slide_data`** when shapes have descriptive names (visible in `pptx_get_slide_content` as the `Name` field). It targets shapes by name rather than by position, which is more robust if the deck layout changes. It also preserves existing font, size, and colour — the formatting stays exactly as designed.
 
-A future `pptx_update_slide_data` tool (Phase 2) will accept a data map and update all matching placeholders in a single call, streamlining the pattern for data-heavy slides.
+**Use `pptx_update_text`** when working with anonymous placeholders identified only by index, or when you do not need to preserve per-run formatting.
+
+Workflow comparison:
+
+| Scenario | Recommended tool |
+|---|---|
+| Named shape (`"ARR"`, `"Title 1"`, etc.) | `pptx_update_slide_data` with `shapeName` |
+| No shape name, index known | `pptx_update_slide_data` with `placeholderIndex` |
+| Bulk plain-text replace, formatting unimportant | `pptx_update_text` |
 
 ### Agent prompt design tips
 
