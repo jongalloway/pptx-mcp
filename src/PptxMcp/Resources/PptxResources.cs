@@ -27,6 +27,7 @@ public sealed class PptxResources
     public TextResourceContents GetSlides(string file)
     {
         var decodedPath = Uri.UnescapeDataString(file);
+        var canonicalFile = Uri.EscapeDataString(decodedPath);
         string json;
         if (!File.Exists(decodedPath))
         {
@@ -40,7 +41,7 @@ public sealed class PptxResources
         }
         return new TextResourceContents
         {
-            Uri = $"pptx://{file}/slides",
+            Uri = $"pptx://{canonicalFile}/slides",
             MimeType = "application/json",
             Text = json
         };
@@ -54,6 +55,7 @@ public sealed class PptxResources
     public TextResourceContents GetLayouts(string file)
     {
         var decodedPath = Uri.UnescapeDataString(file);
+        var canonicalFile = Uri.EscapeDataString(decodedPath);
         string json;
         if (!File.Exists(decodedPath))
         {
@@ -67,7 +69,7 @@ public sealed class PptxResources
         }
         return new TextResourceContents
         {
-            Uri = $"pptx://{file}/layouts",
+            Uri = $"pptx://{canonicalFile}/layouts",
             MimeType = "application/json",
             Text = json
         };
@@ -75,13 +77,15 @@ public sealed class PptxResources
 
     /// <summary>
     /// Browse a map of all named shapes across every slide in a PowerPoint presentation as a JSON resource.
-    /// Returns an object keyed by slide index, each containing an array of shapes with name, type,
-    /// placeholder type, and current text — useful for targeting shapes by name with pptx_update_slide_data.
+    /// Returns an object keyed by zero-based slide index (e.g. "0", "1"), each containing an array of shapes
+    /// with name, type, placeholder type, and current text — useful for targeting shapes by name with
+    /// pptx_update_slide_data.
     /// </summary>
     [McpServerResource(UriTemplate = "pptx://{file}/shape-map", Name = "shape-map", Title = "Shape Map", MimeType = "application/json")]
     public TextResourceContents GetShapeMap(string file)
     {
         var decodedPath = Uri.UnescapeDataString(file);
+        var canonicalFile = Uri.EscapeDataString(decodedPath);
         string json;
         if (!File.Exists(decodedPath))
         {
@@ -90,12 +94,11 @@ public sealed class PptxResources
         }
         else
         {
-            var slides = _service.GetSlides(decodedPath);
+            var allSlides = _service.GetAllSlideContents(decodedPath);
             var shapeMap = new Dictionary<string, object>();
-            for (int i = 0; i < slides.Count; i++)
+            for (int i = 0; i < allSlides.Count; i++)
             {
-                var content = _service.GetSlideContent(decodedPath, i);
-                shapeMap[$"slide{i}"] = content.Shapes.Select(s => new
+                shapeMap[$"{i}"] = allSlides[i].Shapes.Select(s => new
                 {
                     s.Name,
                     s.ShapeType,
@@ -108,7 +111,7 @@ public sealed class PptxResources
         }
         return new TextResourceContents
         {
-            Uri = $"pptx://{file}/shape-map",
+            Uri = $"pptx://{canonicalFile}/shape-map",
             MimeType = "application/json",
             Text = json
         };

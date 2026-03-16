@@ -80,7 +80,7 @@ Resources let agents browse presentation state without imperative tool calls. Ac
 |---|---|
 | `pptx://{file}/slides` | JSON array of all slides with index, title, notes, and placeholder count |
 | `pptx://{file}/layouts` | JSON array of available slide layouts with index and name |
-| `pptx://{file}/shape-map` | JSON object keyed by slide index, each containing all named shapes with type, placeholder type, and current text |
+| `pptx://{file}/shape-map` | JSON object keyed by zero-based slide index (e.g. `"0"`, `"1"`), each containing all named shapes with type, placeholder type, and current text |
 
 **Example:** To browse slide content in `/home/user/deck.pptx`, access `pptx://%2Fhome%2Fuser%2Fdeck.pptx/slides` (file path URL-encoded).
 
@@ -93,15 +93,15 @@ Prompts are reusable workflow templates that give agents a structured starting p
 | Prompt | What it does |
 |---|---|
 | `refresh-qbr-deck` | Step-by-step workflow for refreshing a QBR deck with live metrics from a data source |
-| `create-agenda-slide` | Adds an agenda slide listing current slide titles, inserted at a configurable position |
+| `create-agenda-slide` | Adds an agenda slide listing current slide titles at the end of the deck |
 | `replace-kpi-placeholders` | Finds all placeholder tokens (e.g. `{{KPI_NAME}}`, `[VALUE]`, `TBD`) and replaces them with real values |
 
 ### Completions
 
 pptx-mcp supports argument auto-completion for:
-- **`layoutName`** — autocompletes layout names from the actual presentation file (requires `file` context argument)
-- **`shapeName`** — autocompletes shape names across all slides (requires `file` context argument)  
-- **`placeholderPattern`** — suggests standard OpenXML placeholder type names (`title`, `body`, `ctrTitle`, etc.)
+- **`layoutName`** — autocompletes layout names from the actual presentation file (requires `file` or `filePath` context argument)
+- **`shapeName`** — autocompletes shape names across all slides in a single file pass (requires `file` or `filePath` context argument)  
+- **`placeholderType`** — suggests standard OpenXML placeholder type names (`title`, `body`, `ctrTitle`, etc.)
 
 **Limitations:** pptx-mcp updates text content and inserts images. It does not create charts, modify slide master/theme styles, or reorder slides. Complex layout changes should be done in PowerPoint directly.
 

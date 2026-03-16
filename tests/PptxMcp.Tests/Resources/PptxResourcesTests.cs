@@ -143,11 +143,13 @@ public class PptxResourcesTests : IDisposable
     }
 
     [Fact]
-    public void GetLayouts_UriIncludesEncodedFile()
+    public void GetLayouts_UriEndsWithLayouts()
     {
         var path = CreateTempPptx();
-        var result = _resources.GetLayouts(path);
+        var encoded = Uri.EscapeDataString(path);
+        var result = _resources.GetLayouts(encoded);
 
+        Assert.Contains(encoded, result.Uri);
         Assert.EndsWith("/layouts", result.Uri);
     }
 
@@ -181,7 +183,7 @@ public class PptxResourcesTests : IDisposable
 
         var doc = JsonDocument.Parse(result.Text!);
         Assert.Equal(JsonValueKind.Object, doc.RootElement.ValueKind);
-        Assert.True(doc.RootElement.TryGetProperty("slide0", out _));
+        Assert.True(doc.RootElement.TryGetProperty("0", out _));
     }
 
     [Fact]
@@ -199,7 +201,7 @@ public class PptxResourcesTests : IDisposable
 
         var result = _resources.GetShapeMap(path);
         var doc = JsonDocument.Parse(result.Text!);
-        var shapes = doc.RootElement.GetProperty("slide0");
+        var shapes = doc.RootElement.GetProperty("0");
 
         var hasKpiShape = false;
         foreach (var shape in shapes.EnumerateArray())
@@ -225,11 +227,13 @@ public class PptxResourcesTests : IDisposable
     }
 
     [Fact]
-    public void GetShapeMap_UriIncludesEncodedFile()
+    public void GetShapeMap_UriEndsWithShapeMap()
     {
         var path = CreateTempPptx();
-        var result = _resources.GetShapeMap(path);
+        var encoded = Uri.EscapeDataString(path);
+        var result = _resources.GetShapeMap(encoded);
 
+        Assert.Contains(encoded, result.Uri);
         Assert.EndsWith("/shape-map", result.Uri);
     }
 }

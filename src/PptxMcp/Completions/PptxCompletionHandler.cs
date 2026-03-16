@@ -43,7 +43,10 @@ public static class PptxCompletionHandler
     /// </summary>
     /// <param name="argumentName">Name of the argument being completed.</param>
     /// <param name="partialValue">Current partial value entered by the user.</param>
-    /// <param name="contextArgs">Previously resolved template/prompt arguments (may include "file" or "filePath").</param>
+    /// <param name="contextArgs">
+    /// Previously resolved template/prompt arguments. May contain a "file" key (from resource
+    /// template variables) or a "filePath" key (from prompt arguments) with the path to the .pptx file.
+    /// </param>
     /// <param name="service">Optional <see cref="PresentationService"/> for live data lookups.</param>
     public static CompleteResult GetCompletions(
         string? argumentName,
@@ -54,8 +57,8 @@ public static class PptxCompletionHandler
         if (argumentName is null)
             return EmptyResult();
 
-        // Completions for placeholder types (used in prompts describing KPI patterns)
-        if (argumentName.Equals("placeholderPattern", StringComparison.OrdinalIgnoreCase))
+        // Completions for OpenXML placeholder type names (e.g. title, body, ctrTitle)
+        if (argumentName.Equals("placeholderType", StringComparison.OrdinalIgnoreCase))
             return FilterCompletions(KnownPlaceholderTypes, partialValue);
 
         // Completions for layout names and shape names require a file path.
@@ -99,14 +102,11 @@ public static class PptxCompletionHandler
 
             try
             {
-                var slides = service.GetSlides(resolvedFilePath);
-                var allShapeNames = new List<string>();
-                for (int i = 0; i < slides.Count; i++)
-                {
-                    var content = service.GetSlideContent(resolvedFilePath, i);
-                    allShapeNames.AddRange(content.Shapes.Select(s => s.Name));
-                }
-                var uniqueNames = allShapeNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                var allSlides = service.GetAllSlideContents(resolvedFilePath);
+                var uniqueNames = allSlides
+                    .SelectMany(s => s.Shapes.Select(sh => sh.Name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
                 return FilterCompletions(uniqueNames, partialValue);
             }
             catch

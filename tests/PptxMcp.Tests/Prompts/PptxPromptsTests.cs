@@ -90,19 +90,11 @@ public class PptxPromptsTests
     }
 
     [Fact]
-    public void CreateAgendaSlide_DefaultsToInsertAfterSlide1()
+    public void CreateAgendaSlide_DescribesAppendBehavior()
     {
         var messages = _prompts.CreateAgendaSlide("/deck.pptx").ToList();
         var text = GetMessageText(messages[0]);
-        Assert.Contains("after slide 1", text);
-    }
-
-    [Fact]
-    public void CreateAgendaSlide_CustomInsertAfterSlide()
-    {
-        var messages = _prompts.CreateAgendaSlide("/deck.pptx", insertAfterSlide: 3).ToList();
-        var text = GetMessageText(messages[0]);
-        Assert.Contains("after slide 3", text);
+        Assert.Contains("end of the deck", text);
     }
 
     [Fact]

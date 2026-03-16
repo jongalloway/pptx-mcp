@@ -48,37 +48,37 @@ public class PptxCompletionHandlerTests : IDisposable
         Assert.Empty(result.Completion.Values);
     }
 
-    // --- PlaceholderPattern completions ---
+    // --- PlaceholderType completions ---
 
     [Fact]
-    public void GetCompletions_PlaceholderPattern_EmptyPartial_ReturnsAllTypes()
+    public void GetCompletions_PlaceholderType_EmptyPartial_ReturnsAllTypes()
     {
-        var result = Invoke("placeholderPattern");
+        var result = Invoke("placeholderType");
         Assert.NotEmpty(result.Completion.Values);
         Assert.Contains("title", result.Completion.Values);
         Assert.Contains("body", result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_PlaceholderPattern_PartialTitle_FiltersCorrectly()
+    public void GetCompletions_PlaceholderType_PartialTitle_FiltersCorrectly()
     {
-        var result = Invoke("placeholderPattern", "ti");
+        var result = Invoke("placeholderType", "ti");
         Assert.All(result.Completion.Values,
             v => Assert.StartsWith("ti", v, StringComparison.OrdinalIgnoreCase));
         Assert.Contains("title", result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_PlaceholderPattern_NonMatchingPartial_ReturnsEmpty()
+    public void GetCompletions_PlaceholderType_NonMatchingPartial_ReturnsEmpty()
     {
-        var result = Invoke("placeholderPattern", "zzz");
+        var result = Invoke("placeholderType", "zzz");
         Assert.Empty(result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_PlaceholderPattern_CaseInsensitive()
+    public void GetCompletions_PlaceholderType_CaseInsensitive()
     {
-        var result = Invoke("placeholderPattern", "TITLE");
+        var result = Invoke("placeholderType", "TITLE");
         Assert.Contains("title", result.Completion.Values);
     }
 
@@ -277,14 +277,14 @@ public class PptxCompletionHandlerTests : IDisposable
     [Fact]
     public void GetCompletions_Result_HasCorrectTotalCount()
     {
-        var result = Invoke("placeholderPattern");
+        var result = Invoke("placeholderType");
         Assert.Equal(result.Completion.Values.Count, result.Completion.Total);
     }
 
     [Fact]
     public void GetCompletions_Result_HasMoreIsFalse()
     {
-        var result = Invoke("placeholderPattern");
+        var result = Invoke("placeholderType");
         Assert.False(result.Completion.HasMore);
     }
 }
