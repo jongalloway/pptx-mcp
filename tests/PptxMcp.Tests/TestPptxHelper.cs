@@ -83,6 +83,9 @@ internal static class TestPptxHelper
             slidePart.AddPart(slideLayoutPart);
             slidePart.Slide = BuildSlide(slidePart, slideDefinition);
 
+            if (!string.IsNullOrWhiteSpace(slideDefinition.SpeakerNotesText))
+                AddSpeakerNotes(slidePart, slideDefinition.SpeakerNotesText!);
+
             slideIdList.Append(new SlideId
             {
                 Id = nextSlideId++,
@@ -191,6 +194,38 @@ internal static class TestPptxHelper
 
         return slide;
     }
+
+    private static void AddSpeakerNotes(SlidePart slidePart, string speakerNotesText)
+    {
+        var notesSlidePart = slidePart.AddNewPart<NotesSlidePart>();
+        notesSlidePart.NotesSlide = new NotesSlide(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1, Name = string.Empty },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(new A.TransformGroup()),
+                    CreateSpeakerNotesShape(speakerNotesText))),
+            new ColorMapOverride(new A.MasterColorMapping()));
+        notesSlidePart.AddPart(slidePart);
+        notesSlidePart.NotesSlide.Save();
+    }
+
+    private static Shape CreateSpeakerNotesShape(string speakerNotesText) =>
+        new(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = 2U, Name = "Notes Placeholder 2" },
+                new P.NonVisualShapeDrawingProperties(),
+                new ApplicationNonVisualDrawingProperties(
+                    new PlaceholderShape { Type = PlaceholderValues.Body, Index = 1U })),
+            new ShapeProperties(),
+            new TextBody(
+                new A.BodyProperties(),
+                new A.ListStyle(),
+                new A.Paragraph(
+                    new A.Run(new A.Text(speakerNotesText)),
+                    new A.EndParagraphRunProperties())));
 
     private static Shape CreateTextShape(
         uint shapeId,
@@ -307,6 +342,8 @@ internal static class TestPptxHelper
 internal sealed class TestSlideDefinition
 {
     public string? TitleText { get; init; }
+
+    public string? SpeakerNotesText { get; init; }
 
     public IReadOnlyList<TestTextShapeDefinition> TextShapes { get; init; } = [];
 

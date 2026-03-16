@@ -23,4 +23,9 @@
 - Timeline: Phase 2 estimated 3–4 weeks after Phase 1 stabilization
 - Test approach: Use TestPptxHelper.cs fixtures for realistic metric slides and multi-source composition patterns
 
+### Phase 1 E2E Coverage Added (2026-03-16)
+- TestPptxHelper now supports real speaker notes via `SpeakerNotesText`, so fixtures can validate note-aware scenarios without checking in binary decks.
+- Phase 1 E2E coverage uses three generated presentations: product-update, visual-edge-cases, and unicode/localization.
+- Both `pptx_extract_talking_points` and `pptx_export_markdown` are now exercised against multi-slide decks with bullets, tables, images, empty slides, image-only slides, Unicode text, and speaker notes that must stay out of Phase 1 outputs.
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
