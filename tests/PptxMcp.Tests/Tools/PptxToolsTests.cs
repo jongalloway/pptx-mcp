@@ -1,3 +1,7 @@
+using System.Text.Json;
+using DocumentFormat.OpenXml.Presentation;
+using PptxMcp.Models;
+
 namespace PptxMcp.Tests.Tools;
 
 public class PptxToolsTests : IDisposable
@@ -13,15 +17,23 @@ public class PptxToolsTests : IDisposable
 
     public void Dispose()
     {
-        foreach (var f in _tempFiles)
-            if (File.Exists(f)) File.Delete(f);
+        foreach (var file in _tempFiles)
+            if (File.Exists(file)) File.Delete(file);
     }
 
     private string CreateTempPptx()
     {
-        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
         _tempFiles.Add(path);
         TestPptxHelper.CreateMinimalPresentation(path, "Test Slide");
+        return path;
+    }
+
+    private string CreateCustomPptx(params TestSlideDefinition[] slides)
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        _tempFiles.Add(path);
+        TestPptxHelper.CreatePresentation(path, slides);
         return path;
     }
 
@@ -36,7 +48,7 @@ public class PptxToolsTests : IDisposable
     [Fact]
     public async Task pptx_list_slides_FileNotFound_ReturnsError()
     {
-        var result = await _tools.pptx_list_slides("/nonexistent/path/file.pptx");
+        var result = await _tools.pptx_list_slides("C:\\does-not-exist\\file.pptx");
         Assert.StartsWith("Error:", result);
     }
 
@@ -51,7 +63,7 @@ public class PptxToolsTests : IDisposable
     [Fact]
     public async Task pptx_list_layouts_FileNotFound_ReturnsError()
     {
-        var result = await _tools.pptx_list_layouts("/nonexistent/path/file.pptx");
+        var result = await _tools.pptx_list_layouts("C:\\does-not-exist\\file.pptx");
         Assert.StartsWith("Error:", result);
     }
 
@@ -83,7 +95,7 @@ public class PptxToolsTests : IDisposable
     public async Task pptx_insert_image_FileNotFound_ReturnsError()
     {
         var path = CreateTempPptx();
-        var result = await _tools.pptx_insert_image(path, 0, "/nonexistent/image.png");
+        var result = await _tools.pptx_insert_image(path, 0, "C:\\does-not-exist\\image.png");
         Assert.StartsWith("Error:", result);
     }
 
@@ -107,7 +119,7 @@ public class PptxToolsTests : IDisposable
     [Fact]
     public async Task pptx_get_slide_content_FileNotFound_ReturnsError()
     {
-        var result = await _tools.pptx_get_slide_content("/nonexistent/path/file.pptx", 0);
+        var result = await _tools.pptx_get_slide_content("C:\\does-not-exist\\file.pptx", 0);
         Assert.StartsWith("Error:", result);
     }
 
@@ -117,5 +129,89 @@ public class PptxToolsTests : IDisposable
         var path = CreateTempPptx();
         var result = await _tools.pptx_get_slide_content(path, 0);
         Assert.Contains("Text", result);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_ReturnsStructuredJson()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Launch Review",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Launch completed in 3 regions",
+                            "Error rate dropped below 1%"
+                        ]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_extract_talking_points(path, 2);
+        var talkingPoints = JsonSerializer.Deserialize<List<SlideTalkingPoints>>(result);
+
+        Assert.NotNull(talkingPoints);
+        Assert.Single(talkingPoints);
+        Assert.Equal(0, talkingPoints[0].SlideIndex);
+        Assert.Equal(
+            [
+                "Launch completed in 3 regions",
+                "Error rate dropped below 1%"
+            ],
+            talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_DefaultsToFivePointsPerSlide()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Point 1 has enough detail",
+                            "Point 2 has enough detail",
+                            "Point 3 has enough detail",
+                            "Point 4 has enough detail",
+                            "Point 5 has enough detail",
+                            "Point 6 has enough detail"
+                        ]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_extract_talking_points(path);
+        var talkingPoints = JsonSerializer.Deserialize<List<SlideTalkingPoints>>(result);
+
+        Assert.NotNull(talkingPoints);
+        Assert.Equal(5, talkingPoints[0].Points.Count);
+        Assert.DoesNotContain("Point 6 has enough detail", talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_InvalidTopN_ReturnsError()
+    {
+        var path = CreateTempPptx();
+        var result = await _tools.pptx_extract_talking_points(path, 0);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_FileNotFound_ReturnsError()
+    {
+        var result = await _tools.pptx_extract_talking_points("C:\\does-not-exist\\file.pptx");
+        Assert.StartsWith("Error:", result);
     }
 }

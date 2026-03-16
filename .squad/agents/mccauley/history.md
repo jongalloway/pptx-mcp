@@ -45,3 +45,11 @@
 - **Key decision:** Installation section notes future NuGet publishing; docs are future-proof
 - **No hard dependencies** between docs; can be done in parallel. Will grow richer as Phase 1 tools complete
 - Decision document written to `.squad/decisions/inbox/mccauley-phase1-documentation-issues.md`
+### Phase 2 Decomposition (2026-03-16)
+- Decomposed Phase 2 ("Content Writing & Intelligent Updates") into 5 GitHub issues (#15–#19)
+- **Core tool work:** Issue #19 (cheritto) implements `pptx_update_slide_data` tool for data-driven slide updates (Goal 2A)
+- **Testing:** Issue #17 (shiherlis) validates pptx_update_slide_data with real metric slides; Issue #15 (shiherlis) validates multi-source E2E scenario (Goal 2B)
+- **Docs & examples:** Issue #18 (copilot) designs composition pattern demo; Issue #16 (copilot) updates all documentation
+- **Dependency chain:** #19 → #17 → #15 + #18 → #16 (docs closes last)
+- All issues routed to appropriate team members; all assigned to "Phase 2 — Content Writing & Updates" milestone
+- Non-duplication verified: Phase 1 issues #6–#14 are independent; no overlap with Phase 2
