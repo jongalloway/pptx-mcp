@@ -2,6 +2,37 @@
 
 ## Active Decisions
 
+### Copilot PR Review Directive (2026-03-16)
+**By:** Jon (user directive)
+**Status:** Active
+
+All PRs created by squad members must request review from Copilot. Use `--reviewer copilot` on `gh pr create` calls.
+
+### Ralph: Copilot Branch → PR Detection (2026-03-16)
+**By:** Jon (user directive)
+**Status:** Active
+
+During Ralph's work-check cycle (Step 1 scan), Ralph must check for `copilot/*` remote branches that do **not** have a corresponding open PR. GitHub's @copilot coding agent may complete work and push to `copilot/*` branches without creating PRs.
+
+**Detection:**
+```bash
+# Fetch latest remote state
+git fetch --all --prune
+
+# List copilot/* remote branches
+git branch -r --list 'origin/copilot/*'
+
+# Cross-reference against open PRs
+gh pr list --state open --json headRefName --jq '.[].headRefName'
+```
+
+Any `copilot/*` branch not in the open PR list → create a PR:
+- Match the branch to an issue (check branch name slug against issue titles/numbers)
+- `gh pr create --base main --head {branch} --title "{issue title}" --body "Closes #{issue_number}"`
+- Log the PR creation in Ralph's status report
+
+**Priority:** Run this check in every Ralph cycle alongside the existing issue/PR scans.
+
 ### Phase 2 Decomposition (2026-03-16)
 **Lead:** McCauley  
 **Status:** Approved
