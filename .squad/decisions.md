@@ -312,6 +312,63 @@ Both McCauley and Nate contributed: McCauley on feature ranking and product visi
 
 ---
 
+### Batch Update Semantics for Issue #34 (2026-03-17)
+
+**Lead:** Cheritto (implementation), Nate (research)  
+**Status:** Complete
+
+#### Decision
+- `pptx_batch_update` reuses the existing `pptx_update_slide_data` shape-resolution and formatting-preservation path for each mutation
+- Batch execution keeps successful mutations even if later mutations fail; no rollback of prior successes
+- Service opens the `.pptx` once, applies all mutations in memory, then saves each touched slide part once at the end
+
+#### Rationale
+Aligns batch behavior with single-update tool while avoiding repeated open/save cycles. Gives agents deterministic per-mutation recovery details without sacrificing performance or PowerPoint compatibility.
+
+---
+
+### Batch Processing Patterns Research (2026-03-17)
+
+**Lead:** Nate (Consulting Dev)  
+**Status:** Complete
+
+#### Research Scope
+Investigated `IProgress<ProgressNotificationValue>` pattern from dotnet-mcp and batch/error-handling strategies from MarpToPptx to inform Cheritto's #34 implementation.
+
+#### Key Findings
+
+1. **dotnet-mcp Progress Pattern:**
+   - `ExecuteWithProgress()` helper provides real-time progress reporting via MCP notifications
+   - Pattern: report at start (Progress=0, Total=items), update per-item, report at completion (Progress=Total) even if operation throws
+   - Null-safe: `IProgress<T>?` parameter is optional
+   - **Critical insight:** Progress is orthogonal to error handling—it reports *state*, not *outcomes*
+
+2. **MarpToPptx Batch Strategy:**
+   - Stop-on-first-error (fail-fast)
+   - One bad slide aborts entire render
+   - No per-item result tracking
+   - Rationale: PPTX atomicity (partial files can't be opened by PowerPoint)
+   - Compensates with context-rich exception wrapping (slide index + operation in message)
+
+3. **Recommended for #34 (Hybrid Pattern):**
+   - Real-time progress via `IProgress<ProgressNotificationValue>?` parameter
+   - Per-slide result objects with success/failure/message
+   - Atomic PPTX file write (all or nothing)
+   - Exception wrapping for context
+   - Tool can decide fail-on-first vs. collect-all-errors semantics
+
+#### MCP Convention Alignment
+- MCP SDK already defines `ProgressNotificationValue { Progress, Total, Message }` record
+- Use `[McpServerTool]` attribute, nullable IProgress parameter, structured JSON result
+- Follows dotnet-mcp patterns exactly
+
+#### Implementation Delivered
+- Cheritto implemented per research guidance
+- PR #44 merged; production-ready verdict
+- 170/170 tests passing
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

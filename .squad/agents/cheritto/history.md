@@ -68,3 +68,12 @@
 - `src/PptxMcp/Services/PresentationService.cs` batches named text mutations through one `PresentationDocument` open/save cycle, reuses the `UpdateSlideData` targeting/formatting path, and saves each touched slide once after processing the whole batch.
 - Batch request/result contracts live in `src/PptxMcp/Models/BatchUpdateMutation.cs`, `BatchUpdateMutationResult.cs`, and `BatchUpdateResult.cs`.
 - Compatibility validation for batch refresh now lives in `tests/PptxMcp.Tests/Services/BatchUpdateTests.cs`, which compares post-update `OpenXmlValidator` output against the baseline deck in addition to opening the file successfully.
+
+### Round 1: Issue #34 (pptx_batch_update) Completion (2026-03-16T22:36Z)
+- Implemented full `pptx_batch_update` tool per Phase 3 planning (#34)
+- Strategy: single open/save cycle, reuses `UpdateSlideData` path, per-mutation result tracking
+- Key design: successful mutations preserved even if later mutations fail (no rollback)
+- Tests: +78 test cases (170/170 passing); compatibility validation via OpenXmlValidator + PowerPoint round-trip
+- PR #44 merged after Nate code review (production-ready verdict)
+- Code: +609 lines across 11 files
+- Impact: Batch operations now unblock multi-slide workflows without repeated disk I/O; Phase 3 #34 complete

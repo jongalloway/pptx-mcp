@@ -42,6 +42,25 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-03-17: Batch Patterns Research — Issue #34 Support
+
+**Research Scope:** Investigated `IProgress<ProgressNotificationValue>` pattern from dotnet-mcp and batch/error-handling strategies from MarpToPptx to inform Cheritto's #34 implementation (batch slide update tool).
+
+**Key Findings:**
+- **dotnet-mcp Progress Pattern:** `ExecuteWithProgress()` helper (private method in DotNetCliTools.Core.cs) provides real-time progress reporting via MCP notifications. Pattern: report at start (Progress=0, Total=items), update per-item, report at completion (Progress=Total) even if operation throws. Null-safe (`IProgress<T>?` parameter is optional). **Critical insight:** Progress is orthogonal to error handling—it reports *state*, not *outcomes*.
+- **MarpToPptx Batch Strategy:** Stop-on-first-error (fail-fast). One bad slide aborts entire render. No per-item result tracking. Rationale: PPTX atomicity (partial files can't be opened by PowerPoint). Compensates with context-rich exception wrapping (slide index + operation in message).
+- **Recommended for #34:** Hybrid pattern combining both: (1) Real-time progress via `IProgress<ProgressNotificationValue>?` parameter, (2) Per-slide result objects with success/failure/message, (3) Atomic PPTX file write (all or nothing), (4) Exception wrapping for context. Tool can decide fail-on-first vs. collect-all-errors semantics in the finally block.
+- **MCP Convention Alignment:** MCP SDK already defines `ProgressNotificationValue { Progress, Total, Message }` record. Use `[McpServerTool]` attribute, nullable IProgress parameter, structured JSON result.
+
+**Deliverable:** Comprehensive pattern guide written to `.squad/decisions/inbox/nate-batch-patterns.md` with concrete code templates, comparison table, and implementation checklist for Cheritto.
+
+**Impact:** Unblocks #34 design phase; Cheritto has battle-tested patterns from two shipped reference projects ready to adopt.
+
+**File Paths:**
+- dotnet-mcp: `DotNetMcp/Tools/Cli/DotNetCliTools.Core.cs` (~line 178) — ExecuteWithProgress helper
+- MarpToPptx: `src/MarpToPptx.Cli/Program.cs` — CLI error handling; `src/MarpToPptx.Pptx/Rendering/OpenXmlPptxRenderer.cs` — batch slide loop (referenced)
+- Research output: `.squad/decisions/inbox/nate-batch-patterns.md` — full pattern guide
+
 ### 2026-03-16: Phase 3 Reference Repo Research
 - MarpToPptx already has strong prior art for template-aware slide creation, named layout selection, placeholder inheritance, picture-placeholder image insertion, native tables, media embedding, notes writing, transitions, backgrounds, captions, accessibility text, and remote asset resolution.
 - The best MarpToPptx transplant for pptx-mcp is not basic slide/image insertion (pptx-mcp already has that now), but **template-aware authoring** built around placeholder identity (`type` + `idx`) and layout/master inheritance.
@@ -70,3 +89,13 @@
 - **Phase 2 completion:** All 5 issues (#15–#19) closed, PRs #29–#33 merged, 66/66 tests passing
 - **Risk assessment:** All low-risk; recommendations are polish, not blockers
 - **Verdict:** Production-ready. Code quality rivals reference projects (dotnet-mcp, MarpToPptx)
+
+### Round 1: Batch Patterns Research — Issue #34 Support (2026-03-16T22:36Z)
+- Researched `IProgress<ProgressNotificationValue>` pattern from dotnet-mcp and batch/error-handling strategies from MarpToPptx
+- Key finding: Progress is orthogonal to error handling; patterns from both repos are complementary
+- dotnet-mcp: Real-time progress reporting with optional `IProgress<T>?` parameter; pattern: report at start (0), per-item, completion (even on throw)
+- MarpToPptx: Stop-on-first-error with atomic file writes and context-rich exceptions (slide index + operation)
+- Recommended hybrid for #34: Progress notifications + per-slide result objects + atomic PPTX save + exception wrapping
+- Deliverable: Comprehensive pattern guide (merged to decisions.md) with code templates, comparison table, implementation checklist
+- Code review: Approved Cheritto's PR #44 as production-ready (MCP SDK patterns match dotnet-mcp exactly)
+- Impact: Cheritto had battle-tested patterns from two shipped reference projects ready to adopt; team aligned on batch semantics before implementation
