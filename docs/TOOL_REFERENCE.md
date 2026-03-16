@@ -7,6 +7,8 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 ## Table of Contents
 
 - [pptx_add_slide](#pptx_add_slide)
+- [pptx_export_markdown](#pptx_export_markdown)
+- [pptx_extract_talking_points](#pptx_extract_talking_points)
 - [pptx_get_slide_content](#pptx_get_slide_content)
 - [pptx_get_slide_xml](#pptx_get_slide_xml)
 - [pptx_insert_image](#pptx_insert_image)
@@ -90,7 +92,166 @@ Slide added successfully at index 5.
 
 ---
 
-## pptx_get_slide_content
+## pptx_export_markdown
+
+**Description:** Export a PowerPoint presentation to a structured markdown file. Slide titles become headings, bullet paragraphs become list items, tables become markdown tables, and embedded images are saved to a sibling `{name}_images/` directory with relative references in the markdown.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `outputPath` | string | ❌ Optional | Output path for the `.md` file. Defaults to the presentation path with a `.md` extension. |
+
+### Returns
+
+The generated markdown content as a string. The markdown is also written to the output file.
+
+On error:
+```
+Error: File not found: /path/to/presentation.pptx
+```
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_export_markdown",
+  "arguments": {
+    "filePath": "/presentations/onboarding-engineering.pptx",
+    "outputPath": "/docs/onboarding-engineering.md"
+  }
+}
+```
+
+**Response (markdown string):**
+```markdown
+# Engineering Onboarding
+
+---
+<!-- Slide 0 -->
+
+## Welcome to the Team
+
+Welcome to the engineering team. This guide walks you through your first week
+setup and key processes.
+
+---
+<!-- Slide 1 -->
+
+## Development Environment Setup
+
+- Install .NET 10 SDK
+- Clone the repository: `git clone https://github.com/org/repo`
+- Run `dotnet build` to verify setup
+- Run `dotnet test` to confirm all tests pass
+
+---
+<!-- Slide 2 -->
+
+## Code Review Process
+
+| Step | Owner | SLA |
+|------|-------|-----|
+| Open PR | Author | — |
+| Review assigned | Tech lead | 1 business day |
+| Approval + merge | Reviewer | 2 business days |
+```
+
+**Request (default output path — saves `onboarding-engineering.md` next to the .pptx):**
+```json
+{
+  "name": "pptx_export_markdown",
+  "arguments": {
+    "filePath": "/presentations/onboarding-engineering.pptx"
+  }
+}
+```
+
+---
+
+## pptx_extract_talking_points
+
+**Description:** Extract the highest-signal talking points from each slide in a presentation. The tool prioritizes body text and bullet-like content, filters common noise (formatting-only text, presenter notes labels), and returns up to the requested number of points per slide.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `topN` | integer | ❌ Optional | Maximum number of talking points to return per slide. Defaults to `5`. Must be greater than zero. |
+
+### Returns
+
+A JSON array of slide objects. Each object contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `SlideIndex` | integer | Zero-based slide index. |
+| `Title` | string \| null | Slide title, if present. |
+| `Points` | string[] | Ranked talking point strings (up to `topN`). |
+
+On error:
+```
+Error: File not found: /path/to/presentation.pptx
+```
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_extract_talking_points",
+  "arguments": {
+    "filePath": "/presentations/q2-product-review.pptx",
+    "topN": 3
+  }
+}
+```
+
+**Response:**
+```json
+[
+  {
+    "SlideIndex": 0,
+    "Title": "Q2 Product Review",
+    "Points": []
+  },
+  {
+    "SlideIndex": 1,
+    "Title": "Revenue Highlights",
+    "Points": [
+      "Q2 ARR up 18% YoY",
+      "EMEA region grew 34%",
+      "Net Revenue Retention: 112%"
+    ]
+  },
+  {
+    "SlideIndex": 2,
+    "Title": "Roadmap Preview",
+    "Points": [
+      "GA release: Q3 2025",
+      "New integrations: Slack, Teams, Notion",
+      "Mobile app entering beta"
+    ]
+  }
+]
+```
+
+**Request (use default topN = 5):**
+```json
+{
+  "name": "pptx_extract_talking_points",
+  "arguments": {
+    "filePath": "/presentations/q2-product-review.pptx"
+  }
+}
+```
+
+---
+
+
 
 **Description:** Get structured content from a slide: all shapes with their type, position, size, and text. Returns a JSON object with slide dimensions and a shapes array. Prefer this over `pptx_get_slide_xml` when you need to read or reason about slide content.
 
@@ -487,11 +648,3 @@ Error: File not found: /path/to/presentation.pptx
 Placeholder 0 on slide 0 updated successfully.
 ```
 
----
-
-## Planned Tools
-
-The following tools are planned for Phase 1 and will be added to this reference once implemented:
-
-- **`pptx_extract_talking_points`** — Extract key talking points from one or more slides.
-- **`pptx_export_markdown`** — Export presentation content to structured markdown.

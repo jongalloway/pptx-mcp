@@ -64,6 +64,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_add_slide` | Add a new slide using a named layout |
 | `pptx_update_text` | Update text in a placeholder on a slide |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
+| `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
+| `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)
 
@@ -72,15 +74,15 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 ## Use Cases
 
 **Meeting Prep Assistant**
-Ask your AI assistant to read your keynote deck, pull out the key talking points per slide, and give you a quick summary before you walk into the room.
+Ask your AI assistant to read your keynote deck, pull out the key talking points per slide, and give you a quick summary before you walk into the room. Use `pptx_extract_talking_points` to get ranked, noise-filtered bullet points from every slide in a single call.
+
+**Documentation Generator**
+Export a training presentation to markdown for your knowledge base. Use `pptx_export_markdown` to convert the whole deck—headings, bullets, tables, and image references—to a structured `.md` file in one step. Keep the deck as the source of truth; let the agent keep the docs in sync.
 
 **Data Dashboard Updater**
 Connect pptx-mcp with a data source MCP. Your agent fetches today's KPIs and updates the metrics slide automatically—no manual editing needed.
 
-**Documentation Generator**
-Export a training presentation to markdown for your knowledge base. Keep the deck as the source of truth; let the agent keep the docs in sync.
-
-More examples and sample prompts are coming to `docs/examples/` as Phase 1 tools land.
+See [docs/EXAMPLES.md](docs/EXAMPLES.md) for complete agent prompts and sample tool call sequences for each scenario.
 
 ---
 
