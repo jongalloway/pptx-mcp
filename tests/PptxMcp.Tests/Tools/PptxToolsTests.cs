@@ -88,4 +88,36 @@ public class PptxToolsTests : IDisposable
         var result = await _tools.pptx_insert_image(path, 0, "/nonexistent/image.png");
         Assert.StartsWith("Error:", result);
     }
+
+    [Fact]
+    public async Task pptx_get_slide_content_ReturnsJson()
+    {
+        var path = CreateTempPptx();
+        var result = await _tools.pptx_get_slide_content(path, 0);
+        Assert.Contains("SlideIndex", result);
+        Assert.Contains("Shapes", result);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_content_ContainsTitleText()
+    {
+        var path = CreateTempPptx();
+        var result = await _tools.pptx_get_slide_content(path, 0);
+        Assert.Contains("Test Slide", result);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_content_FileNotFound_ReturnsError()
+    {
+        var result = await _tools.pptx_get_slide_content("/nonexistent/path/file.pptx", 0);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_content_ContainsShapeType()
+    {
+        var path = CreateTempPptx();
+        var result = await _tools.pptx_get_slide_content(path, 0);
+        Assert.Contains("Text", result);
+    }
 }

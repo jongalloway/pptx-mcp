@@ -26,6 +26,9 @@ public class PresentationService
     public Task<string> GetSlideXmlAsync(string filePath, int slideIndex) =>
         Task.Run(() => GetSlideXml(filePath, slideIndex));
 
+    public Task<SlideContent> GetSlideContentAsync(string filePath, int slideIndex) =>
+        Task.Run(() => GetSlideContent(filePath, slideIndex));
+
     private IReadOnlyList<SlideInfo> GetSlides(string filePath)
     {
         using var doc = PresentationDocument.Open(filePath, false);
@@ -283,4 +286,186 @@ public class PresentationService
             ".bmp" => ImagePartType.Bmp,
             _ => ImagePartType.Png
         };
+
+    private SlideContent GetSlideContent(string filePath, int slideIndex)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var presentationPart = doc.PresentationPart!;
+        var slidePart = GetSlidePart(doc, slideIndex);
+
+        // Slide dimensions from the presentation-level SlideSize element
+        var slideSize = presentationPart.Presentation.SlideSize;
+        long slideWidth = slideSize?.Cx?.Value ?? 9144000;
+        long slideHeight = slideSize?.Cy?.Value ?? 6858000;
+
+        var shapes = new List<ShapeContent>();
+        var shapeTree = slidePart.Slide.CommonSlideData?.ShapeTree;
+        if (shapeTree is not null)
+        {
+            foreach (var element in shapeTree.ChildElements)
+            {
+                var shape = ExtractShape(element);
+                if (shape is not null)
+                    shapes.Add(shape);
+            }
+        }
+
+        return new SlideContent(slideIndex, slideWidth, slideHeight, shapes);
+    }
+
+    private static ShapeContent? ExtractShape(DocumentFormat.OpenXml.OpenXmlElement element)
+    {
+        return element switch
+        {
+            Shape s => ExtractTextShape(s),
+            Picture p => ExtractPicture(p),
+            P.GraphicFrame gf => ExtractGraphicFrame(gf),
+            P.GroupShape gs => ExtractGroupShape(gs),
+            P.ConnectionShape cs => ExtractConnectionShape(cs),
+            _ => null
+        };
+    }
+
+    private static ShapeContent ExtractTextShape(Shape shape)
+    {
+        var nvProps = shape.NonVisualShapeProperties;
+        var drawingProps = nvProps?.NonVisualDrawingProperties;
+        var appProps = nvProps?.ApplicationNonVisualDrawingProperties;
+        var ph = appProps?.PlaceholderShape;
+        var xfrm = shape.ShapeProperties?.Transform2D;
+
+        var paragraphs = new List<string>();
+        if (shape.TextBody is not null)
+        {
+            foreach (var para in shape.TextBody.Elements<A.Paragraph>())
+                paragraphs.Add(para.InnerText);
+        }
+
+        return new ShapeContent(
+            ShapeId: drawingProps?.Id?.Value,
+            Name: drawingProps?.Name?.Value ?? "",
+            ShapeType: "Text",
+            X: xfrm?.Offset?.X?.Value,
+            Y: xfrm?.Offset?.Y?.Value,
+            Width: xfrm?.Extents?.Cx?.Value,
+            Height: xfrm?.Extents?.Cy?.Value,
+            IsPlaceholder: ph is not null,
+            PlaceholderType: ph?.Type?.Value.ToString(),
+            PlaceholderIndex: ph?.Index?.Value,
+            Text: paragraphs.Count > 0 ? string.Join("\n", paragraphs) : null,
+            Paragraphs: paragraphs.Count > 0 ? paragraphs : null,
+            TableRows: null);
+    }
+
+    private static ShapeContent ExtractPicture(Picture picture)
+    {
+        var nvProps = picture.NonVisualPictureProperties;
+        var drawingProps = nvProps?.NonVisualDrawingProperties;
+        var xfrm = picture.ShapeProperties?.Transform2D;
+
+        return new ShapeContent(
+            ShapeId: drawingProps?.Id?.Value,
+            Name: drawingProps?.Name?.Value ?? "",
+            ShapeType: "Picture",
+            X: xfrm?.Offset?.X?.Value,
+            Y: xfrm?.Offset?.Y?.Value,
+            Width: xfrm?.Extents?.Cx?.Value,
+            Height: xfrm?.Extents?.Cy?.Value,
+            IsPlaceholder: false,
+            PlaceholderType: null,
+            PlaceholderIndex: null,
+            Text: null,
+            Paragraphs: null,
+            TableRows: null);
+    }
+
+    private static ShapeContent ExtractGraphicFrame(P.GraphicFrame frame)
+    {
+        var nvProps = frame.NonVisualGraphicFrameProperties;
+        var drawingProps = nvProps?.NonVisualDrawingProperties;
+        var xfrm = frame.Transform;
+
+        // Try to extract table content
+        IReadOnlyList<IReadOnlyList<string>>? tableRows = null;
+        var graphic = frame.Graphic;
+        var graphicData = graphic?.GraphicData;
+        if (graphicData is not null)
+        {
+            var table = graphicData.GetFirstChild<A.Table>();
+            if (table is not null)
+                tableRows = ExtractTableRows(table);
+        }
+
+        return new ShapeContent(
+            ShapeId: drawingProps?.Id?.Value,
+            Name: drawingProps?.Name?.Value ?? "",
+            ShapeType: tableRows is not null ? "Table" : "GraphicFrame",
+            X: xfrm?.Offset?.X?.Value,
+            Y: xfrm?.Offset?.Y?.Value,
+            Width: xfrm?.Extents?.Cx?.Value,
+            Height: xfrm?.Extents?.Cy?.Value,
+            IsPlaceholder: false,
+            PlaceholderType: null,
+            PlaceholderIndex: null,
+            Text: null,
+            Paragraphs: null,
+            TableRows: tableRows);
+    }
+
+    private static IReadOnlyList<IReadOnlyList<string>> ExtractTableRows(A.Table table)
+    {
+        var rows = new List<IReadOnlyList<string>>();
+        foreach (var row in table.Elements<A.TableRow>())
+        {
+            var cells = new List<string>();
+            foreach (var cell in row.Elements<A.TableCell>())
+                cells.Add(cell.InnerText);
+            rows.Add(cells);
+        }
+        return rows;
+    }
+
+    private static ShapeContent ExtractGroupShape(P.GroupShape group)
+    {
+        var nvProps = group.NonVisualGroupShapeProperties;
+        var drawingProps = nvProps?.NonVisualDrawingProperties;
+        var xfrm = group.GroupShapeProperties?.TransformGroup;
+
+        return new ShapeContent(
+            ShapeId: drawingProps?.Id?.Value,
+            Name: drawingProps?.Name?.Value ?? "",
+            ShapeType: "Group",
+            X: xfrm?.Offset?.X?.Value,
+            Y: xfrm?.Offset?.Y?.Value,
+            Width: xfrm?.Extents?.Cx?.Value,
+            Height: xfrm?.Extents?.Cy?.Value,
+            IsPlaceholder: false,
+            PlaceholderType: null,
+            PlaceholderIndex: null,
+            Text: null,
+            Paragraphs: null,
+            TableRows: null);
+    }
+
+    private static ShapeContent ExtractConnectionShape(P.ConnectionShape connector)
+    {
+        var nvProps = connector.NonVisualConnectionShapeProperties;
+        var drawingProps = nvProps?.NonVisualDrawingProperties;
+        var xfrm = connector.ShapeProperties?.Transform2D;
+
+        return new ShapeContent(
+            ShapeId: drawingProps?.Id?.Value,
+            Name: drawingProps?.Name?.Value ?? "",
+            ShapeType: "Connector",
+            X: xfrm?.Offset?.X?.Value,
+            Y: xfrm?.Offset?.Y?.Value,
+            Width: xfrm?.Extents?.Cx?.Value,
+            Height: xfrm?.Extents?.Cy?.Value,
+            IsPlaceholder: false,
+            PlaceholderType: null,
+            PlaceholderIndex: null,
+            Text: null,
+            Paragraphs: null,
+            TableRows: null);
+    }
 }

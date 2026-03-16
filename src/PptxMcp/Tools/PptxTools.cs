@@ -140,4 +140,29 @@ public sealed class PptxTools
             return $"Error: {ex.Message}";
         }
     }
+
+    /// <summary>
+    /// Get structured content from a slide: all shapes with their type, position, size, and text.
+    /// Returns a JSON object with slide dimensions and a shapes array. Each shape includes:
+    /// ShapeType (Text, Picture, Table, Group, Connector, GraphicFrame), Name, position/size in EMUs,
+    /// placeholder metadata when applicable, paragraph-level text for text shapes, and row/cell text for tables.
+    /// Prefer this over pptx_get_slide_xml when you need to read or reason about slide content.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideIndex">Zero-based index of the slide.</param>
+    [McpServerTool(Title = "Get Slide Content", ReadOnly = true, Idempotent = true)]
+    public async Task<string> pptx_get_slide_content(string filePath, int slideIndex)
+    {
+        if (!File.Exists(filePath))
+            return $"Error: File not found: {filePath}";
+        try
+        {
+            var content = await _service.GetSlideContentAsync(filePath, slideIndex);
+            return JsonSerializer.Serialize(content, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+    }
 }

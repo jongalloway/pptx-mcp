@@ -108,4 +108,67 @@ public class PresentationServiceTests : IDisposable
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             _service.GetSlideXmlAsync(path, 99));
     }
+
+    [Fact]
+    public async Task GetSlideContentAsync_ReturnsSlideIndex()
+    {
+        var path = CreateTempPptx();
+        var content = await _service.GetSlideContentAsync(path, 0);
+        Assert.Equal(0, content.SlideIndex);
+    }
+
+    [Fact]
+    public async Task GetSlideContentAsync_ReturnsSlideDimensions()
+    {
+        var path = CreateTempPptx();
+        var content = await _service.GetSlideContentAsync(path, 0);
+        Assert.True(content.SlideWidthEmu > 0);
+        Assert.True(content.SlideHeightEmu > 0);
+    }
+
+    [Fact]
+    public async Task GetSlideContentAsync_ReturnsShapes()
+    {
+        var path = CreateTempPptx();
+        var content = await _service.GetSlideContentAsync(path, 0);
+        Assert.NotEmpty(content.Shapes);
+    }
+
+    [Fact]
+    public async Task GetSlideContentAsync_TitleShapeHasText()
+    {
+        var path = CreateTempPptx("My Title");
+        var content = await _service.GetSlideContentAsync(path, 0);
+        var titleShape = content.Shapes.FirstOrDefault(s => s.IsPlaceholder);
+        Assert.NotNull(titleShape);
+        Assert.Equal("My Title", titleShape.Text);
+    }
+
+    [Fact]
+    public async Task GetSlideContentAsync_TitleShapeIsTextType()
+    {
+        var path = CreateTempPptx();
+        var content = await _service.GetSlideContentAsync(path, 0);
+        var titleShape = content.Shapes.FirstOrDefault(s => s.IsPlaceholder);
+        Assert.NotNull(titleShape);
+        Assert.Equal("Text", titleShape.ShapeType);
+    }
+
+    [Fact]
+    public async Task GetSlideContentAsync_TitleShapeHasPlaceholderType()
+    {
+        var path = CreateTempPptx();
+        var content = await _service.GetSlideContentAsync(path, 0);
+        var titleShape = content.Shapes.FirstOrDefault(s => s.IsPlaceholder);
+        Assert.NotNull(titleShape);
+        Assert.NotNull(titleShape.PlaceholderType);
+    }
+
+    [Fact]
+    public async Task GetSlideContentAsync_OutOfRange_ThrowsException()
+    {
+        var path = CreateTempPptx();
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            _service.GetSlideContentAsync(path, 99));
+    }
 }
