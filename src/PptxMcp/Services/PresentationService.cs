@@ -70,7 +70,12 @@ public class PresentationService
             var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
             if (ph is not null && ph.Type?.Value == PlaceholderValues.Body)
             {
-                var text = shape.TextBody?.InnerText;
+                var paraTexts = shape.TextBody?
+                    .Elements<A.Paragraph>()
+                    .Select(p => p.InnerText)
+                    .ToList();
+                if (paraTexts is not { Count: > 0 }) return null;
+                var text = string.Join("\n", paraTexts);
                 return string.IsNullOrEmpty(text) ? null : text;
             }
         }
@@ -249,6 +254,8 @@ public class PresentationService
         }
         else
         {
+            if (slidePart.NotesSlidePart.NotesMasterPart is null)
+                slidePart.NotesSlidePart.AddPart(notesMasterPart);
             if (append)
             {
                 var existing = GetSlideNotes(slidePart) ?? string.Empty;
@@ -313,13 +320,15 @@ public class PresentationService
     private static void UpdateNotesSlideContent(NotesSlidePart notesSlidePart, string[] paragraphs)
     {
         var notesSlide = notesSlidePart.NotesSlide;
-        foreach (var shape in notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>())
+        var shapeTree = notesSlide.CommonSlideData!.ShapeTree!;
+        foreach (var shape in shapeTree.Elements<Shape>())
         {
             var ph = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape;
             if (ph is not null && ph.Type?.Value == PlaceholderValues.Body)
             {
-                var textBody = shape.TextBody;
-                if (textBody is null) break;
+                if (shape.TextBody is null)
+                    shape.Append(new TextBody(new A.BodyProperties(), new A.ListStyle()));
+                var textBody = shape.TextBody!;
                 foreach (var para in textBody.Elements<A.Paragraph>().ToList())
                     para.Remove();
                 foreach (var line in paragraphs)
@@ -330,6 +339,9 @@ public class PresentationService
                 return;
             }
         }
+        // Body placeholder not found — add one to make the write reliable
+        shapeTree.Append(BuildNotesBodyShape(paragraphs));
+        notesSlide.Save();
     }
 
     private static Shape BuildNotesBodyShape(string[] paragraphs)

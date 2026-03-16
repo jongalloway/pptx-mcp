@@ -547,6 +547,39 @@ public class PresentationServiceTests : IDisposable
     }
 
     [Fact]
+    public void WriteNotes_AppendToMultiParagraphNotes_PreservesParagraphBoundaries()
+    {
+        // Existing notes have two paragraphs; append should not collapse them into one blob
+        var path = CreateTempPptx();
+        _service.WriteNotes(path, 0, "Para one\nPara two");
+        _service.WriteNotes(path, 0, "Para three", append: true);
+        var slides = _service.GetSlides(path);
+        Assert.NotNull(slides[0].Notes);
+        Assert.Contains("Para one", slides[0].Notes);
+        Assert.Contains("Para two", slides[0].Notes);
+        Assert.Contains("Para three", slides[0].Notes);
+        // All three should be distinct — the round-trip via GetSlideNotes must preserve \n
+        var parts = slides[0].Notes!.Split('\n');
+        Assert.Equal(3, parts.Length);
+    }
+
+    [Fact]
+    public void WriteNotes_ExistingNotesSlidePart_LinksNotesMasterPart()
+    {
+        var path = CreateCustomPptx(new TestSlideDefinition
+        {
+            TitleText = "Slide",
+            SpeakerNotesText = "Original"
+        });
+        _service.WriteNotes(path, 0, "Updated");
+        using var doc = PresentationDocument.Open(path, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList!;
+        var slidePart = (SlidePart)doc.PresentationPart.GetPartById(
+            slideIdList.Elements<SlideId>().First().RelationshipId!.Value!);
+        Assert.NotNull(slidePart.NotesSlidePart!.NotesMasterPart);
+    }
+
+    [Fact]
     public void WriteNotes_OutOfRangeSlideIndex_Throws()
     {
         var path = CreateTempPptx();
