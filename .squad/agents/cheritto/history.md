@@ -20,3 +20,9 @@
 - All issues reference docs/PRD.md for success criteria alignment
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Markdown Export Tool (2026-03-16)
+- `pptx_export_markdown` should keep tool logic thin and delegate markdown generation to `PresentationService.ExportMarkdown(...)`.
+- Phase 1 markdown export excludes speaker notes even though notes are available elsewhere in `PresentationService`.
+- Exported images belong in a sibling `<markdown-file>_images` folder and markdown should reference them with relative forward-slash paths for portability.
+- Realistic PPTX fixtures need explicit paragraph/table/image construction in `TestPptxHelper` to validate nested bullets, tables, and embedded media.
