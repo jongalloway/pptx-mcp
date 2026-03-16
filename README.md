@@ -67,6 +67,10 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_update_text` | Update text in a placeholder on a slide by index |
 | `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for data-driven updates |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
+| `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
+| `pptx_move_slide` | Move a slide to a different position |
+| `pptx_delete_slide` | Remove a slide by its 1-based slide number |
+| `pptx_reorder_slides` | Batch reorder all slides by providing the new sequence |
 | `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
@@ -103,7 +107,7 @@ pptx-mcp supports argument auto-completion for:
 - **`shapeName`** — autocompletes shape names across all slides in a single file pass (requires `file` or `filePath` context argument)  
 - **`placeholderType`** — suggests standard OpenXML placeholder type names (`title`, `body`, `ctrTitle`, etc.)
 
-**Limitations:** pptx-mcp updates text content and inserts images. It does not create charts, modify slide master/theme styles, or reorder slides. Complex layout changes should be done in PowerPoint directly.
+**Limitations:** pptx-mcp updates text content and inserts images. It does not create charts or modify slide master/theme styles. Complex layout changes should be done in PowerPoint directly.
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)
 

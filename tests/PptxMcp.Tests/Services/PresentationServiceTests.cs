@@ -472,4 +472,117 @@ public class PresentationServiceTests : IDisposable
             talkingPoints[1].Points);
         Assert.Empty(talkingPoints[2].Points);
     }
+
+    [Fact]
+    public void WriteNotes_CreatesNotesOnSlideWithoutExistingNotes()
+    {
+        var path = CreateTempPptx();
+        _service.WriteNotes(path, 0, "Source: https://example.com");
+        var slides = _service.GetSlides(path);
+        Assert.Equal("Source: https://example.com", slides[0].Notes);
+    }
+
+    [Fact]
+    public void WriteNotes_ReplacesExistingNotes()
+    {
+        var path = CreateCustomPptx(new TestSlideDefinition
+        {
+            TitleText = "Slide",
+            SpeakerNotesText = "Old notes"
+        });
+        _service.WriteNotes(path, 0, "New notes");
+        var slides = _service.GetSlides(path);
+        Assert.Equal("New notes", slides[0].Notes);
+    }
+
+    [Fact]
+    public void WriteNotes_AppendToExistingNotes()
+    {
+        var path = CreateCustomPptx(new TestSlideDefinition
+        {
+            TitleText = "Slide",
+            SpeakerNotesText = "First"
+        });
+        _service.WriteNotes(path, 0, "Second", append: true);
+        var slides = _service.GetSlides(path);
+        Assert.NotNull(slides[0].Notes);
+        Assert.Contains("First", slides[0].Notes);
+        Assert.Contains("Second", slides[0].Notes);
+    }
+
+    [Fact]
+    public void WriteNotes_AppendToEmptyNotes_SetsNotesWithoutLeadingNewline()
+    {
+        var path = CreateTempPptx();
+        _service.WriteNotes(path, 0, "Only note", append: true);
+        var slides = _service.GetSlides(path);
+        Assert.NotNull(slides[0].Notes);
+        Assert.Contains("Only note", slides[0].Notes);
+    }
+
+    [Fact]
+    public void WriteNotes_MultiParagraph_PreservesAllParagraphs()
+    {
+        var path = CreateTempPptx();
+        _service.WriteNotes(path, 0, "Line one\nLine two\nLine three");
+        using var doc = PresentationDocument.Open(path, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList!;
+        var slidePart = (SlidePart)doc.PresentationPart.GetPartById(
+            slideIdList.Elements<SlideId>().First().RelationshipId!.Value!);
+        var notesSlide = slidePart.NotesSlidePart!.NotesSlide;
+        var bodyShape = notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>()
+            .First(s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?
+                .PlaceholderShape?.Type?.Value == PlaceholderValues.Body);
+        var paragraphs = bodyShape.TextBody!.Elements<A.Paragraph>().ToList();
+        Assert.Equal(3, paragraphs.Count);
+    }
+
+    [Fact]
+    public void WriteNotes_CreatesNotesMasterPartWhenMissing()
+    {
+        var path = CreateTempPptx();
+        _service.WriteNotes(path, 0, "Verify master");
+        using var doc = PresentationDocument.Open(path, false);
+        Assert.NotNull(doc.PresentationPart!.NotesMasterPart);
+    }
+
+    [Fact]
+    public void WriteNotes_AppendToMultiParagraphNotes_PreservesParagraphBoundaries()
+    {
+        // Existing notes have two paragraphs; append should not collapse them into one blob
+        var path = CreateTempPptx();
+        _service.WriteNotes(path, 0, "Para one\nPara two");
+        _service.WriteNotes(path, 0, "Para three", append: true);
+        var slides = _service.GetSlides(path);
+        Assert.NotNull(slides[0].Notes);
+        Assert.Contains("Para one", slides[0].Notes);
+        Assert.Contains("Para two", slides[0].Notes);
+        Assert.Contains("Para three", slides[0].Notes);
+        // All three should be distinct — the round-trip via GetSlideNotes must preserve \n
+        var parts = slides[0].Notes!.Split('\n');
+        Assert.Equal(3, parts.Length);
+    }
+
+    [Fact]
+    public void WriteNotes_ExistingNotesSlidePart_LinksNotesMasterPart()
+    {
+        var path = CreateCustomPptx(new TestSlideDefinition
+        {
+            TitleText = "Slide",
+            SpeakerNotesText = "Original"
+        });
+        _service.WriteNotes(path, 0, "Updated");
+        using var doc = PresentationDocument.Open(path, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList!;
+        var slidePart = (SlidePart)doc.PresentationPart.GetPartById(
+            slideIdList.Elements<SlideId>().First().RelationshipId!.Value!);
+        Assert.NotNull(slidePart.NotesSlidePart!.NotesMasterPart);
+    }
+
+    [Fact]
+    public void WriteNotes_OutOfRangeSlideIndex_Throws()
+    {
+        var path = CreateTempPptx();
+        Assert.Throws<ArgumentOutOfRangeException>(() => _service.WriteNotes(path, 99, "notes"));
+    }
 }
