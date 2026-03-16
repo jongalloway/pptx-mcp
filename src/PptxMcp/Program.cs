@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PptxMcp.Completions;
+using PptxMcp.Prompts;
+using PptxMcp.Resources;
 using PptxMcp.Services;
 using PptxMcp.Tools;
 
@@ -25,6 +28,9 @@ builder.Services.AddMcpServer(options =>
     };
 })
 .WithStdioServerTransport()
-.WithTools<PptxTools>();
+.WithTools<PptxTools>()
+.WithResources<PptxResources>()
+.WithPrompts<PptxPrompts>()
+.WithCompleteHandler(PptxCompletionHandler.HandleAsync);
 
 await builder.Build().RunAsync();

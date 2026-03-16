@@ -55,6 +55,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 
 ## What You Can Do
 
+### Tools
+
 | Tool | What it does |
 |---|---|
 | `pptx_list_slides` | List all slides with metadata |
@@ -69,6 +71,37 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
 **When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
+
+### Resources
+
+Resources let agents browse presentation state without imperative tool calls. Access them using URIs of the form `pptx://{file}/{resource}` where `{file}` is the URL-encoded absolute path to the `.pptx` file.
+
+| Resource URI | What it returns |
+|---|---|
+| `pptx://{file}/slides` | JSON array of all slides with index, title, notes, and placeholder count |
+| `pptx://{file}/layouts` | JSON array of available slide layouts with index and name |
+| `pptx://{file}/shape-map` | JSON object keyed by slide index, each containing all named shapes with type, placeholder type, and current text |
+
+**Example:** To browse slide content in `/home/user/deck.pptx`, access `pptx://%2Fhome%2Fuser%2Fdeck.pptx/slides` (file path URL-encoded).
+
+The `shape-map` resource is especially useful for discovering shape names before calling `pptx_update_slide_data`.
+
+### Prompts
+
+Prompts are reusable workflow templates that give agents a structured starting point for common tasks.
+
+| Prompt | What it does |
+|---|---|
+| `refresh-qbr-deck` | Step-by-step workflow for refreshing a QBR deck with live metrics from a data source |
+| `create-agenda-slide` | Adds an agenda slide listing current slide titles, inserted at a configurable position |
+| `replace-kpi-placeholders` | Finds all placeholder tokens (e.g. `{{KPI_NAME}}`, `[VALUE]`, `TBD`) and replaces them with real values |
+
+### Completions
+
+pptx-mcp supports argument auto-completion for:
+- **`layoutName`** — autocompletes layout names from the actual presentation file (requires `file` context argument)
+- **`shapeName`** — autocompletes shape names across all slides (requires `file` context argument)  
+- **`placeholderPattern`** — suggests standard OpenXML placeholder type names (`title`, `body`, `ctrTitle`, etc.)
 
 **Limitations:** pptx-mcp updates text content and inserts images. It does not create charts, modify slide master/theme styles, or reorder slides. Complex layout changes should be done in PowerPoint directly.
 
@@ -85,7 +118,7 @@ Ask your AI assistant to read your keynote deck, pull out the key talking points
 Export a training presentation to markdown for your knowledge base. Use `pptx_export_markdown` to convert the whole deck—headings, bullets, tables, and image references—to a structured `.md` file in one step. Keep the deck as the source of truth; let the agent keep the docs in sync.
 
 **Data Dashboard Updater**
-Connect pptx-mcp with a data source MCP. Your agent fetches today's KPIs and updates the metrics slide automatically—no manual editing needed. See the [multi-source composition guide](docs/MULTI_SOURCE_COMPOSITION.md) and the included [mock-data-mcp example](examples/mock-data-mcp/) to run it locally.
+Connect pptx-mcp with a data source MCP. Your agent fetches today's KPIs and updates the metrics slide automatically—no manual editing needed. Use the `refresh-qbr-deck` prompt to guide the workflow, or browse the `pptx://{file}/shape-map` resource first to discover shape names. See the [multi-source composition guide](docs/MULTI_SOURCE_COMPOSITION.md) and the included [mock-data-mcp example](examples/mock-data-mcp/) to run it locally.
 
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for complete agent prompts and sample tool call sequences for each scenario.
 
