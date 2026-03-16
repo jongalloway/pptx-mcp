@@ -72,6 +72,51 @@ Created GitHub issue structure for Phase 1 ("Content Reading & Extraction") PRD.
 
 **Rationale:** User request — captured for team memory
 
+---
+
+### Phase 1 Documentation Issues (2026-03-17)
+
+**Lead:** McCauley  
+**Status:** Active
+
+#### Summary
+Created 5 user-facing documentation issues to support Phase 1 launch. These address Jon's request to establish a problem-centric README plus essential docs for end users integrating pptx-mcp into their MCP clients. All assigned to @copilot; no hard dependencies between issues.
+
+#### Issues Created
+
+All assigned to @copilot (Coding Agent), Phase 1 milestone, labels: `documentation`, `phase-1`, `squad`, `squad:copilot`:
+
+- **#10 — Rewrite README:** Problem statement + quick install + capabilities + use cases
+- **#11 — TOOL_REFERENCE.md:** Complete alphabetical tool reference with parameters, returns, and JSON examples
+- **#12 — QUICKSTART.md:** Zero-to-working guide (prerequisites, install, MCP config, first command, troubleshooting)
+- **#13 — CLIENT_SETUP.md:** Step-by-step client configuration (Claude Desktop, VS Code, CLI, local LLMs)
+- **#14 — EXAMPLES.md:** 2–4 real use case walkthroughs with agent prompts and tool workflows
+
+#### Squad Assignment Rationale
+- **@copilot** → All 5 documentation issues
+- **Rationale:** Copilot charter: small features with clear specs, autonomous work
+- **Parallel execution:** No blocking dependencies; all can proceed simultaneously
+- **Allows Cheritto & Shiherlis** to work on #6, #7, #8 without waiting for docs
+
+#### Scope Decisions
+1. **User-facing only** — No internal architecture, dev guides, or decision docs
+2. **Shareable with external teams** — Docs should be linkable to outsiders
+3. **Future-proofed** — Installation section notes future NuGet publishing
+4. **Runnable examples** — All JSON examples testable, not aspirational
+
+#### Dependencies & Ordering
+No hard dependencies; soft ordering for coherence:
+1. README (#10) — foundation; can deepen as Phase 1 tools land
+2. QUICKSTART (#12) — parallel with README
+3. CLIENT_SETUP (#13) — parallel; setup guidance
+4. TOOL_REFERENCE (#11) — parallel; reference all 7 current tools (will expand)
+5. EXAMPLES (#14) — parallel; grows richer with Phase 1 tools
+
+#### Future Updates
+- **When Phase 1 tools complete (#6, #7):** Add to TOOL_REFERENCE and EXAMPLES, highlight in README
+- **When NuGet publishing set up:** Update QUICKSTART install section
+- **When new clients tested:** Expand CLIENT_SETUP
+
 ## Governance
 
 - All meaningful changes require team consensus

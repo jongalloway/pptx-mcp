@@ -32,3 +32,16 @@
 - Dependency chain: #6 & #7 independent, #8 depends on both, #9 depends on both
 - Decision document written to `.squad/decisions/inbox/mccauley-prd-phase1-issues.md`
 - All issues reference PRD success criteria and use acceptance checklists for clarity
+
+### Phase 1 Documentation Strategy (2026-03-17)
+- Jon requested README rewrite and user-facing docs creation
+- Created 5 new documentation issues, all Phase 1 milestone, assigned to @copilot:
+  - **#10:** README rewrite — problem-centric structure (WHY + HOW + capabilities + use cases)
+  - **#11:** TOOL_REFERENCE.md — comprehensive tool reference with JSON examples
+  - **#12:** QUICKSTART.md — zero-to-working guide for new users
+  - **#13:** CLIENT_SETUP.md — MCP client configuration (Claude Desktop, VS Code, CLI, local LLMs)
+  - **#14:** EXAMPLES.md — real use case walkthroughs with agent prompts and tool workflows
+- **Scope clarity:** Documentation is user-facing only (no internal architecture or decision docs)
+- **Key decision:** Installation section notes future NuGet publishing; docs are future-proof
+- **No hard dependencies** between docs; can be done in parallel. Will grow richer as Phase 1 tools complete
+- Decision document written to `.squad/decisions/inbox/mccauley-phase1-documentation-issues.md`
