@@ -251,6 +251,67 @@ Proactively bring Nate in for research and code review when his expertise (OpenX
 
 **Applied in Phase 2:** Code review feedback logged above.
 
+### Phase 3 Planning (2026-03-17)
+
+**Lead:** McCauley & Nate  
+**Status:** Complete
+
+7 features ranked for Phase 3 ("Deck Authoring & Refresh"). Ranked by ROI, complexity, and sequencing based on McCauley's product thinking and Nate's prior-art research from MarpToPptx and dotnet-mcp.
+
+#### McCauley's Phase 3 Call
+
+Phase 3 should move pptx-mcp from "good at updating existing text" to "capable of authoring and refreshing whole decks inside a user's template." The highest-value work collapses multi-call agent workflows, stays inside PowerPoint compatibility lines, and makes multi-source composition feel like a first-class pattern.
+
+#### Ranked Features
+
+1. **Transactional batch deck refresh** (M) — Apply many mutations across multiple slides in one open/save cycle. Biggest multiplier for multi-source composition. Ownership: Cheritto (impl), Shiherlis (E2E), @copilot (docs)
+2. **Template-aware slide duplication and layout population** (L) — Duplicate slides and populate placeholders by semantic identity (title/body/picture). Step from "edit current deck" to "author new slides." Ownership: Cheritto (impl), Nate (prior-art guidance), Shiherlis (round-trip), @copilot (examples)
+3. **Table insert/update tools** (M) — Native table writing (cell ranges, row append/remove). Reuses MarpToPptx GraphicFrame + A.Table patterns. Ownership: Cheritto, Nate (review), Shiherlis, @copilot
+4. **Picture-placeholder aware image replacement** (M) — Populate/replace images by placeholder or shape name instead of raw EMU coordinates. Ownership: Cheritto, Nate (placeholder guidance), Shiherlis (PowerPoint validation), @copilot (examples)
+5. **Speaker notes and source-trace writing** (M) — Write notes with citations/URLs/assumptions. Makes multi-source composition auditable. Ownership: Cheritto, Nate (package plumbing), Shiherlis (round-trip), @copilot (workflow docs)
+6. **Existing-chart data refresh** (L) — Update chart data while preserving type/styling. Scope cut: refresh only, not full authoring. Ownership: Cheritto (spike + impl), Nate (research), Shiherlis (PowerPoint validation), @copilot (docs)
+7. **Slide organization operations** (M) — Move, reorder, delete to assemble clean final deck. Ownership: Cheritto, Shiherlis (E2E), @copilot (docs)
+
+#### Scope Cuts
+
+- Do not make full theme/master editing a Phase 3 goal. Use existing layouts and template slides instead.
+- Do not promise net-new chart authoring in Phase 3. If chart work ships, keep it scoped to updating existing charts only.
+
+#### Nate's Research (MarpToPptx & dotnet-mcp)
+
+**From MarpToPptx:**
+- Template-aware slide creation with placeholder resolution and layout/master inheritance is feasible (Medium complexity, High feasibility). Reuse SlideTemplateSelector pattern.
+- Picture-placeholder image insertion is proven (Medium complexity, High feasibility). Reuse AddImageIntoPicturePlaceholder pattern.
+- Native table authoring via GraphicFrame + A.Table is proven (Medium complexity, High feasibility). Reuse AddTable/CreateTableCell patterns.
+- Speaker notes writing via notes-master creation is proven (Medium complexity, High feasibility). Reuse AddNotesSlide/EnsureNotesMasterPart pattern.
+- Embedded video/audio is proven but more delicate (Medium-High complexity, Medium feasibility).
+- Mermaid/diagram insertion via SVG + blips is proven but requires new dependencies (High complexity, Medium feasibility).
+- Chart authoring is NOT proven in MarpToPptx; would be net-new design work (High complexity, Unknown feasibility).
+
+**From dotnet-mcp:**
+- Prompts, resources, completions, progress notifications, async task-store, and telemetry filters are available patterns. Not required for Phase 3 core work but improve agent UX afterward.
+
+#### Recommended Sequencing
+
+1. Batch refresh (multiplier for multi-source composition)
+2. Template-aware authoring (unlocks slide creation with fidelity)
+3. Tables (read/write parity for data-driven decks)
+4. Picture placeholders (template-compatible image placement)
+5. Speaker notes (auditability + composition workflow polish)
+6. Chart refresh (already-designed charts only)
+7. Slide organization (cleanup after generation/duplication)
+Then: MCP UX improvements (resources/prompts/completions), media embedding, Mermaid insertion.
+
+#### GitHub Issues
+
+Created 7 issues (#34–#40) under "Phase 3: Deck Authoring" milestone with `phase-3` label. No Phase 3 work should begin until Phase 2 is fully stable (all tests passing, PRs merged).
+
+#### Decision: Phase 3 Partner Pattern
+
+Both McCauley and Nate contributed: McCauley on feature ranking and product vision, Nate on prior-art research and feasibility validation. This pattern worked well (aligned on sequencing, caught gotchas). Continue this for major architectural decisions.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
