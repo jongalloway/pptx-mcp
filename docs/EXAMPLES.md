@@ -9,7 +9,7 @@ Real-world use case walkthroughs showing how to use pptx-mcp with AI agents.
 1. [Meeting Prep Assistant](#1-meeting-prep-assistant)
 2. [Documentation Generator](#2-documentation-generator)
 3. [Research Synthesis Tool](#3-research-synthesis-tool)
-4. [Data Dashboard Updater *(Coming in Phase 2)*](#4-data-dashboard-updater-coming-in-phase-2)
+4. [Data Dashboard Updater](#4-data-dashboard-updater)
 
 ---
 
@@ -328,13 +328,13 @@ Agent-synthesized research brief:
 
 ---
 
-## 4. Data Dashboard Updater *(Coming in Phase 2)*
+## 4. Data Dashboard Updater
 
 ### Scenario
 
 Your team has a weekly board presentation with a metrics slide. Instead of manually updating KPI values each Monday morning, an AI agent fetches the latest numbers from your data source and updates the relevant slides automatically.
 
-### Agent Prompt *(Planned)*
+### Agent Prompt
 
 ```
 Fetch today's KPIs from our dashboard MCP server.
@@ -342,22 +342,21 @@ Then update the metrics slide (slide 3) in /presentations/weekly-board-update.pp
 with the new values: ARR, MRR, NRR, and new logo count.
 ```
 
-### Tool Workflow *(Planned)*
+### Tool Workflow
 
 1. **External MCP call** — Agent fetches live data from a dashboard or database MCP server.
 2. **`pptx_list_slides`** — Identify which slide contains the metrics table.
 3. **`pptx_get_slide_content`** — Inspect current placeholder structure and shape positions.
-4. **`pptx_update_slide_data`** *(Phase 2)* — Update specific data fields in the slide with fresh values.
+4. **`pptx_update_slide_data`** — Update specific data fields in the slide with fresh values by shape name or fallback index.
 5. **`pptx_update_text`** — Update the "Last Updated" date stamp on the slide.
 
 ### Status
 
-> **⚠️ Coming in Phase 2.** The `pptx_update_slide_data` tool is not yet implemented. The current `pptx_update_text` tool can update individual text placeholders by index today — see the [tool reference](../README.md) for details.
+`pptx_update_slide_data` is now available for targeted metric updates. The recommended flow is to inspect the slide with `pptx_get_slide_content`, then update each metric shape by name so formatting stays intact.
 
-Phase 2 will add:
-- `pptx_update_slide_data` — structured field updates driven by a data map
+Future Phase 2 enhancements may still add:
 - Template variable support (`{{metric_name}}` placeholders) for repeatable data injection
-- Multi-source composition examples (pptx-mcp + external data MCPs)
+- Richer multi-source composition examples (pptx-mcp + external data MCPs)
 
 ---
 

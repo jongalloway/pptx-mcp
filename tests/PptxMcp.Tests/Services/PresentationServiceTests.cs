@@ -207,6 +207,17 @@ public class PresentationServiceTests : IDisposable
     }
 
     [Fact]
+    public void UpdateSlideData_ReturnsFailureWhenSlideNumberIsOutOfRange()
+    {
+        var path = CreateTempPptx();
+
+        var result = _service.UpdateSlideData(path, 2, "Title 1", null, "Updated");
+
+        Assert.False(result.Success);
+        Assert.Contains("out of range", result.Message);
+    }
+
+    [Fact]
     public void GetSlideXml_ReturnsXmlString()
     {
         var path = CreateTempPptx();

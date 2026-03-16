@@ -139,7 +139,7 @@ By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between
 - [ ] Jon validates against "Get me top bullet points" and "Create markdown" scenarios
 
 ### Phase 2 ✓ (Complete when)
-- [ ] `pptx_update_slide_data` tool implemented: agents can update specific fields on slides
+- [x] `pptx_update_slide_data` tool implemented: agents can update specific fields on slides
 - [ ] At least one example MCP composition (pptx-mcp + external data source) working
 - [ ] Multi-source update scenario tested end-to-end
 - [ ] Jon validates against "Update based on live data" scenario

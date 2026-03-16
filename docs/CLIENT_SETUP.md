@@ -414,6 +414,7 @@ Once connected, the following MCP tools are available:
 | `pptx_get_slide_xml` | Get the raw XML of a slide (advanced) |
 | `pptx_add_slide` | Add a new slide with a specified layout |
 | `pptx_update_text` | Update the text of a placeholder on a slide |
+| `pptx_update_slide_data` | Update a named or indexed slide shape while preserving formatting |
 | `pptx_insert_image` | Insert an image onto a slide |
 
 A good first test after connecting is to call `pptx_list_slides` with a known `.pptx` file path. A successful response confirms the server is connected and operational.

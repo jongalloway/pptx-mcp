@@ -115,6 +115,19 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
+    public async Task pptx_update_slide_data_ReturnsStructuredFailureJson()
+    {
+        var path = CreateTempPptx();
+
+        var result = await _tools.pptx_update_slide_data(path, 3, "Missing Shape", null, "Updated");
+        var updateResult = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
+
+        Assert.NotNull(updateResult);
+        Assert.False(updateResult.Success);
+        Assert.Contains("out of range", updateResult.Message);
+    }
+
+    [Fact]
     public async Task pptx_get_slide_xml_ReturnsXml()
     {
         var path = CreateTempPptx();
