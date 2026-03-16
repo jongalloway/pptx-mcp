@@ -12,6 +12,12 @@
 
 ## Learnings
 
+### Phase 1 Issue Creation (2026-03-16)
+- Assigned #6 & #7 (pptx_extract_talking_points, pptx_export_markdown) for implementation
+- Both are Medium complexity, can be parallelized
+- Tool implementations must be integration-tested on real presentations before acceptance
+- Depends on Shiherlis for E2E validation (#8) and @copilot for documentation (#9)
+- All issues reference docs/PRD.md for success criteria alignment
 ### Markdown export tool (2026-03-17)
 - `src/PptxMcp/Tools/PptxTools.cs` keeps read-only MCP tools thin: validate file existence, call `PresentationService`, and return raw markdown or JSON strings.
 - `src/PptxMcp/Services/PresentationService.cs` now owns markdown export formatting, including `## Slide N: Title` boundaries, subtitle-to-`###` mapping, nested bullet indentation, markdown table rendering, and image extraction with relative paths.
@@ -31,3 +37,9 @@
 - `tests/PptxMcp.Tests/TestPptxHelper.cs` is the canonical fixture builder for realistic PPTX tests; it supports title/body placeholders and embedded images for service-level integration coverage.
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Markdown Export Tool (2026-03-16)
+- `pptx_export_markdown` should keep tool logic thin and delegate markdown generation to `PresentationService.ExportMarkdown(...)`.
+- Phase 1 markdown export excludes speaker notes even though notes are available elsewhere in `PresentationService`.
+- Exported images belong in a sibling `<markdown-file>_images` folder and markdown should reference them with relative forward-slash paths for portability.
+- Realistic PPTX fixtures need explicit paragraph/table/image construction in `TestPptxHelper` to validate nested bullets, tables, and embedded media.

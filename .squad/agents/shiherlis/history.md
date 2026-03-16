@@ -10,6 +10,12 @@
 
 ## Learnings
 
+### Phase 1 E2E Testing Assignment (2026-03-16)
+- Assigned #8 (E2E test: read real presentation and export markdown)
+- Depends on Cheritto completing #6 & #7
+- Test scope: 3+ diverse real-world presentations with accuracy validation
+- Integration tests must ensure CI passes and PowerPoint compatibility verified
+- Monitor Cheritto's progress on tool implementations before starting E2E suite
 ### Phase 2 Assignments (2026-03-16)
 - **Issue #17 (shiherlis assigned):** Test pptx_update_slide_data with real metric slides — validates PowerPoint compatibility and edge cases for Goal 2A
 - **Issue #15 (shiherlis assigned):** E2E test multi-source update scenario — validates full composition workflow (Goal 2B)

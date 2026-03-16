@@ -1,36 +1,38 @@
 ---
 name: "markdown-export"
-description: "Export PPTX slide content to markdown with preserved structure"
-domain: "openxml"
+description: "Patterns for exporting PPTX presentations to markdown"
+domain: "pptx-export"
 confidence: "high"
-source: "cheritto issue #7"
+source: "issue-7 implementation"
 ---
 
 ## Context
 
-Use this pattern when adding PowerPoint-to-markdown export logic in pptx-mcp.
+Use this pattern when adding or updating markdown export behavior for PowerPoint decks in `pptx-mcp`.
 
 ## Patterns
 
-### Slide structure
-- Use the first slide title as the document `#` heading fallback, otherwise use the source filename.
-- Emit each slide boundary as `## Slide N: Title`.
-- Skip the title placeholder when rendering body content so slide headings are not duplicated.
-- Map subtitle placeholders to `###` headings.
+### Tool Boundary
+- Keep `pptx_export_markdown` thin in `src/PptxMcp/Tools/PptxTools.cs`.
+- Validate file existence in the tool and delegate export generation to `PresentationService.ExportMarkdown(...)`.
 
-### Lists and paragraphs
-- Read `A.Paragraph` elements directly from `Shape.TextBody`.
-- Treat explicit bullet or auto-numbered paragraphs as list items.
-- For body placeholders with multiple paragraphs, render them as markdown bullets even when PowerPoint relies on inherited list styling.
-- Indent nested bullets with two spaces per paragraph level.
+### Export Semantics
+- Start the markdown document with a `#` heading from the first slide title when available; otherwise fall back to the file name.
+- Emit each slide as `## Slide N: Title`.
+- Exclude title placeholder text from slide body output to avoid duplication.
+- Render subtitle placeholders as `###` headings.
+- Render body paragraphs as markdown list items when placeholder/body semantics or bullet metadata indicate list content.
+- Preserve nesting with two-space indentation per PowerPoint paragraph level.
+- Render tables as standard markdown tables.
+- Export embedded images into a sibling `<markdown-file>_images` directory and reference them using relative forward-slash paths.
+- Phase 1 excludes speaker notes.
 
-### Rich content
-- Render `A.Table` content as a markdown table using the first row as the header.
-- Export embedded `ImagePart` assets to a sibling `<markdown-base>_images` folder and reference them with relative paths in markdown.
-- Keep Phase 1 exports limited to visible slide content; speaker notes stay out of the markdown.
+### Testing
+- Use `TestPptxHelper.CreatePresentation(...)` to build realistic fixtures with multiple slides, nested bullets, tables, and images.
+- Cover both service-level export behavior and MCP tool behavior.
+- Validate with `dotnet build PptxMcp.slnx --configuration Release` and `dotnet test --solution PptxMcp.slnx --configuration Release --no-build`.
 
-## Key files
-- `src/PptxMcp/Services/PresentationService.cs`
-- `src/PptxMcp/Tools/PptxTools.cs`
-- `tests/PptxMcp.Tests/TestPptxHelper.cs`
-- `tests/PptxMcp.Tests/Services/MarkdownExportTests.cs`
+## Anti-Patterns
+- Do not put OpenXML traversal or markdown formatting logic in the tool class.
+- Do not emit absolute image paths in markdown output.
+- Do not include speaker notes until the product decision changes.

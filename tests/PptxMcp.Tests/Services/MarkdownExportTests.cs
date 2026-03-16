@@ -156,6 +156,21 @@ public class MarkdownExportTests : IDisposable
     }
 
     [Fact]
+    public void ExportMarkdown_DefaultOutputPath_WritesMarkdownAlongsideSource()
+    {
+        var path = CreatePresentation(
+            new TestSlideDefinition { TitleText = "Default Path Test" });
+        var expectedOutputPath = Path.ChangeExtension(path, ".md");
+        _tempArtifacts.Add(expectedOutputPath);
+
+        var export = _service.ExportMarkdown(path);
+
+        Assert.Equal(Path.GetFullPath(expectedOutputPath), export.OutputPath);
+        Assert.True(File.Exists(expectedOutputPath));
+        Assert.Contains("# Default Path Test", export.Markdown);
+    }
+
+    [Fact]
     public void ExportMarkdown_RealWorldStyleDeck_RendersSlidesInOrder()
     {
         var path = CreatePresentation(
