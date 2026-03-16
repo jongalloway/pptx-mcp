@@ -19,3 +19,16 @@
 - **Key decision:** Non-goals explicitly exclude GUI, legacy formats, and advanced design features to keep scope bounded
 - **Recommended 4 GitHub issues** for Phase 1: two tool implementations, one E2E test, one docs pass
 - Timeline estimate: 2–3 weeks Phase 1, 3–4 weeks Phase 2 (estimate includes +20% buffer)
+
+### Phase 1 Issue Creation & Triage (2026-03-16)
+- Created two GitHub milestones: Phase 1 (milestone #1) and Phase 2 (milestone #2)
+- Created 9 labels for issue organization: `tool`, `testing`, `documentation`, `phase-1`, `phase-2`, `squad`, and squad role labels
+- Created 4 GitHub issues for Phase 1 work:
+  - **#6 (Cheritto):** pptx_extract_talking_points implementation
+  - **#7 (Cheritto):** pptx_export_markdown implementation
+  - **#8 (Shiherlis):** E2E testing with real presentations
+  - **#9 (@copilot):** Phase 1 docs + example workflows
+- Assignment logic: Tool work → Cheritto (backend dev charter), testing → Shiherlis (tester charter), docs → @copilot (small features with specs, auto-assigned, requires review)
+- Dependency chain: #6 & #7 independent, #8 depends on both, #9 depends on both
+- Decision document written to `.squad/decisions/inbox/mccauley-prd-phase1-issues.md`
+- All issues reference PRD success criteria and use acceptance checklists for clarity

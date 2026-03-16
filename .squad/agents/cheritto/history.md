@@ -12,4 +12,11 @@
 
 ## Learnings
 
+### Phase 1 Issue Creation (2026-03-16)
+- Assigned #6 & #7 (pptx_extract_talking_points, pptx_export_markdown) for implementation
+- Both are Medium complexity, can be parallelized
+- Tool implementations must be integration-tested on real presentations before acceptance
+- Depends on Shiherlis for E2E validation (#8) and @copilot for documentation (#9)
+- All issues reference docs/PRD.md for success criteria alignment
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
