@@ -252,7 +252,7 @@ Error: File not found: /path/to/presentation.pptx
 
 ---
 
-
+## pptx_get_slide_content
 
 **Description:** Get structured content from a slide: all shapes with their type, position, size, and text. Returns a JSON object with slide dimensions and a shapes array. Prefer this over `pptx_get_slide_xml` when you need to read or reason about slide content.
 
@@ -720,5 +720,56 @@ On failure, `Success` is `false` and `Message` explains what was missing or out 
   "PreviousText": "$4.2M",
   "NewText": "$4.6M",
   "Message": "Updated shape 'ARR Value' on slide 3."
+}
+```
+
+**Request (fallback by index when no shape name is known):**
+```json
+{
+  "name": "pptx_update_slide_data",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "slideNumber": 3,
+    "placeholderIndex": 2,
+    "newText": "$4.6M"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "Success": true,
+  "SlideNumber": 3,
+  "RequestedShapeName": null,
+  "RequestedPlaceholderIndex": 2,
+  "MatchedBy": "placeholderIndex",
+  "ResolvedShapeName": "ARR Value",
+  "ResolvedShapeIndex": 2,
+  "ResolvedShapeId": 5,
+  "PlaceholderType": "body",
+  "LayoutPlaceholderIndex": null,
+  "PreviousText": "$4.2M",
+  "NewText": "$4.6M",
+  "Message": "Updated shape at index 2 on slide 3."
+}
+```
+
+**Response (shape not found):**
+```json
+{
+  "Success": false,
+  "SlideNumber": 3,
+  "RequestedShapeName": "Revenue Total",
+  "RequestedPlaceholderIndex": null,
+  "MatchedBy": null,
+  "ResolvedShapeName": null,
+  "ResolvedShapeIndex": null,
+  "ResolvedShapeId": null,
+  "PlaceholderType": null,
+  "LayoutPlaceholderIndex": null,
+  "PreviousText": null,
+  "NewText": "$4.6M",
+  "Message": "No shape named 'Revenue Total' found on slide 3, and no placeholderIndex was supplied."
 }
 ```

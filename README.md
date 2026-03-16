@@ -62,11 +62,15 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_get_slide_content` | Extract structured content from a slide (shapes, text, tables) |
 | `pptx_get_slide_xml` | Get the raw XML for a slide (power users) |
 | `pptx_add_slide` | Add a new slide using a named layout |
-| `pptx_update_text` | Update text in a placeholder on a slide |
-| `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting |
+| `pptx_update_text` | Update text in a placeholder on a slide by index |
+| `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for data-driven updates |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
 | `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
+
+**When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
+
+**Limitations:** pptx-mcp updates text content and inserts images. It does not create charts, modify slide master/theme styles, or reorder slides. Complex layout changes should be done in PowerPoint directly.
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)
 

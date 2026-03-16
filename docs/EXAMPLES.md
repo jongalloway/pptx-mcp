@@ -358,10 +358,10 @@ I have a weekly board presentation at /presentations/weekly-board.pptx.
    { "name": "pptx_get_slide_content", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideIndex": 1 } }
    ```
 
-5. **`pptx_update_text`** (pptx-mcp, repeated) — Write each new KPI value to its placeholder.
+5. **`pptx_update_slide_data`** (pptx-mcp, repeated) — Write each new KPI value to its named shape, preserving formatting.
 
    ```json
-   { "name": "pptx_update_text", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideIndex": 1, "placeholderIndex": 1, "text": "$19.6M ARR (+3.3%)" } }
+   { "name": "pptx_update_slide_data", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideNumber": 2, "shapeName": "ARR", "newText": "$19.6M ARR (+3.3%)" } }
    ```
 
 ### Example Output
