@@ -18,6 +18,7 @@ Use this pattern when a pptx-mcp feature needs to replace text in an existing Po
 - Rebuild paragraphs from the existing paragraph templates so paragraph properties, bullet levels, and run formatting survive the update.
 - When a shape has no `TextBody`, insert a new one in the same structural slot PowerPoint expects: after `spPr`/`style` and before `extLst`.
 - Save only the modified slide part after the replacement.
+- For deck-wide refreshes, open the `PresentationDocument` once, reuse the same slide-id snapshot for every mutation, and save each touched slide only once after the batch finishes.
 
 ## Example
 
@@ -37,3 +38,4 @@ var replacementTextBody = new TextBody(
 - Do not wipe the shape and append a bare `A.Run(new A.Text(...))` unless you are willing to lose paragraph and run formatting.
 - Do not recreate slide parts or relationships for a text-only update.
 - Do not guess at a target shape when multiple names match; return a recoverable failure instead.
+- Do not reopen and resave the `.pptx` once per mutation when a workflow can batch several text updates together.
