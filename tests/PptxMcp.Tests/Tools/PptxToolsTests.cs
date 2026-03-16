@@ -258,4 +258,116 @@ public class PptxToolsTests : IDisposable
         var result = await _tools.pptx_extract_talking_points("C:\\does-not-exist\\file.pptx");
         Assert.StartsWith("Error:", result);
     }
+
+    [Fact]
+    public async Task pptx_move_slide_ReturnsSuccessMessage()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition { TitleText = "Slide A" },
+            new TestSlideDefinition { TitleText = "Slide B" },
+            new TestSlideDefinition { TitleText = "Slide C" });
+
+        var result = await _tools.pptx_move_slide(path, 1, 3);
+
+        Assert.Contains("successfully", result);
+        var slides = _service.GetSlides(path);
+        Assert.Equal("Slide B", slides[0].Title);
+        Assert.Equal("Slide C", slides[1].Title);
+        Assert.Equal("Slide A", slides[2].Title);
+    }
+
+    [Fact]
+    public async Task pptx_move_slide_FileNotFound_ReturnsError()
+    {
+        var result = await _tools.pptx_move_slide("C:\\does-not-exist\\file.pptx", 1, 2);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_move_slide_InvalidSlideNumber_ReturnsError()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition { TitleText = "Slide A" },
+            new TestSlideDefinition { TitleText = "Slide B" });
+
+        var result = await _tools.pptx_move_slide(path, 5, 1);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_delete_slide_ReturnsSuccessMessage()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition { TitleText = "Keep" },
+            new TestSlideDefinition { TitleText = "Delete Me" });
+
+        var result = await _tools.pptx_delete_slide(path, 2);
+
+        Assert.Contains("successfully", result);
+        var slides = _service.GetSlides(path);
+        Assert.Single(slides);
+        Assert.Equal("Keep", slides[0].Title);
+    }
+
+    [Fact]
+    public async Task pptx_delete_slide_FileNotFound_ReturnsError()
+    {
+        var result = await _tools.pptx_delete_slide("C:\\does-not-exist\\file.pptx", 1);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_delete_slide_LastSlide_ReturnsError()
+    {
+        var path = CreateTempPptx();
+        var result = await _tools.pptx_delete_slide(path, 1);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_ReturnsSuccessMessage()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition { TitleText = "First" },
+            new TestSlideDefinition { TitleText = "Second" },
+            new TestSlideDefinition { TitleText = "Third" });
+
+        var result = await _tools.pptx_reorder_slides(path, [3, 1, 2]);
+
+        Assert.Contains("successfully", result);
+        var slides = _service.GetSlides(path);
+        Assert.Equal("Third", slides[0].Title);
+        Assert.Equal("First", slides[1].Title);
+        Assert.Equal("Second", slides[2].Title);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_FileNotFound_ReturnsError()
+    {
+        var result = await _tools.pptx_reorder_slides("C:\\does-not-exist\\file.pptx", [1, 2]);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_InvalidOrder_ReturnsError()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" });
+
+        var result = await _tools.pptx_reorder_slides(path, [1, 1]);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_WrongLength_ReturnsError()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" });
+
+        var result = await _tools.pptx_reorder_slides(path, [1, 2]);
+        Assert.StartsWith("Error:", result);
+    }
 }
