@@ -128,6 +128,81 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
+    public async Task pptx_batch_update_ReturnsStructuredJson()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["12%"]
+                    }
+                ]
+            },
+            new TestSlideDefinition
+            {
+                TitleText = "Risks",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Risk Body",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["Legacy blocker"]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_batch_update(path,
+        [
+            new BatchUpdateMutation(1, "Revenue Value", "15%"),
+            new BatchUpdateMutation(2, "Risk Body", "Mitigate EMEA churn")
+        ]);
+        var batchResult = JsonSerializer.Deserialize<BatchUpdateResult>(result);
+
+        Assert.NotNull(batchResult);
+        Assert.Equal(2, batchResult.TotalMutations);
+        Assert.Equal(2, batchResult.SuccessCount);
+        Assert.Equal(0, batchResult.FailureCount);
+        Assert.All(batchResult.Results, mutationResult =>
+        {
+            Assert.True(mutationResult.Success);
+            Assert.Equal("shapeName", mutationResult.MatchedBy);
+            Assert.Null(mutationResult.Error);
+        });
+
+        var firstSlideContent = _service.GetSlideContent(path, 0);
+        var secondSlideContent = _service.GetSlideContent(path, 1);
+        Assert.Equal("15%", Assert.Single(firstSlideContent.Shapes, shape => shape.Name == "Revenue Value").Text);
+        Assert.Equal("Mitigate EMEA churn", Assert.Single(secondSlideContent.Shapes, shape => shape.Name == "Risk Body").Text);
+    }
+
+    [Fact]
+    public async Task pptx_batch_update_FileNotFound_ReturnsStructuredFailureJson()
+    {
+        var result = await _tools.pptx_batch_update("C:\\does-not-exist\\file.pptx",
+        [
+            new BatchUpdateMutation(1, "Revenue Value", "Updated")
+        ]);
+        var batchResult = JsonSerializer.Deserialize<BatchUpdateResult>(result);
+
+        Assert.NotNull(batchResult);
+        Assert.Equal(1, batchResult.TotalMutations);
+        Assert.Equal(0, batchResult.SuccessCount);
+        Assert.Equal(1, batchResult.FailureCount);
+
+        var mutationResult = Assert.Single(batchResult.Results);
+        Assert.False(mutationResult.Success);
+        Assert.Null(mutationResult.MatchedBy);
+        Assert.Contains("File not found", mutationResult.Error);
+    }
+
+    [Fact]
     public async Task pptx_get_slide_xml_ReturnsXml()
     {
         var path = CreateTempPptx();

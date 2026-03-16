@@ -51,3 +51,20 @@
 - Phase 1 markdown export excludes speaker notes even though notes are available elsewhere in `PresentationService`.
 - Exported images belong in a sibling `<markdown-file>_images` folder and markdown should reference them with relative forward-slash paths for portability.
 - Realistic PPTX fixtures need explicit paragraph/table/image construction in `TestPptxHelper` to validate nested bullets, tables, and embedded media.
+
+### Phase 2 Completion (2026-03-16)
+- **Issue #19 (Implement pptx_update_slide_data):** Completed and merged (PR #29)
+- **Files:** 19 modified, +1975 lines
+- **Core deliverable:** Dual-path shape targeting (shapeName + placeholderIndex fallback)
+- **Key implementation:** `ReplaceShapeTextPreservingFormatting` method (PresentationService.cs) clones TextBody properties and paragraph/run formatting
+- **Testing:** Unit tests + E2E scenario (4-slide KPI deck), format verification, PowerPoint round-trip
+- **Code review:** Nate approved for production ("Ship it — production-ready")
+- **Findings:** MCP SDK patterns match dotnet-mcp exactly; OpenXML approach is cleaner than MarpToPptx's explicit assignment
+- **Recommendations:** Low-priority polish (size checks, validation helpers, documentation updates)
+- **Result:** Phase 2 issues #15–#19 all closed, 66/66 tests passing (up from 52 end of Phase 1)
+
+### Batch deck refresh tool (2026-03-16)
+- `src/PptxMcp/Tools/PptxTools.cs` now exposes `pptx_batch_update(filePath, mutations)` as a thin MCP wrapper that returns structured JSON and keeps empty batches as a zero-count success case.
+- `src/PptxMcp/Services/PresentationService.cs` batches named text mutations through one `PresentationDocument` open/save cycle, reuses the `UpdateSlideData` targeting/formatting path, and saves each touched slide once after processing the whole batch.
+- Batch request/result contracts live in `src/PptxMcp/Models/BatchUpdateMutation.cs`, `BatchUpdateMutationResult.cs`, and `BatchUpdateResult.cs`.
+- Compatibility validation for batch refresh now lives in `tests/PptxMcp.Tests/Services/BatchUpdateTests.cs`, which compares post-update `OpenXmlValidator` output against the baseline deck in addition to opening the file successfully.

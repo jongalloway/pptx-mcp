@@ -150,6 +150,64 @@ public sealed partial class PptxTools
     }
 
     /// <summary>
+    /// Apply multiple named text updates across a presentation in a single open/save cycle.
+    /// Each mutation targets a 1-based slide number and exact shape name, preserves formatting, and reports its own success or failure.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="mutations">Array of text mutations to apply. Each mutation must include slideNumber, shapeName, and newValue.</param>
+    [McpServerTool(Title = "Batch Update")]
+    public partial Task<string> pptx_batch_update(string filePath, BatchUpdateMutation[] mutations)
+    {
+        var requestedMutations = mutations ?? [];
+        if (requestedMutations.Length == 0)
+        {
+            var emptyResult = new BatchUpdateResult(0, 0, 0, []);
+            return Task.FromResult(JsonSerializer.Serialize(emptyResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        if (!File.Exists(filePath))
+        {
+            var missingFileResult = new BatchUpdateResult(
+                TotalMutations: requestedMutations.Length,
+                SuccessCount: 0,
+                FailureCount: requestedMutations.Length,
+                Results: requestedMutations
+                    .Select(mutation => new BatchUpdateMutationResult(
+                        SlideNumber: mutation.SlideNumber,
+                        ShapeName: mutation.ShapeName,
+                        Success: false,
+                        Error: $"File not found: {filePath}",
+                        MatchedBy: null))
+                    .ToArray());
+
+            return Task.FromResult(JsonSerializer.Serialize(missingFileResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        try
+        {
+            var result = _service.BatchUpdate(filePath, requestedMutations);
+            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            var failureResult = new BatchUpdateResult(
+                TotalMutations: requestedMutations.Length,
+                SuccessCount: 0,
+                FailureCount: requestedMutations.Length,
+                Results: requestedMutations
+                    .Select(mutation => new BatchUpdateMutationResult(
+                        SlideNumber: mutation.SlideNumber,
+                        ShapeName: mutation.ShapeName,
+                        Success: false,
+                        Error: $"Error: {ex.Message}",
+                        MatchedBy: null))
+                    .ToArray());
+
+            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+    }
+
+    /// <summary>
     /// Set or replace the speaker notes on a slide. Pass append: true to add text after the existing notes.
     /// Use newlines (\n) in the notes string to create separate paragraphs.
     /// </summary>

@@ -189,54 +189,49 @@ public class PresentationService
 
     public SlideDataUpdateResult UpdateSlideData(string filePath, int slideNumber, string? shapeName, int? placeholderIndex, string newText)
     {
-        if (slideNumber <= 0)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "slideNumber must be 1 or greater.");
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slideIds = GetSlideIds(doc);
 
-        if (placeholderIndex is < 0)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "placeholderIndex must be zero or greater.");
+        var result = UpdateSlideData(doc, slideIds, slideNumber, shapeName, placeholderIndex, newText, out var modifiedSlidePart);
+        if (result.Success)
+            modifiedSlidePart?.Slide?.Save();
 
-        if (string.IsNullOrWhiteSpace(shapeName) && placeholderIndex is null)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Provide either shapeName or placeholderIndex.");
+        return result;
+    }
+
+    public BatchUpdateResult BatchUpdate(string filePath, IReadOnlyList<BatchUpdateMutation> mutations)
+    {
+        if (mutations is null || mutations.Count == 0)
+            return new BatchUpdateResult(0, 0, 0, []);
 
         using var doc = PresentationDocument.Open(filePath, true);
-        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
-        var slideIds = slideIdList?.Elements<SlideId>().ToList() ?? [];
-        if (slideIds.Count == 0)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Presentation has no slides.");
+        var slideIds = GetSlideIds(doc);
+        var results = new List<BatchUpdateMutationResult>(mutations.Count);
+        var modifiedSlideParts = new HashSet<SlidePart>();
 
-        if (slideNumber > slideIds.Count)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+        foreach (var mutation in mutations)
+        {
+            var mutationResult = UpdateSlideData(doc, slideIds, mutation.SlideNumber, mutation.ShapeName, null, mutation.NewValue, out var modifiedSlidePart);
+            if (mutationResult.Success && modifiedSlidePart is not null)
+                modifiedSlideParts.Add(modifiedSlidePart);
 
-        var slidePart = GetSlidePart(doc, slideNumber - 1);
-        if (slidePart.Slide is null)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"Slide {slideNumber} could not be loaded.");
+            results.Add(new BatchUpdateMutationResult(
+                SlideNumber: mutation.SlideNumber,
+                ShapeName: mutation.ShapeName,
+                Success: mutationResult.Success,
+                Error: mutationResult.Success ? null : mutationResult.Message,
+                MatchedBy: mutationResult.MatchedBy));
+        }
 
-        var textShapeTargets = GetTextShapeTargets(slidePart.Slide).ToList();
-        if (textShapeTargets.Count == 0)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"Slide {slideNumber} does not contain any text-capable shapes.");
+        foreach (var modifiedSlidePart in modifiedSlideParts)
+            modifiedSlidePart.Slide?.Save();
 
-        var target = ResolveTextShapeTarget(textShapeTargets, shapeName, placeholderIndex, out var matchedBy, out var failureMessage);
-        if (target is null)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, failureMessage ?? "Unable to resolve a target shape.");
-
-        var previousText = GetShapeText(target.Shape);
-        ReplaceShapeTextPreservingFormatting(target.Shape, newText);
-        slidePart.Slide.Save();
-
-        return new SlideDataUpdateResult(
-            Success: true,
-            SlideNumber: slideNumber,
-            RequestedShapeName: shapeName,
-            RequestedPlaceholderIndex: placeholderIndex,
-            MatchedBy: matchedBy,
-            ResolvedShapeName: target.Name,
-            ResolvedShapeIndex: target.Index,
-            ResolvedShapeId: target.ShapeId,
-            PlaceholderType: target.PlaceholderType,
-            LayoutPlaceholderIndex: target.LayoutPlaceholderIndex,
-            PreviousText: previousText,
-            NewText: newText,
-            Message: $"Updated shape '{target.Name}' on slide {slideNumber}.");
+        var successCount = results.Count(result => result.Success);
+        return new BatchUpdateResult(
+            TotalMutations: results.Count,
+            SuccessCount: successCount,
+            FailureCount: results.Count - successCount,
+            Results: results);
     }
 
     public void WriteNotes(string filePath, int slideIndex, string notes, bool append = false)
@@ -428,12 +423,78 @@ public class PresentationService
 
     private static SlidePart GetSlidePart(PresentationDocument doc, int slideIndex)
     {
-        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList
-            ?? throw new InvalidOperationException("Presentation has no slides.");
-        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        var slideIds = GetSlideIds(doc);
+        return GetSlidePart(doc, slideIds, slideIndex);
+    }
+
+    private static SlidePart GetSlidePart(PresentationDocument doc, IReadOnlyList<SlideId> slideIds, int slideIndex)
+    {
+        if (slideIds.Count == 0)
+            throw new InvalidOperationException("Presentation has no slides.");
         if (slideIndex < 0 || slideIndex >= slideIds.Count)
             throw new ArgumentOutOfRangeException(nameof(slideIndex), $"Slide index {slideIndex} is out of range. Presentation has {slideIds.Count} slide(s).");
-        return (SlidePart)doc.PresentationPart.GetPartById(slideIds[slideIndex].RelationshipId!.Value!);
+        return (SlidePart)doc.PresentationPart!.GetPartById(slideIds[slideIndex].RelationshipId!.Value!);
+    }
+
+    private static IReadOnlyList<SlideId> GetSlideIds(PresentationDocument doc) =>
+        doc.PresentationPart!.Presentation.SlideIdList?.Elements<SlideId>().ToList() ?? [];
+
+    private static SlideDataUpdateResult UpdateSlideData(
+        PresentationDocument doc,
+        IReadOnlyList<SlideId> slideIds,
+        int slideNumber,
+        string? shapeName,
+        int? placeholderIndex,
+        string newText,
+        out SlidePart? modifiedSlidePart)
+    {
+        modifiedSlidePart = null;
+
+        if (slideNumber <= 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "slideNumber must be 1 or greater.");
+
+        if (placeholderIndex is < 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "placeholderIndex must be zero or greater.");
+
+        if (string.IsNullOrWhiteSpace(shapeName) && placeholderIndex is null)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Provide either shapeName or placeholderIndex.");
+
+        if (slideIds.Count == 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Presentation has no slides.");
+
+        if (slideNumber > slideIds.Count)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+
+        var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
+        if (slidePart.Slide is null)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"Slide {slideNumber} could not be loaded.");
+
+        var textShapeTargets = GetTextShapeTargets(slidePart.Slide).ToList();
+        if (textShapeTargets.Count == 0)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"Slide {slideNumber} does not contain any text-capable shapes.");
+
+        var target = ResolveTextShapeTarget(textShapeTargets, shapeName, placeholderIndex, out var matchedBy, out var failureMessage);
+        if (target is null)
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, failureMessage ?? "Unable to resolve a target shape.");
+
+        var previousText = GetShapeText(target.Shape);
+        ReplaceShapeTextPreservingFormatting(target.Shape, newText);
+        modifiedSlidePart = slidePart;
+
+        return new SlideDataUpdateResult(
+            Success: true,
+            SlideNumber: slideNumber,
+            RequestedShapeName: shapeName,
+            RequestedPlaceholderIndex: placeholderIndex,
+            MatchedBy: matchedBy,
+            ResolvedShapeName: target.Name,
+            ResolvedShapeIndex: target.Index,
+            ResolvedShapeId: target.ShapeId,
+            PlaceholderType: target.PlaceholderType,
+            LayoutPlaceholderIndex: target.LayoutPlaceholderIndex,
+            PreviousText: previousText,
+            NewText: newText,
+            Message: $"Updated shape '{target.Name}' on slide {slideNumber}.");
     }
 
     private static PartTypeInfo GetImagePartType(string imagePath) =>

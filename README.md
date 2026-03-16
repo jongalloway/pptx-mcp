@@ -65,7 +65,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_get_slide_xml` | Get the raw XML for a slide (power users) |
 | `pptx_add_slide` | Add a new slide using a named layout |
 | `pptx_update_text` | Update text in a placeholder on a slide by index |
-| `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for data-driven updates |
+| `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for single data-driven updates |
+| `pptx_batch_update` | Apply multiple named text updates across a deck in one open/save cycle |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
 | `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
 | `pptx_move_slide` | Move a slide to a different position |
@@ -75,6 +76,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
 **When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
+
+**When to use `pptx_batch_update`:** Use `pptx_batch_update` when you already know several shape names and want to refresh an entire deck in one pass. It applies multiple text mutations in one open/save cycle and returns per-mutation success details.
 
 ### Resources
 

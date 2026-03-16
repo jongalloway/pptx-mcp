@@ -53,3 +53,12 @@
 - **Dependency chain:** #19 → #17 → #15 + #18 → #16 (docs closes last)
 - All issues routed to appropriate team members; all assigned to "Phase 2 — Content Writing & Updates" milestone
 - Non-duplication verified: Phase 1 issues #6–#14 are independent; no overlap with Phase 2
+
+### Phase 3 Planning & Feature Ranking (2026-03-17)
+
+- Led Phase 3 planning session with Nate's input on prior-art research
+- Ranked 7 features by product impact, complexity, and sequencing: batch refresh → template-aware authoring → tables → picture placeholders → notes → chart refresh → slide organization
+- Consulted with Nate (per Jon directive) on prior-art research from MarpToPptx and dotnet-mcp; aligned on feasibility and implementation patterns
+- Created 7 GitHub issues (#34–#40) under Phase 3 milestone with comprehensive ownership, acceptance criteria, and dependencies
+- Recorded decision to continue McCauley+Nate partnership for major architectural decisions (worked well for aligned thinking, caught gotchas)
+- Scope cuts: no full theme/master editing, no net-new chart authoring (refresh existing only)

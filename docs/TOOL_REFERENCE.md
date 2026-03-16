@@ -7,6 +7,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 ## Table of Contents
 
 - [pptx_add_slide](#pptx_add_slide)
+- [pptx_batch_update](#pptx_batch_update)
 - [pptx_delete_slide](#pptx_delete_slide)
 - [pptx_export_markdown](#pptx_export_markdown)
 - [pptx_extract_talking_points](#pptx_extract_talking_points)
@@ -92,6 +93,73 @@ Slide added successfully at index 5.
 **Response:**
 ```
 Slide added successfully at index 5.
+```
+
+---
+
+## pptx_batch_update
+
+**Description:** Apply many named text updates across multiple slides in a single presentation open/save cycle. Each mutation targets a 1-based `slideNumber` and exact `shapeName`, preserves the shape's existing formatting, and reports per-mutation success or failure.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `mutations` | array<object> | ✅ Required | Array of text mutations. Each item must include `slideNumber` (1-based), `shapeName`, and `newValue`. |
+
+### Returns
+
+A JSON result summarizing how many mutations succeeded or failed, with per-mutation details in request order.
+
+```json
+{
+  "TotalMutations": 3,
+  "SuccessCount": 2,
+  "FailureCount": 1,
+  "Results": [
+    {
+      "SlideNumber": 1,
+      "ShapeName": "Executive Subtitle",
+      "Success": true,
+      "Error": null,
+      "MatchedBy": "shapeName"
+    },
+    {
+      "SlideNumber": 2,
+      "ShapeName": "Missing Shape",
+      "Success": false,
+      "Error": "No text-capable shape named 'Missing Shape' was found. Available shapes: 1:Revenue Value, 2:Gross Margin",
+      "MatchedBy": null
+    }
+  ]
+}
+```
+
+Successful mutations are kept even if other mutations fail; the tool does not roll back prior updates.
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_batch_update",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "mutations": [
+      {
+        "slideNumber": 2,
+        "shapeName": "Revenue Value",
+        "newValue": "$4.6M"
+      },
+      {
+        "slideNumber": 3,
+        "shapeName": "Risk Body",
+        "newValue": "Mitigate churn\nFinish automation"
+      }
+    ]
+  }
+}
 ```
 
 ---
