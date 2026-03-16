@@ -23,72 +23,56 @@ You have a keynote or product deck and need to prepare for a presentation quickl
 
 ```
 I have a presentation at /presentations/q2-product-review.pptx.
-List all the slides, then for each slide extract the key talking points.
-Give me a concise summary organized by slide title.
+Extract the key talking points from each slide and give me a concise summary organized by slide title.
 ```
 
 ### Tool Workflow
 
-1. **`pptx_list_slides`** — Get an overview of the deck structure (slide count, titles, notes).
+1. **`pptx_extract_talking_points`** — Extract the top ranked talking points from every slide in a single call. The tool filters out noise (formatting-only text, presenter notes labels) and returns bullet-level content ranked by signal.
 
    ```json
-   { "filePath": "/presentations/q2-product-review.pptx" }
+   {
+     "name": "pptx_extract_talking_points",
+     "arguments": {
+       "filePath": "/presentations/q2-product-review.pptx",
+       "topN": 5
+     }
+   }
    ```
 
-2. **`pptx_get_slide_content`** (repeated per slide) — Retrieve structured content for each slide: shapes, placeholder text, bullet paragraphs.
-
-   ```json
-   { "filePath": "/presentations/q2-product-review.pptx", "slideIndex": 0 }
-   { "filePath": "/presentations/q2-product-review.pptx", "slideIndex": 1 }
-   // ... continue for each slide
-   ```
-
-3. **Agent synthesizes** — The AI agent reads the `Paragraphs` arrays from each `Text`-type shape, filters out decorative or empty shapes, and produces a talking-points summary.
+2. **Agent synthesizes** — The AI agent formats the returned `Points` arrays per slide into a readable briefing, incorporating speaker notes or slide titles as section headers.
 
 ### Example Output
 
-`pptx_list_slides` returns:
+`pptx_extract_talking_points` returns:
 
 ```json
 [
-  { "Index": 0, "Title": "Q2 Product Review", "Notes": null, "PlaceholderCount": 2 },
-  { "Index": 1, "Title": "Revenue Highlights", "Notes": "Mention the EMEA uptick", "PlaceholderCount": 3 },
-  { "Index": 2, "Title": "Roadmap Preview", "Notes": null, "PlaceholderCount": 4 }
+  {
+    "SlideIndex": 0,
+    "Title": "Q2 Product Review",
+    "Points": []
+  },
+  {
+    "SlideIndex": 1,
+    "Title": "Revenue Highlights",
+    "Points": [
+      "Q2 ARR up 18% YoY",
+      "EMEA region grew 34%",
+      "Net Revenue Retention: 112%"
+    ]
+  },
+  {
+    "SlideIndex": 2,
+    "Title": "Roadmap Preview",
+    "Points": [
+      "GA release: Q3 2025",
+      "New integrations: Slack, Teams, Notion",
+      "Mobile app entering beta",
+      "Pricing page refresh"
+    ]
+  }
 ]
-```
-
-`pptx_get_slide_content` for slide 1 returns:
-
-```json
-{
-  "SlideIndex": 1,
-  "SlideWidthEmu": 9144000,
-  "SlideHeightEmu": 5143500,
-  "Shapes": [
-    {
-      "ShapeId": 2,
-      "Name": "Title 1",
-      "ShapeType": "Text",
-      "IsPlaceholder": true,
-      "PlaceholderType": "title",
-      "Text": "Revenue Highlights",
-      "Paragraphs": ["Revenue Highlights"]
-    },
-    {
-      "ShapeId": 3,
-      "Name": "Content Placeholder 2",
-      "ShapeType": "Text",
-      "IsPlaceholder": true,
-      "PlaceholderType": "body",
-      "Text": "Q2 ARR up 18% YoY\nEMEA region grew 34%\nNet Revenue Retention: 112%",
-      "Paragraphs": [
-        "Q2 ARR up 18% YoY",
-        "EMEA region grew 34%",
-        "Net Revenue Retention: 112%"
-      ]
-    }
-  ]
-}
 ```
 
 Agent-synthesized summary:
@@ -98,10 +82,12 @@ Agent-synthesized summary:
 - Q2 ARR up 18% year-over-year
 - EMEA region led growth at 34%
 - Net Revenue Retention strong at 112%
-- (Speaker note: Mention the EMEA uptick)
 
 ## Slide 2: Roadmap Preview
-...
+- GA release: Q3 2025
+- New integrations: Slack, Teams, Notion
+- Mobile app entering beta
+- Pricing page refresh
 ```
 
 ### Try It Yourself
@@ -124,70 +110,39 @@ Your team maintains internal training or onboarding decks as the source of truth
 ```
 Export the presentation at /presentations/onboarding-engineering.pptx to markdown.
 Save the result to /docs/onboarding-engineering.md.
-Use slide titles as headings and preserve all bullet points.
 ```
 
 ### Tool Workflow
 
-1. **`pptx_list_slides`** — Enumerate slides and capture titles to use as markdown headings.
+1. **`pptx_export_markdown`** — Convert the entire presentation to markdown in a single call. Slide titles become headings, body text becomes bullet lists, tables are converted to markdown format, and embedded images are saved to a sibling `{name}_images/` directory with relative references.
 
    ```json
-   { "filePath": "/presentations/onboarding-engineering.pptx" }
+   {
+     "name": "pptx_export_markdown",
+     "arguments": {
+       "filePath": "/presentations/onboarding-engineering.pptx",
+       "outputPath": "/docs/onboarding-engineering.md"
+     }
+   }
    ```
-
-2. **`pptx_get_slide_content`** (repeated per slide) — Extract all text shapes, paragraphs, and tables from each slide.
-
-   ```json
-   { "filePath": "/presentations/onboarding-engineering.pptx", "slideIndex": 0 }
-   { "filePath": "/presentations/onboarding-engineering.pptx", "slideIndex": 1 }
-   // ... continue for each slide
-   ```
-
-3. **Agent assembles markdown** — Using the structured `Paragraphs` and `TableRows` data, the agent constructs a markdown document:
-   - Slide title → `## Heading`
-   - Body bullet paragraphs → `- list items`
-   - Table shapes → markdown tables
-   - Speaker notes → `> blockquote`
-
-4. **Agent writes the file** — The agent saves the markdown output to the target path using its file writing capability.
 
 ### Example Output
 
-Input slide content (from `pptx_get_slide_content`):
-
-```json
-{
-  "SlideIndex": 2,
-  "Shapes": [
-    {
-      "ShapeType": "Text",
-      "PlaceholderType": "title",
-      "Text": "Development Environment Setup",
-      "Paragraphs": ["Development Environment Setup"]
-    },
-    {
-      "ShapeType": "Text",
-      "PlaceholderType": "body",
-      "Paragraphs": [
-        "Install .NET 10 SDK",
-        "Clone the repository: git clone https://github.com/org/repo",
-        "Run dotnet build to verify setup",
-        "Run dotnet test to confirm all tests pass"
-      ]
-    }
-  ]
-}
-```
-
-Generated markdown (`onboarding-engineering.md`):
+`pptx_export_markdown` returns the markdown string and writes it to the output file:
 
 ```markdown
 # Engineering Onboarding
 
+---
+<!-- Slide 0 -->
+
 ## Welcome to the Team
 
-Welcome to the engineering team. This guide walks you through
-your first week setup and key processes.
+Welcome to the engineering team. This guide walks you through your first week
+setup and key processes.
+
+---
+<!-- Slide 1 -->
 
 ## Development Environment Setup
 
@@ -196,9 +151,27 @@ your first week setup and key processes.
 - Run `dotnet build` to verify setup
 - Run `dotnet test` to confirm all tests pass
 
+---
+<!-- Slide 2 -->
+
 ## Code Review Process
 
-...
+| Step | Owner | SLA |
+|------|-------|-----|
+| Open PR | Author | — |
+| Review assigned | Tech lead | 1 business day |
+| Approval + merge | Reviewer | 2 business days |
+
+---
+<!-- Slide 3 -->
+
+## Team Resources
+
+![team-org-chart](onboarding-engineering_images/slide3_image1.png)
+
+- Org chart and reporting structure above
+- Internal wiki: https://wiki.example.com
+- Slack: #engineering-onboarding
 ```
 
 ### Try It Yourself
@@ -207,8 +180,6 @@ your first week setup and key processes.
 2. Use a training or documentation deck you already have.
 3. Ask the agent to export it to markdown using the prompt above.
 4. Review the output and check it into your docs repo.
-
-> **Note:** A dedicated `pptx_export_markdown` tool is planned for Phase 1 that will automate the assembly step, producing a single markdown string in one call.
 
 ---
 
