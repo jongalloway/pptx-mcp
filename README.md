@@ -65,6 +65,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_update_text` | Update text in a placeholder on a slide by index |
 | `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for data-driven updates |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
+| `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
 | `pptx_move_slide` | Move a slide to a different position |
 | `pptx_delete_slide` | Remove a slide by its 1-based slide number |
 | `pptx_reorder_slides` | Batch reorder all slides by providing the new sequence |

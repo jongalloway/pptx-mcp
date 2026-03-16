@@ -260,6 +260,39 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
+    public async Task pptx_write_notes_CreatesNotes()
+    {
+        var path = CreateTempPptx();
+        var result = await _tools.pptx_write_notes(path, 0, "Citation: https://example.com");
+        Assert.False(result.StartsWith("Error:", StringComparison.Ordinal));
+        var slides = _service.GetSlides(path);
+        Assert.Equal("Citation: https://example.com", slides[0].Notes);
+    }
+
+    [Fact]
+    public async Task pptx_write_notes_Append_PreservesExistingNotes()
+    {
+        var path = CreateCustomPptx(new TestSlideDefinition
+        {
+            TitleText = "Slide",
+            SpeakerNotesText = "Original"
+        });
+        var result = await _tools.pptx_write_notes(path, 0, "Appended", append: true);
+        Assert.False(result.StartsWith("Error:", StringComparison.Ordinal));
+        var slides = _service.GetSlides(path);
+        Assert.NotNull(slides[0].Notes);
+        Assert.Contains("Original", slides[0].Notes);
+        Assert.Contains("Appended", slides[0].Notes);
+    }
+
+    [Fact]
+    public async Task pptx_write_notes_FileNotFound_ReturnsError()
+    {
+        var result = await _tools.pptx_write_notes("C:\\does-not-exist\\file.pptx", 0, "notes");
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
     public async Task pptx_move_slide_ReturnsSuccessMessage()
     {
         var path = CreateCustomPptx(
