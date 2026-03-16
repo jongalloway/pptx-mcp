@@ -170,11 +170,10 @@ public sealed class PptxTools
     /// Export a PowerPoint presentation to markdown and save it as a .md file.
     /// The returned string is the generated markdown content with slide boundaries, headings,
     /// bullets, tables, and relative image references preserved for downstream processing.
-    /// Speaker notes are excluded in Phase 1.
     /// </summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="outputPath">Optional output path for the markdown file. Defaults to the presentation path with a .md extension.</param>
-    [McpServerTool(Title = "Export Markdown", ReadOnly = true, Idempotent = true)]
+    [McpServerTool(Title = "Export Markdown", Idempotent = true)]
     public Task<string> pptx_export_markdown(string filePath, string? outputPath = null)
     {
         if (!File.Exists(filePath))
