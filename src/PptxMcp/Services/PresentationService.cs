@@ -681,6 +681,23 @@ public class PresentationService
         return GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
     }
 
+    public IReadOnlyList<SlideContent> GetAllSlideContents(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        if (slideIdList is null)
+            return [];
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        var result = new List<SlideContent>(slideIds.Count);
+        for (int i = 0; i < slideIds.Count; i++)
+        {
+            var slidePart = GetSlidePart(doc, i);
+            result.Add(GetSlideContent(doc.PresentationPart!, slidePart, i));
+        }
+        return result;
+    }
+
     public MarkdownExportResult ExportMarkdown(string filePath, string? outputPath = null)
     {
         using var doc = PresentationDocument.Open(filePath, false);
