@@ -1283,6 +1283,92 @@ public class PresentationService
         placeholderType is nameof(PlaceholderValues.Title) or nameof(PlaceholderValues.CenteredTitle);
 
     private sealed record TalkingPointCandidate(string Text, string Key, int Score, long Y, int Order, bool IsTitleCandidate);
+
+    public void MoveSlide(string filePath, int slideNumber, int targetPosition)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (slideNumber < 1 || slideNumber > count)
+            throw new ArgumentOutOfRangeException(nameof(slideNumber), $"slideNumber {slideNumber} is out of range. Presentation has {count} slide(s).");
+        if (targetPosition < 1 || targetPosition > count)
+            throw new ArgumentOutOfRangeException(nameof(targetPosition), $"targetPosition {targetPosition} is out of range. Presentation has {count} slide(s).");
+        if (slideNumber == targetPosition)
+            return;
+
+        var slideIdToMove = slideIds[slideNumber - 1];
+        slideIdToMove.Remove();
+
+        var updatedSlideIds = slideIdList.Elements<SlideId>().ToList();
+        var insertBeforeIndex = targetPosition - 1;
+
+        if (insertBeforeIndex >= updatedSlideIds.Count)
+            slideIdList.Append((SlideId)slideIdToMove.CloneNode(true));
+        else
+            slideIdList.InsertBefore((SlideId)slideIdToMove.CloneNode(true), updatedSlideIds[insertBeforeIndex]);
+
+        presentationPart.Presentation.Save();
+    }
+
+    public void DeleteSlide(string filePath, int slideNumber)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (count == 1)
+            throw new InvalidOperationException("Cannot delete the only slide in a presentation.");
+        if (slideNumber < 1 || slideNumber > count)
+            throw new ArgumentOutOfRangeException(nameof(slideNumber), $"slideNumber {slideNumber} is out of range. Presentation has {count} slide(s).");
+
+        var slideId = slideIds[slideNumber - 1];
+        var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
+
+        slideId.Remove();
+        presentationPart.DeletePart(slidePart);
+
+        presentationPart.Presentation.Save();
+    }
+
+    public void ReorderSlides(string filePath, int[] newOrder)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (newOrder.Length != count)
+            throw new ArgumentException($"newOrder must contain exactly {count} element(s), one per slide. Received {newOrder.Length}.", nameof(newOrder));
+
+        var sorted = newOrder.OrderBy(n => n).ToList();
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            if (sorted[i] != i + 1)
+                throw new ArgumentException($"newOrder must be a permutation of 1..{count}. Found invalid value {sorted[i]}.", nameof(newOrder));
+        }
+
+        var reordered = newOrder.Select(n => (SlideId)slideIds[n - 1].CloneNode(true)).ToList();
+
+        foreach (var slideId in slideIds)
+            slideId.Remove();
+
+        foreach (var slideId in reordered)
+            slideIdList.Append(slideId);
+
+        presentationPart.Presentation.Save();
+    }
 }
 
 
