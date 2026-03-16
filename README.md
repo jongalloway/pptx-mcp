@@ -1,6 +1,6 @@
 # pptx-mcp
 
-Give AI agents native access to PowerPoint. Read slides, extract content, add slides, update text, and insert images—all through natural language, without touching Office.
+Give AI agents native access to PowerPoint. Read slides, extract content, add slides, update text and shape data, and insert images—all through natural language, without touching Office.
 
 **pptx-mcp** is a .NET [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that bridges AI reasoning and PowerPoint files. It's built for developers and power users who want to automate content extraction, data-driven slide updates, and intelligent presentation generation.
 
@@ -63,6 +63,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_get_slide_xml` | Get the raw XML for a slide (power users) |
 | `pptx_add_slide` | Add a new slide using a named layout |
 | `pptx_update_text` | Update text in a placeholder on a slide |
+| `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)

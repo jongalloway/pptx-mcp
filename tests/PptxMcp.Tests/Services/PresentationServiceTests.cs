@@ -1,4 +1,6 @@
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
+using A = DocumentFormat.OpenXml.Drawing;
 
 namespace PptxMcp.Tests.Services;
 
@@ -94,6 +96,114 @@ public class PresentationServiceTests : IDisposable
         _service.UpdateTextPlaceholder(path, 0, 0, "Updated Title");
         var slides = _service.GetSlides(path);
         Assert.Equal("Updated Title", slides[0].Title);
+    }
+
+    [Fact]
+    public void UpdateSlideData_UpdatesShapeByNameAndPreservesParagraphProperties()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        PlaceholderType = PlaceholderValues.Body,
+                        ParagraphDefinitions =
+                        [
+                            new TestParagraphDefinition
+                            {
+                                Text = "12%",
+                                IsBullet = true,
+                                Level = 1
+                            }
+                        ]
+                    }
+                ]
+            });
+
+        var result = _service.UpdateSlideData(path, 1, "Revenue Value", null, "18%");
+
+        Assert.True(result.Success);
+        Assert.Equal("shapeName", result.MatchedBy);
+        Assert.Equal("12%", result.PreviousText);
+
+        var content = _service.GetSlideContent(path, 0);
+        var updatedShape = Assert.Single(content.Shapes, shape => shape.Name == "Revenue Value");
+        Assert.Equal("18%", updatedShape.Text);
+
+        using var doc = PresentationDocument.Open(path, false);
+        var presentationPart = Assert.IsType<PresentationPart>(doc.PresentationPart);
+        var presentation = Assert.IsType<Presentation>(presentationPart.Presentation);
+        var slideIdList = Assert.IsType<SlideIdList>(presentation.SlideIdList);
+        var slideId = Assert.Single(slideIdList.Elements<SlideId>());
+        var slidePart = Assert.IsType<SlidePart>(presentationPart.GetPartById(slideId.RelationshipId!.Value!));
+        var slide = Assert.IsType<Slide>(slidePart.Slide);
+        var shapeTree = Assert.IsType<ShapeTree>(slide.CommonSlideData!.ShapeTree);
+        var shape = shapeTree.Elements<Shape>()
+            .Single(candidate => candidate.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "Revenue Value");
+        var paragraphProperties = Assert.Single(shape.TextBody!.Elements<A.Paragraph>()).ParagraphProperties;
+        Assert.NotNull(paragraphProperties);
+        Assert.Equal(1, paragraphProperties.Level?.Value);
+    }
+
+    [Fact]
+    public void UpdateSlideData_UpdatesShapeByIndexWithUnicodeText()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Label",
+                        Paragraphs = ["Revenue"]
+                    },
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        Paragraphs = ["12%"]
+                    }
+                ]
+            });
+
+        var result = _service.UpdateSlideData(path, 1, null, 2, "Δ 45% — 売上高");
+
+        Assert.True(result.Success);
+        Assert.Equal("placeholderIndex", result.MatchedBy);
+        Assert.Equal("Revenue Value", result.ResolvedShapeName);
+
+        var content = _service.GetSlideContent(path, 0);
+        var updatedShape = Assert.Single(content.Shapes, shape => shape.Name == "Revenue Value");
+        Assert.Equal("Δ 45% — 売上高", updatedShape.Text);
+    }
+
+    [Fact]
+    public void UpdateSlideData_ReturnsFailureWhenShapeIsMissing()
+    {
+        var path = CreateCustomPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        Paragraphs = ["12%"]
+                    }
+                ]
+            });
+
+        var result = _service.UpdateSlideData(path, 1, "Missing Shape", null, "18%");
+
+        Assert.False(result.Success);
+        Assert.Contains("Available shapes", result.Message);
+        Assert.Equal("18%", result.NewText);
     }
 
     [Fact]
