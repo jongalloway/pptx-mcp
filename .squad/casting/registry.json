@@ -1,0 +1,36 @@
+{
+  "agents": {
+    "mccauley": {
+      "persistent_name": "McCauley",
+      "universe": "Heat",
+      "role": "Lead",
+      "created_at": "2026-03-16T05:50:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "cheritto": {
+      "persistent_name": "Cheritto",
+      "universe": "Heat",
+      "role": "Backend Dev",
+      "created_at": "2026-03-16T05:50:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "shiherlis": {
+      "persistent_name": "Shiherlis",
+      "universe": "Heat",
+      "role": "Tester",
+      "created_at": "2026-03-16T05:50:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "nate": {
+      "persistent_name": "Nate",
+      "universe": "Heat",
+      "role": "Consulting Dev",
+      "created_at": "2026-03-16T05:50:00Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}

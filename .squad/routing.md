@@ -6,12 +6,14 @@ How to decide who handles what.
 
 | Work Type | Route To | Examples |
 |-----------|----------|----------|
-| {domain 1} | {Name} | {example tasks} |
-| {domain 2} | {Name} | {example tasks} |
-| {domain 3} | {Name} | {example tasks} |
-| Code review | {Name} | Review PRs, check quality, suggest improvements |
-| Testing | {Name} | Write tests, find edge cases, verify fixes |
-| Scope & priorities | {Name} | What to build next, trade-offs, decisions |
+| MCP tools & server config | Cheritto | Add/modify MCP tools, Program.cs, server setup |
+| OpenXML / PresentationService | Cheritto | Slide manipulation, OpenXML SDK operations |
+| Architecture & scope | McCauley | What to build next, trade-offs, API design |
+| Code review | McCauley | Review PRs, check quality, suggest improvements |
+| Testing & quality | Shiherlis | Write tests, find edge cases, verify fixes |
+| Prior art & patterns | Nate | Reference dotnet-mcp and MarpToPptx for patterns |
+| MCP SDK patterns | Nate | Advanced MCP SDK usage, publishing, test strategies |
+| Scope & priorities | McCauley | What to build next, trade-offs, decisions |
 | Async issue work (bugs, tests, small features) | @copilot 🤖 | Well-defined tasks matching capability profile |
 | Session logging | Scribe | Automatic — never needs routing |
 
