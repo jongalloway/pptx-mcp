@@ -9,7 +9,7 @@ Real-world use case walkthroughs showing how to use pptx-mcp with AI agents.
 1. [Meeting Prep Assistant](#1-meeting-prep-assistant)
 2. [Documentation Generator](#2-documentation-generator)
 3. [Research Synthesis Tool](#3-research-synthesis-tool)
-4. [Data Dashboard Updater *(Coming in Phase 2)*](#4-data-dashboard-updater-coming-in-phase-2)
+4. [Data Dashboard Updater](#4-data-dashboard-updater)
 
 ---
 
@@ -299,36 +299,120 @@ Agent-synthesized research brief:
 
 ---
 
-## 4. Data Dashboard Updater *(Coming in Phase 2)*
+## 4. Data Dashboard Updater
 
 ### Scenario
 
-Your team has a weekly board presentation with a metrics slide. Instead of manually updating KPI values each Monday morning, an AI agent fetches the latest numbers from your data source and updates the relevant slides automatically.
+Your team has a weekly board presentation with a metrics slide. Instead of manually updating KPI values each Monday morning, an AI agent fetches the latest numbers from a data source MCP and updates the relevant slides automatically.
 
-### Agent Prompt *(Planned)*
+This example uses the **[mock-data-mcp](../examples/mock-data-mcp/)** server included in this repo, which you can run locally without any API keys. The same pattern works with any MCP server that exposes live data.
+
+### Prerequisites
+
+Build both servers from the repo root:
+
+```bash
+dotnet build PptxMcp.slnx --configuration Release
+dotnet build examples/mock-data-mcp/MockDataMcp.csproj --configuration Release
+```
+
+Configure both in your AI client — see [docs/MULTI_SOURCE_COMPOSITION.md](MULTI_SOURCE_COMPOSITION.md) for full setup instructions.
+
+### Agent Prompt
 
 ```
-Fetch today's KPIs from our dashboard MCP server.
-Then update the metrics slide (slide 3) in /presentations/weekly-board-update.pptx
-with the new values: ARR, MRR, NRR, and new logo count.
+I have a weekly board presentation at /presentations/weekly-board.pptx.
+
+1. Fetch this week's KPIs using get_weekly_metrics.
+2. Fetch team updates using get_team_updates.
+3. List all slides in the presentation to find the right slides to update.
+4. Read the KPI Summary slide content to identify placeholder indices.
+5. Update the KPI placeholders with the new values: ARR, MRR, NRR, new logos, churn rate.
+6. Update the Team Updates slide with the department statuses.
+7. Stamp the title slide subtitle with today's date.
 ```
 
-### Tool Workflow *(Planned)*
+### Tool Workflow
 
-1. **External MCP call** — Agent fetches live data from a dashboard or database MCP server.
-2. **`pptx_list_slides`** — Identify which slide contains the metrics table.
-3. **`pptx_get_slide_content`** — Inspect current placeholder structure and shape positions.
-4. **`pptx_update_slide_data`** *(Phase 2)* — Update specific data fields in the slide with fresh values.
-5. **`pptx_update_text`** — Update the "Last Updated" date stamp on the slide.
+1. **`get_weekly_metrics`** (mock-data-mcp) — Fetch KPIs: ARR, MRR, NRR, new logos, churn rate, and notable highlights.
 
-### Status
+   ```json
+   { "name": "get_weekly_metrics", "arguments": {} }
+   ```
 
-> **⚠️ Coming in Phase 2.** The `pptx_update_slide_data` tool is not yet implemented. The current `pptx_update_text` tool can update individual text placeholders by index today — see the [tool reference](../README.md) for details.
+2. **`get_team_updates`** (mock-data-mcp) — Fetch department-level status updates.
 
-Phase 2 will add:
-- `pptx_update_slide_data` — structured field updates driven by a data map
-- Template variable support (`{{metric_name}}` placeholders) for repeatable data injection
-- Multi-source composition examples (pptx-mcp + external data MCPs)
+   ```json
+   { "name": "get_team_updates", "arguments": {} }
+   ```
+
+3. **`pptx_list_slides`** (pptx-mcp) — Identify slide titles and indices.
+
+   ```json
+   { "name": "pptx_list_slides", "arguments": { "filePath": "/presentations/weekly-board.pptx" } }
+   ```
+
+4. **`pptx_get_slide_content`** (pptx-mcp) — Read the KPI slide to map placeholder names to indices before writing.
+
+   ```json
+   { "name": "pptx_get_slide_content", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideIndex": 1 } }
+   ```
+
+5. **`pptx_update_text`** (pptx-mcp, repeated) — Write each new KPI value to its placeholder.
+
+   ```json
+   { "name": "pptx_update_text", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideIndex": 1, "placeholderIndex": 1, "text": "$19.6M ARR (+3.3%)" } }
+   ```
+
+### Example Output
+
+`get_weekly_metrics` returns:
+
+```json
+{
+  "week": "2025-W24",
+  "period": "Week of Jun 9–15, 2025",
+  "kpis": {
+    "arr_millions": 19.6,
+    "arr_change_pct": 3.3,
+    "mrr_thousands": 1633,
+    "nrr_pct": 115,
+    "new_logos": 8,
+    "churn_rate_pct": 1.7
+  },
+  "highlights": [
+    "Closed 5 enterprise deals in EMEA",
+    "NRR reached 115% — second consecutive month above 109%",
+    "Support ticket volume down 18% following documentation refresh",
+    "New integration: GitHub connector released"
+  ]
+}
+```
+
+After all updates, the agent confirms:
+
+```
+✓ Fetched KPIs for 2025-W24
+✓ Fetched team updates for 2025-W24
+✓ Found 4 slides in weekly-board.pptx
+✓ Mapped 5 KPI placeholders on slide 1 (KPI Summary)
+✓ Updated ARR → $19.6M ARR (+3.3%)
+✓ Updated MRR → $1.63M MRR
+✓ Updated NRR → 115% NRR
+✓ Updated New Logos → 8 new logos
+✓ Updated Churn → 1.7% churn
+✓ Updated slide 2 (Team Updates)
+✓ Stamped slide 0 with "Week of June 9–15, 2025"
+
+weekly-board.pptx is ready for Monday's board meeting.
+```
+
+### Try It Yourself
+
+1. Build both servers (see Prerequisites above).
+2. Add both to your AI client config (see [MULTI_SOURCE_COMPOSITION.md](MULTI_SOURCE_COMPOSITION.md)).
+3. Point the agent at any `.pptx` file with text placeholders and use the prompt above.
+4. For a complete walkthrough with architecture diagrams, two full scenarios, and design guidance, see [docs/MULTI_SOURCE_COMPOSITION.md](MULTI_SOURCE_COMPOSITION.md).
 
 ---
 
@@ -336,3 +420,5 @@ Phase 2 will add:
 
 - [README](../README.md) — Full tool reference and configuration
 - [PRD](PRD.md) — Product requirements, goals, and roadmap
+- [Multi-Source Composition Guide](MULTI_SOURCE_COMPOSITION.md) — Architecture, configuration, and full walkthroughs for composing pptx-mcp with external data MCPs
+- [mock-data-mcp](../examples/mock-data-mcp/README.md) — Runnable example MCP server providing mock business metrics and blog data
