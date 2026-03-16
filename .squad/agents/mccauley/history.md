@@ -19,3 +19,12 @@
 - **Key decision:** Non-goals explicitly exclude GUI, legacy formats, and advanced design features to keep scope bounded
 - **Recommended 4 GitHub issues** for Phase 1: two tool implementations, one E2E test, one docs pass
 - Timeline estimate: 2–3 weeks Phase 1, 3–4 weeks Phase 2 (estimate includes +20% buffer)
+
+### Phase 2 Decomposition (2026-03-16)
+- Decomposed Phase 2 ("Content Writing & Intelligent Updates") into 5 GitHub issues (#15–#19)
+- **Core tool work:** Issue #19 (cheritto) implements `pptx_update_slide_data` tool for data-driven slide updates (Goal 2A)
+- **Testing:** Issue #17 (shiherlis) validates pptx_update_slide_data with real metric slides; Issue #15 (shiherlis) validates multi-source E2E scenario (Goal 2B)
+- **Docs & examples:** Issue #18 (copilot) designs composition pattern demo; Issue #16 (copilot) updates all documentation
+- **Dependency chain:** #19 → #17 → #15 + #18 → #16 (docs closes last)
+- All issues routed to appropriate team members; all assigned to "Phase 2 — Content Writing & Updates" milestone
+- Non-duplication verified: Phase 1 issues #6–#14 are independent; no overlap with Phase 2

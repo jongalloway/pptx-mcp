@@ -280,12 +280,74 @@ public class PresentationService
             _ => ImagePartType.Png
         };
 
+    public IReadOnlyList<SlideTalkingPoints> ExtractTalkingPoints(string filePath, int topN = 5)
+    {
+        if (topN <= 0)
+            throw new ArgumentOutOfRangeException(nameof(topN), "topN must be greater than zero.");
+
+        using var doc = PresentationDocument.Open(filePath, false);
+        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        if (slideIdList is null)
+            return [];
+
+        var talkingPoints = new List<SlideTalkingPoints>();
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        for (int slideIndex = 0; slideIndex < slideIds.Count; slideIndex++)
+        {
+            var slidePart = GetSlidePart(doc, slideIndex);
+            try
+            {
+                var slideContent = GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+                var title = GetSlideTitle(slidePart.Slide);
+                var points = RankTalkingPoints(slideContent, topN);
+                talkingPoints.Add(new SlideTalkingPoints(slideIndex, title, points));
+            }
+            catch
+            {
+                talkingPoints.Add(new SlideTalkingPoints(slideIndex, null, []));
+            }
+        }
+
+        return talkingPoints;
+    }
+
     public SlideContent GetSlideContent(string filePath, int slideIndex)
     {
         using var doc = PresentationDocument.Open(filePath, false);
-        var presentationPart = doc.PresentationPart!;
         var slidePart = GetSlidePart(doc, slideIndex);
+        return GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+    }
 
+    public MarkdownExportResult ExportMarkdown(string filePath, string? outputPath = null)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var presentationPart = doc.PresentationPart!;
+        var slideIds = presentationPart.Presentation.SlideIdList?.Elements<SlideId>().ToList() ?? [];
+
+        var resolvedOutputPath = Path.GetFullPath(outputPath ?? Path.ChangeExtension(filePath, ".md")!);
+        var outputDirectory = Path.GetDirectoryName(resolvedOutputPath) ?? Directory.GetCurrentDirectory();
+        Directory.CreateDirectory(outputDirectory);
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine($"# {GetPresentationTitle(presentationPart, slideIds, filePath)}");
+        if (slideIds.Count > 0)
+            builder.AppendLine();
+
+        var imageCount = 0;
+        for (var slideIndex = 0; slideIndex < slideIds.Count; slideIndex++)
+        {
+            var slidePart = GetSlidePart(doc, slideIndex);
+            AppendSlideMarkdown(builder, slidePart, slideIndex, resolvedOutputPath, ref imageCount);
+        }
+
+        var markdown = builder.ToString().TrimEnd() + Environment.NewLine;
+        File.WriteAllText(resolvedOutputPath, markdown);
+
+        return new MarkdownExportResult(resolvedOutputPath, markdown, slideIds.Count, imageCount);
+    }
+
+    private static SlideContent GetSlideContent(PresentationPart presentationPart, SlidePart slidePart, int slideIndex)
+    {
         // Slide dimensions from the presentation-level SlideSize element
         var slideSize = presentationPart.Presentation.SlideSize;
         long slideWidth = slideSize?.Cx?.Value ?? 9144000;
@@ -378,7 +440,6 @@ public class PresentationService
         var drawingProps = nvProps?.NonVisualDrawingProperties;
         var xfrm = frame.Transform;
 
-        // Try to extract table content
         IReadOnlyList<IReadOnlyList<string>>? tableRows = null;
         var graphic = frame.Graphic;
         var graphicData = graphic?.GraphicData;
@@ -461,4 +522,404 @@ public class PresentationService
             Paragraphs: null,
             TableRows: null);
     }
+
+    private static string GetPresentationTitle(PresentationPart presentationPart, IReadOnlyList<SlideId> slideIds, string filePath)
+    {
+        if (slideIds.Count > 0)
+        {
+            var firstSlidePart = (SlidePart)presentationPart.GetPartById(slideIds[0].RelationshipId!.Value!);
+            var title = NormalizeMarkdownText(GetSlideTitle(firstSlidePart.Slide));
+            if (!string.IsNullOrWhiteSpace(title))
+                return title;
+        }
+
+        return NormalizeMarkdownText(Path.GetFileNameWithoutExtension(filePath)) ?? "Presentation";
+    }
+
+    private static void AppendSlideMarkdown(System.Text.StringBuilder builder, SlidePart slidePart, int slideIndex, string outputPath, ref int imageCount)
+    {
+        var slideTitle = NormalizeMarkdownText(GetSlideTitle(slidePart.Slide)) ?? $"Untitled Slide {slideIndex + 1}";
+        builder.AppendLine($"## Slide {slideIndex + 1}: {slideTitle}");
+        builder.AppendLine();
+
+        var shapeTree = slidePart.Slide.CommonSlideData?.ShapeTree;
+        if (shapeTree is null)
+            return;
+
+        var slideImageCount = 0;
+        foreach (var element in shapeTree.ChildElements)
+        {
+            switch (element)
+            {
+                case Shape shape when AppendTextShapeMarkdown(builder, shape):
+                    builder.AppendLine();
+                    break;
+                case Picture picture:
+                {
+                    slideImageCount++;
+                    var imageMarkdown = ExportPictureMarkdown(slidePart, picture, slideIndex, slideImageCount, outputPath);
+                    if (imageMarkdown is not null)
+                    {
+                        imageCount++;
+                        builder.AppendLine(imageMarkdown);
+                        builder.AppendLine();
+                    }
+                    break;
+                }
+                case P.GraphicFrame frame:
+                {
+                    var table = frame.Graphic?.GraphicData?.GetFirstChild<A.Table>();
+                    if (table is not null && AppendTableMarkdown(builder, table))
+                        builder.AppendLine();
+                    break;
+                }
+            }
+        }
+    }
+
+    private static bool AppendTextShapeMarkdown(System.Text.StringBuilder builder, Shape shape)
+    {
+        if (shape.TextBody is null)
+            return false;
+
+        var paragraphs = shape.TextBody.Elements<A.Paragraph>()
+            .Select(paragraph => new
+            {
+                Paragraph = paragraph,
+                Text = NormalizeMarkdownText(paragraph.InnerText)
+            })
+            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+            .ToList();
+
+        if (paragraphs.Count == 0)
+            return false;
+
+        var placeholderType = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape?.Type?.Value;
+        if (placeholderType == PlaceholderValues.Title || placeholderType == PlaceholderValues.CenteredTitle)
+            return false;
+
+        if (placeholderType == PlaceholderValues.SubTitle)
+        {
+            foreach (var paragraph in paragraphs)
+                builder.AppendLine($"### {paragraph.Text}");
+            return true;
+        }
+
+        var treatAsList = paragraphs.Any(item => IsExplicitListParagraph(item.Paragraph))
+            || (placeholderType == PlaceholderValues.Body && paragraphs.Count > 1);
+
+        foreach (var paragraph in paragraphs)
+        {
+            if (ShouldRenderAsListItem(paragraph.Paragraph, treatAsList))
+            {
+                var level = GetParagraphLevel(paragraph.Paragraph);
+                var marker = IsNumberedParagraph(paragraph.Paragraph) ? "1." : "-";
+                builder.AppendLine($"{new string(' ', level * 2)}{marker} {paragraph.Text}");
+                continue;
+            }
+
+            builder.AppendLine(paragraph.Text!);
+        }
+
+        return true;
+    }
+
+    private static bool AppendTableMarkdown(System.Text.StringBuilder builder, A.Table table)
+    {
+        var rows = ExtractTableRows(table)
+            .Select(row => row.Select(EscapeMarkdownTableCell).ToList())
+            .Where(row => row.Count > 0)
+            .ToList();
+
+        if (rows.Count == 0)
+            return false;
+
+        var columnCount = rows.Max(row => row.Count);
+        var normalizedRows = rows
+            .Select(row => row.Concat(Enumerable.Repeat(string.Empty, columnCount - row.Count)).ToList())
+            .ToList();
+
+        builder.AppendLine($"| {string.Join(" | ", normalizedRows[0])} |");
+        builder.AppendLine($"| {string.Join(" | ", Enumerable.Repeat("---", columnCount))} |");
+        foreach (var row in normalizedRows.Skip(1))
+            builder.AppendLine($"| {string.Join(" | ", row)} |");
+
+        return true;
+    }
+
+    private static string? ExportPictureMarkdown(SlidePart slidePart, Picture picture, int slideIndex, int imageIndex, string outputPath)
+    {
+        var relationshipId = picture.BlipFill?.Blip?.Embed?.Value;
+        if (string.IsNullOrWhiteSpace(relationshipId))
+            return null;
+
+        if (slidePart.GetPartById(relationshipId) is not ImagePart imagePart)
+            return null;
+
+        var outputDirectory = Path.GetDirectoryName(outputPath) ?? Directory.GetCurrentDirectory();
+        var imageDirectoryName = $"{Path.GetFileNameWithoutExtension(outputPath)}_images";
+        var imageDirectoryPath = Path.Join(outputDirectory, imageDirectoryName);
+        Directory.CreateDirectory(imageDirectoryPath);
+
+        var altText = NormalizeMarkdownText(picture.NonVisualPictureProperties?.NonVisualDrawingProperties?.Name?.Value)
+            ?? $"Slide {slideIndex + 1} image {imageIndex}";
+        var extension = GetImageExtension(imagePart);
+        var imageFileName = $"slide-{slideIndex + 1}-image-{imageIndex}-{SanitizeFileName(altText)}{extension}";
+        var imagePath = GetUniquePath(imageDirectoryPath, imageFileName);
+
+        using (var imageStream = imagePart.GetStream(FileMode.Open, FileAccess.Read))
+        using (var outputStream = File.Create(imagePath))
+        {
+            imageStream.CopyTo(outputStream);
+        }
+
+        var relativePath = Path.GetRelativePath(outputDirectory, imagePath).Replace('\\', '/');
+        return $"![{altText}]({relativePath})";
+    }
+
+    private static bool ShouldRenderAsListItem(A.Paragraph paragraph, bool treatAsList)
+    {
+        var properties = paragraph.ParagraphProperties;
+        if (properties?.GetFirstChild<A.NoBullet>() is not null)
+            return false;
+
+        return IsExplicitListParagraph(paragraph) || treatAsList;
+    }
+
+    private static bool IsExplicitListParagraph(A.Paragraph paragraph)
+    {
+        var properties = paragraph.ParagraphProperties;
+        if (properties is null)
+            return false;
+
+        return properties.GetFirstChild<A.CharacterBullet>() is not null
+            || properties.GetFirstChild<A.AutoNumberedBullet>() is not null
+            || properties.Level is not null;
+    }
+
+    private static bool IsNumberedParagraph(A.Paragraph paragraph) =>
+        paragraph.ParagraphProperties?.GetFirstChild<A.AutoNumberedBullet>() is not null;
+
+    private static int GetParagraphLevel(A.Paragraph paragraph) =>
+        paragraph.ParagraphProperties?.Level?.Value is { } level ? level : 0;
+
+    private static string EscapeMarkdownTableCell(string value) =>
+        (NormalizeMarkdownText(value) ?? string.Empty).Replace("|", "\\|");
+
+    private static string? NormalizeMarkdownText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value
+            .Replace("\r", string.Empty)
+            .Replace("\n", " ")
+            .Trim();
+    }
+
+    private static string GetImageExtension(ImagePart imagePart)
+    {
+        var uriExtension = Path.GetExtension(imagePart.Uri.ToString());
+        if (!string.IsNullOrWhiteSpace(uriExtension))
+            return uriExtension;
+
+        return imagePart.ContentType switch
+        {
+            "image/png" => ".png",
+            "image/jpeg" => ".jpg",
+            "image/gif" => ".gif",
+            "image/bmp" => ".bmp",
+            _ => ".bin"
+        };
+    }
+
+    private static string SanitizeFileName(string value)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var character in value)
+            builder.Append(invalidCharacters.Contains(character) ? '_' : character);
+
+        return builder.ToString().Trim() switch
+        {
+            "" => "image",
+            var sanitized => sanitized
+        };
+    }
+
+    private static string GetUniquePath(string directory, string fileName)
+    {
+        var candidate = Path.Join(directory, fileName);
+        if (!File.Exists(candidate))
+            return candidate;
+
+        var baseName = Path.GetFileNameWithoutExtension(fileName);
+        var extension = Path.GetExtension(fileName);
+        var counter = 2;
+        while (true)
+        {
+            candidate = Path.Join(directory, $"{baseName}-{counter}{extension}");
+            if (!File.Exists(candidate))
+                return candidate;
+            counter++;
+        }
+    }
+
+    private static IReadOnlyList<string> RankTalkingPoints(SlideContent slideContent, int topN)
+    {
+        var candidates = new List<TalkingPointCandidate>();
+        int order = 0;
+
+        foreach (var shape in slideContent.Shapes)
+        {
+            if (!string.Equals(shape.ShapeType, "Text", StringComparison.OrdinalIgnoreCase) || shape.Paragraphs is null)
+                continue;
+
+            if (ShouldIgnoreShape(shape))
+                continue;
+
+            for (int paragraphIndex = 0; paragraphIndex < shape.Paragraphs.Count; paragraphIndex++)
+            {
+                var text = NormalizeText(shape.Paragraphs[paragraphIndex]);
+                if (ShouldIgnoreParagraph(text))
+                    continue;
+
+                var score = ScoreTalkingPoint(shape, text);
+                if (score <= 0)
+                    continue;
+
+                candidates.Add(new TalkingPointCandidate(
+                    text,
+                    NormalizeKey(text),
+                    score,
+                    shape.Y ?? long.MaxValue,
+                    order++,
+                    IsTitlePlaceholder(shape.PlaceholderType)));
+            }
+        }
+
+        var selectedCandidates = candidates
+            .GroupBy(candidate => candidate.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(candidate => candidate.Score).ThenBy(candidate => candidate.Order).First())
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Y)
+            .ThenBy(candidate => candidate.Order)
+            .Take(topN)
+            .ToList();
+
+        var hasVisualOnlyContent = slideContent.Shapes.Any(shape =>
+            !string.Equals(shape.ShapeType, "Text", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(shape.ShapeType, "Connector", StringComparison.OrdinalIgnoreCase));
+
+        if (hasVisualOnlyContent && selectedCandidates.Count > 0 && selectedCandidates.All(candidate => candidate.IsTitleCandidate))
+            return [];
+
+        return selectedCandidates
+            .OrderBy(candidate => candidate.Y)
+            .ThenBy(candidate => candidate.Order)
+            .Select(candidate => candidate.Text)
+            .ToList();
+    }
+
+    private static bool ShouldIgnoreShape(ShapeContent shape)
+    {
+        if (ContainsNoiseMarker(shape.Name))
+            return true;
+
+        return shape.PlaceholderType switch
+        {
+            nameof(PlaceholderValues.DateAndTime) => true,
+            nameof(PlaceholderValues.Footer) => true,
+            nameof(PlaceholderValues.Header) => true,
+            nameof(PlaceholderValues.SlideNumber) => true,
+            _ => false
+        };
+    }
+
+    private static bool ShouldIgnoreParagraph(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        if (!text.Any(char.IsLetterOrDigit))
+            return true;
+
+        if (ContainsNoiseMarker(text))
+            return true;
+
+        return text.StartsWith("Click to add ", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ScoreTalkingPoint(ShapeContent shape, string text)
+    {
+        int score = shape.PlaceholderType switch
+        {
+            nameof(PlaceholderValues.Body) => 90,
+            nameof(PlaceholderValues.Object) => 80,
+            nameof(PlaceholderValues.SubTitle) => 60,
+            nameof(PlaceholderValues.Title) => 45,
+            nameof(PlaceholderValues.CenteredTitle) => 45,
+            _ when shape.IsPlaceholder => 55,
+            _ => 65
+        };
+
+        if ((shape.Paragraphs?.Count ?? 0) > 1)
+            score += 20;
+
+        if (LooksLikeBullet(text))
+            score += 25;
+
+        if (text.Length >= 15 && text.Length <= 160)
+            score += 10;
+        else if (text.Length > 200)
+            score -= 10;
+
+        if (IsLikelyHeading(text))
+            score -= 15;
+
+        return score;
+    }
+
+    private static bool LooksLikeBullet(string text)
+    {
+        var trimmed = text.TrimStart();
+        if (trimmed.Length == 0)
+            return false;
+
+        return trimmed[0] switch
+        {
+            '-' => true,
+            '*' => true,
+            '•' => true,
+            '◦' => true,
+            '–' => true,
+            _ => trimmed.Length > 2 && char.IsDigit(trimmed[0]) && (trimmed[1] == '.' || trimmed[1] == ')')
+        };
+    }
+
+    private static bool IsLikelyHeading(string text)
+    {
+        if (text.Contains(':') || text.Contains('.') || text.Contains(';'))
+            return false;
+
+        return text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length <= 5;
+    }
+
+    private static string NormalizeText(string text) =>
+        string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string NormalizeKey(string text) =>
+        NormalizeText(text).TrimEnd('.', ';', ':', '!', '?').ToUpperInvariant();
+
+    private static bool ContainsNoiseMarker(string text) =>
+        text.Contains("presenter notes", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("speaker notes", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("notes placeholder", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTitlePlaceholder(string? placeholderType) =>
+        placeholderType is nameof(PlaceholderValues.Title) or nameof(PlaceholderValues.CenteredTitle);
+
+    private sealed record TalkingPointCandidate(string Text, string Key, int Score, long Y, int Order, bool IsTitleCandidate);
 }
+
+
