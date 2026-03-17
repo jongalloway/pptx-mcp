@@ -492,24 +492,20 @@ public class TableOperationTests : IDisposable
     }
 
     [Fact]
-    public void UpdateTable_CellCoordinatesOutOfRange_ReturnsFailure()
+    public void UpdateTable_CellCoordinatesOutOfRange_SkipsAndReturnsSuccess()
     {
         var path = CreatePresentationWithTable("Small",
             [["A", "B"], ["1", "2"]]);
 
-        // Implementation may throw or return a failure result — accept either
-        try
-        {
-            var result = _service.UpdateTable(path, 1, tableName: "Small", updates:
-            [
-                new TableCellUpdate(99, 99, "Out of bounds")
-            ]);
-            Assert.False(result.Success);
-        }
-        catch (Exception ex)
-        {
-            Assert.NotNull(ex);
-        }
+        var result = _service.UpdateTable(path, 1, tableName: "Small", updates:
+        [
+            new TableCellUpdate(99, 99, "Out of bounds")
+        ]);
+
+        // Out-of-range coordinates are skipped; the call still succeeds
+        Assert.True(result.Success);
+        Assert.Equal(0, result.CellsUpdated);
+        Assert.Equal(1, result.CellsSkipped);
     }
 
     // ────────────────────────────────────────────────────────

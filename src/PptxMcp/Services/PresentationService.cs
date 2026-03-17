@@ -429,6 +429,9 @@ public partial class PresentationService
         var resolvedName = string.IsNullOrWhiteSpace(tableName) ? $"Table {newId}" : tableName!;
 
         var rowHeight = Math.Max(342900L, height / totalRowCount);
+        // If the minimum row height makes all rows taller than the supplied height,
+        // expand the frame so that Cy equals the actual total row height.
+        var effectiveHeight = rowHeight * totalRowCount;
         var columnWidth = Math.Max(1L, width / columnCount);
 
         // Build the DrawingML table
@@ -451,7 +454,7 @@ public partial class PresentationService
                 new ApplicationNonVisualDrawingProperties()),
             new P.Transform(
                 new A.Offset { X = x, Y = y },
-                new A.Extents { Cx = width, Cy = height }),
+                new A.Extents { Cx = width, Cy = effectiveHeight }),
             new A.Graphic(
                 new A.GraphicData(drawingTable)
                 {
@@ -560,20 +563,54 @@ public partial class PresentationService
 
             var cell = cells[update.Column];
 
-            // Replace cell text while preserving TableCellProperties
-            var existingCellProps = cell.TableCellProperties?.CloneNode(true) as A.TableCellProperties;
+            // Update text in-place, preserving BodyProperties, ListStyle, ParagraphProperties,
+            // and RunProperties — only the text value changes.
+            var textBody = cell.GetFirstChild<A.TextBody>();
+            if (textBody is not null)
+            {
+                // Collapse to a single paragraph
+                foreach (var p in textBody.Elements<A.Paragraph>().Skip(1).ToList())
+                    p.Remove();
 
-            cell.RemoveAllChildren<A.TextBody>();
-            cell.PrependChild(new A.TextBody(
-                new A.BodyProperties(),
-                new A.ListStyle(),
-                new A.Paragraph(
-                    new A.Run(new A.Text(update.Value ?? string.Empty)),
-                    new A.EndParagraphRunProperties())));
+                var firstPara = textBody.GetFirstChild<A.Paragraph>()
+                    ?? textBody.AppendChild(new A.Paragraph());
 
-            // Preserve cell properties
-            cell.RemoveAllChildren<A.TableCellProperties>();
-            cell.Append(existingCellProps ?? new A.TableCellProperties());
+                // Preserve run properties from the existing first run (font, bold, size, etc.)
+                var existingRunProps = firstPara.Elements<A.Run>()
+                    .FirstOrDefault()
+                    ?.GetFirstChild<A.RunProperties>()
+                    ?.CloneNode(true) as A.RunProperties;
+
+                // Remove all runs and insert a single new one with the updated text
+                foreach (var r in firstPara.Elements<A.Run>().ToList())
+                    r.Remove();
+
+                var newRun = new A.Run(new A.Text(update.Value ?? string.Empty));
+                if (existingRunProps is not null)
+                    newRun.PrependChild(existingRunProps);
+
+                var endParaRunProps = firstPara.GetFirstChild<A.EndParagraphRunProperties>();
+                if (endParaRunProps is not null)
+                    firstPara.InsertBefore(newRun, endParaRunProps);
+                else
+                    firstPara.Append(newRun);
+            }
+            else
+            {
+                // No existing TextBody — create one, inserting it before TableCellProperties
+                // to maintain the required OpenXML child order (a:txBody before a:tcPr).
+                var newTextBody = new A.TextBody(
+                    new A.BodyProperties(),
+                    new A.ListStyle(),
+                    new A.Paragraph(
+                        new A.Run(new A.Text(update.Value ?? string.Empty)),
+                        new A.EndParagraphRunProperties()));
+                var tcPr = cell.GetFirstChild<A.TableCellProperties>();
+                if (tcPr is not null)
+                    cell.InsertBefore(newTextBody, tcPr);
+                else
+                    cell.Append(newTextBody);
+            }
 
             cellsUpdated++;
         }

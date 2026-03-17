@@ -48,10 +48,10 @@
 - **Coverage:** 214/214 tests passing (up from 186)
 - **Key patterns learned:**
   - Test fixtures created with TestPptxHelper produce pre-existing SlideMaster validation errors — always use baseline comparison pattern (`ValidatePresentation` before/after), never `Assert.Empty` on validator output
-  - Table implementation uses result objects with `Success=false` for out-of-range coordinates rather than throwing exceptions — tests must accept both patterns
+  - Table implementation skips out-of-range cell coordinates: returns `Success=true` with `CellsSkipped` incremented — not `Success=false`
   - `TableCellUpdate` record: `(int Row, int Column, string Value)` — 0-based coordinates
   - `InsertTable` service signature: `(filePath, slideNumber, headers[], rows[][], tableName?, x?, y?, width?, height?)` returns `TableInsertResult`
-  - `UpdateTable` service signature: `(filePath, slideNumber, tableName?, tableIndex?, updates[])` returns `TableUpdateResult`
+  - `UpdateTable` service signature: `(filePath, slideNumber, updates[], tableName?, tableIndex?)` returns `TableUpdateResult`
   - Table name lookup is case-insensitive; tableIndex is 0-based among tables on slide
   - GraphicData URI for tables: `http://schemas.openxmlformats.org/drawingml/2006/table` — must be exact
 - **Edge cases tested:** 1x1 table, empty table (headers only), large table (13×6), custom/default positioning, unique shape IDs, cell property preservation, existing shape preservation, multiple cell updates in one call

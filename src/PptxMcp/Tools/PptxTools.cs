@@ -458,7 +458,7 @@ public sealed partial class PptxTools
 
         try
         {
-            var result = _service.InsertTable(filePath, slideNumber, headers, rows, tableName, x, y, width, height);
+            var result = _service.InsertTable(filePath, slideNumber, headers ?? [], rows ?? [], tableName, x, y, width, height);
             return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception ex)
@@ -507,9 +507,22 @@ public sealed partial class PptxTools
             return Task.FromResult(JsonSerializer.Serialize(missingResult, new JsonSerializerOptions { WriteIndented = true }));
         }
 
+        if ((updates?.Length ?? 0) == 0)
+        {
+            var emptyResult = new TableUpdateResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                TableName: tableName,
+                MatchedBy: null,
+                CellsUpdated: 0,
+                CellsSkipped: 0,
+                Message: "No updates provided.");
+            return Task.FromResult(JsonSerializer.Serialize(emptyResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
         try
         {
-            var result = _service.UpdateTable(filePath, slideNumber, updates, tableName, tableIndex);
+            var result = _service.UpdateTable(filePath, slideNumber, updates ?? [], tableName, tableIndex);
             return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception ex)
