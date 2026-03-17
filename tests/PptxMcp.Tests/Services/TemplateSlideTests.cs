@@ -5,23 +5,15 @@ using PptxMcp.Models;
 
 namespace PptxMcp.Tests.Services;
 
-public class TemplateSlideTests : IDisposable
+public class TemplateSlideTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = [];
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
 
     [Fact]
     public void AddSlideFromLayout_PopulatesRequestedPlaceholders()
     {
         var path = CreateTemplateDeck();
 
-        var result = _service.AddSlideFromLayout(path, TemplateDeckHelper.TitleBodyLayoutName, new Dictionary<string, string>
+        var result = Service.AddSlideFromLayout(path, TemplateDeckHelper.TitleBodyLayoutName, new Dictionary<string, string>
         {
             ["Title"] = "Executive Summary",
             ["Body:1"] = "Revenue up 18%",
@@ -33,10 +25,10 @@ public class TemplateSlideTests : IDisposable
         Assert.Equal(TemplateDeckHelper.TitleBodyLayoutName, result.LayoutName);
         Assert.Equal(3, result.PlaceholdersPopulated);
 
-        var slides = _service.GetSlides(path);
+        var slides = Service.GetSlides(path);
         Assert.Equal("Executive Summary", slides[1].Title);
 
-        var addedSlide = _service.GetSlideContent(path, 1);
+        var addedSlide = Service.GetSlideContent(path, 1);
         Assert.Equal("Revenue up 18%", addedSlide.Shapes.Single(shape => shape.PlaceholderIndex == 1).Text);
         Assert.Equal("Pipeline healthy", addedSlide.Shapes.Single(shape => shape.PlaceholderIndex == 2).Text);
         AssertPresentationCompatible(path);
@@ -48,7 +40,7 @@ public class TemplateSlideTests : IDisposable
         var path = CreateTemplateDeck();
         var baselineErrors = ValidatePresentation(path);
 
-        var result = _service.AddSlideFromLayout(path, TemplateDeckHelper.PictureCaptionLayoutName);
+        var result = Service.AddSlideFromLayout(path, TemplateDeckHelper.PictureCaptionLayoutName);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.SlideNumber);
@@ -68,7 +60,7 @@ public class TemplateSlideTests : IDisposable
     {
         var path = CreateTemplateDeck();
 
-        var exception = Assert.Throws<InvalidOperationException>(() => _service.AddSlideFromLayout(path, "Missing Layout"));
+        var exception = Assert.Throws<InvalidOperationException>(() => Service.AddSlideFromLayout(path, "Missing Layout"));
 
         Assert.Contains("Missing Layout", exception.Message);
         Assert.Contains(TemplateDeckHelper.TitleBodyLayoutName, exception.Message);
@@ -80,7 +72,7 @@ public class TemplateSlideTests : IDisposable
     {
         var path = CreateTemplateDeck();
 
-        var exception = Assert.Throws<InvalidOperationException>(() => _service.AddSlideFromLayout(path, TemplateDeckHelper.PictureCaptionLayoutName, new Dictionary<string, string>
+        var exception = Assert.Throws<InvalidOperationException>(() => Service.AddSlideFromLayout(path, TemplateDeckHelper.PictureCaptionLayoutName, new Dictionary<string, string>
         {
             ["Picture:1"] = "not-an-image"
         }));
@@ -94,7 +86,7 @@ public class TemplateSlideTests : IDisposable
     {
         var path = CreateTemplateDeck();
 
-        var result = _service.DuplicateSlide(path, 1, new Dictionary<string, string>
+        var result = Service.DuplicateSlide(path, 1, new Dictionary<string, string>
         {
             ["Title"] = "Duplicated Review",
             ["Body:2"] = "Action owners assigned"
@@ -105,14 +97,14 @@ public class TemplateSlideTests : IDisposable
         Assert.Equal(5, result.ShapesCopied);
         Assert.Equal(2, result.OverridesApplied);
 
-        var slides = _service.GetSlides(path);
+        var slides = Service.GetSlides(path);
         Assert.Equal("Quarterly Business Review", slides[0].Title);
         Assert.Equal("Duplicated Review", slides[1].Title);
 
-        var duplicatedSlide = _service.GetSlideContent(path, 1);
+        var duplicatedSlide = Service.GetSlideContent(path, 1);
         Assert.Equal("Action owners assigned", duplicatedSlide.Shapes.Single(shape => shape.PlaceholderIndex == 2).Text);
 
-        var originalSlide = _service.GetSlideContent(path, 0);
+        var originalSlide = Service.GetSlideContent(path, 0);
         Assert.Equal("Follow-up items", originalSlide.Shapes.Single(shape => shape.PlaceholderIndex == 2).Text);
         AssertPresentationCompatible(path);
     }
@@ -123,7 +115,7 @@ public class TemplateSlideTests : IDisposable
         var path = CreateTemplateDeck();
         var baselineErrors = ValidatePresentation(path);
 
-        var result = _service.DuplicateSlide(path, 1);
+        var result = Service.DuplicateSlide(path, 1);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.NewSlideNumber);
@@ -146,7 +138,7 @@ public class TemplateSlideTests : IDisposable
     private string CreateTemplateDeck()
     {
         var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
+        TrackTempFile(path);
         TemplateDeckHelper.CreateTemplatePresentation(path);
         return path;
     }

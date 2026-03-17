@@ -5,16 +5,8 @@ using PptxMcp.Models;
 
 namespace PptxMcp.Tests.Services;
 
-public class BatchUpdateTests : IDisposable
+public class BatchUpdateTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = [];
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
 
     [Fact]
     public void BatchUpdate_UpdatesMultipleSlides_AndKeepsPresentationCompatible()
@@ -22,7 +14,7 @@ public class BatchUpdateTests : IDisposable
         var path = CreateRealMetricDeck();
         var baselineValidationErrors = ValidatePresentation(path);
 
-        var result = _service.BatchUpdate(path,
+        var result = Service.BatchUpdate(path,
         [
             new BatchUpdateMutation(1, "Executive Subtitle", "Executive metrics review"),
             new BatchUpdateMutation(2, "Revenue Value", "4.8M ARR"),
@@ -71,9 +63,9 @@ public class BatchUpdateTests : IDisposable
     public void BatchUpdate_PreservesSuccessfulMutations_WhenOneMutationFails()
     {
         var path = CreateRealMetricDeck();
-        var failedSlideXmlBefore = _service.GetSlideXml(path, 1);
+        var failedSlideXmlBefore = Service.GetSlideXml(path, 1);
 
-        var result = _service.BatchUpdate(path,
+        var result = Service.BatchUpdate(path,
         [
             new BatchUpdateMutation(1, "Executive Subtitle", "Executive metrics review"),
             new BatchUpdateMutation(2, "Missing Shape", "4.0M ARR"),
@@ -109,7 +101,7 @@ public class BatchUpdateTests : IDisposable
         Assert.Equal("3.2M ARR", FindShape(path, 1, "Revenue Value").Text);
         Assert.Equal("62%", FindShape(path, 1, "Gross Margin").Text);
         Assert.Equal(["Mitigate EMEA churn"], FindShape(path, 2, "Risk Body").Paragraphs);
-        Assert.Equal(failedSlideXmlBefore, _service.GetSlideXml(path, 1));
+        Assert.Equal(failedSlideXmlBefore, Service.GetSlideXml(path, 1));
         AssertPresentationCompatible(path);
     }
 
@@ -119,7 +111,7 @@ public class BatchUpdateTests : IDisposable
         var path = CreateRealMetricDeck();
         var baselineValidationErrors = ValidatePresentation(path);
 
-        var result = _service.BatchUpdate(path, []);
+        var result = Service.BatchUpdate(path, []);
 
         Assert.Equal(0, result.TotalMutations);
         Assert.Equal(0, result.SuccessCount);
@@ -132,7 +124,7 @@ public class BatchUpdateTests : IDisposable
     }
 
     private string CreateRealMetricDeck() =>
-        CreatePresentation(
+        CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "FY26 Metrics",
@@ -212,17 +204,9 @@ public class BatchUpdateTests : IDisposable
                 ]
             });
 
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private ShapeContent FindShape(string path, int slideIndex, string shapeName)
     {
-        var slide = _service.GetSlideContent(path, slideIndex);
+        var slide = Service.GetSlideContent(path, slideIndex);
         return Assert.Single(slide.Shapes, shape => shape.Name == shapeName);
     }
 

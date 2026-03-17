@@ -6,11 +6,9 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Tests.Tools;
 
-public class ImageReplaceToolTests : IDisposable
+public class ImageReplaceToolTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly PptxTools _tools;
-    private readonly List<string> _tempFiles = [];
 
     private static readonly byte[] PngBytes = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nZxQAAAAASUVORK5CYII=");
@@ -20,25 +18,19 @@ public class ImageReplaceToolTests : IDisposable
 
     public ImageReplaceToolTests()
     {
-        _tools = new PptxTools(_service);
+        _tools = new PptxTools(Service);
     }
 
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
-    private string TrackTempFile(string extension = ".pptx")
+    private string CreateTrackedPath(string extension = ".pptx")
     {
         var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + extension);
-        _tempFiles.Add(path);
+        TrackTempFile(path);
         return path;
     }
 
     private string CreatePptxWithPicture(string pictureName = "Photo")
     {
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         using var doc = DocumentFormat.OpenXml.Packaging.PresentationDocument.Create(
             pptxPath, DocumentFormat.OpenXml.PresentationDocumentType.Presentation);
 
@@ -117,7 +109,7 @@ public class ImageReplaceToolTests : IDisposable
 
     private string CreateTempImage(byte[] bytes, string extension = ".png")
     {
-        var path = TrackTempFile(extension);
+        var path = CreateTrackedPath(extension);
         File.WriteAllBytes(path, bytes);
         return path;
     }

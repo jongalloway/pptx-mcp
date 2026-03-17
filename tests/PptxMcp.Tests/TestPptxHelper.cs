@@ -339,7 +339,7 @@ internal static class TestPptxHelper
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
 }
 
-internal sealed class TestSlideDefinition
+public sealed class TestSlideDefinition
 {
     public string? TitleText { get; init; }
 
@@ -352,7 +352,7 @@ internal sealed class TestSlideDefinition
     public bool IncludeImage { get; init; }
 }
 
-internal sealed class TestTextShapeDefinition
+public sealed class TestTextShapeDefinition
 {
     public string? Name { get; init; }
 
@@ -371,7 +371,7 @@ internal sealed class TestTextShapeDefinition
     public long? Height { get; init; }
 }
 
-internal sealed class TestParagraphDefinition
+public sealed class TestParagraphDefinition
 {
     public string? Text { get; init; }
 
@@ -382,7 +382,7 @@ internal sealed class TestParagraphDefinition
     public bool IsNumbered { get; init; }
 }
 
-internal sealed class TestTableDefinition
+public sealed class TestTableDefinition
 {
     public string? Name { get; init; }
 

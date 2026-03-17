@@ -7,11 +7,8 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Tests.Services;
 
-public class ImageReplaceTests : IDisposable
+public class ImageReplaceTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = new();
-
     private static readonly byte[] PngBytes = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nZxQAAAAASUVORK5CYII=");
 
@@ -23,22 +20,16 @@ public class ImageReplaceTests : IDisposable
     private static readonly byte[] SvgBytes = System.Text.Encoding.UTF8.GetBytes(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"><rect width=\"1\" height=\"1\" fill=\"red\"/></svg>");
 
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
-    private string TrackTempFile(string? extension = ".pptx")
+    private string CreateTrackedPath(string? extension = ".pptx")
     {
         var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + extension);
-        _tempFiles.Add(path);
+        TrackTempFile(path);
         return path;
     }
 
     private string CreatePptxWithPicture(string pictureName = "Picture 2", int pictureCount = 1)
     {
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         using var doc = DocumentFormat.OpenXml.Packaging.PresentationDocument.Create(pptxPath, DocumentFormat.OpenXml.PresentationDocumentType.Presentation);
 
         var presentationPart = doc.AddPresentationPart();
@@ -150,7 +141,7 @@ public class ImageReplaceTests : IDisposable
 
     private string CreateTempImage(byte[] bytes, string extension = ".png")
     {
-        var path = TrackTempFile(extension);
+        var path = CreateTrackedPath(extension);
         File.WriteAllBytes(path, bytes);
         return path;
     }
@@ -163,7 +154,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Logo");
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("Logo", result.ShapeName);
@@ -178,7 +169,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Company Logo");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "company logo", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "company logo", null, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("Company Logo", result.ShapeName);
@@ -190,7 +181,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Logo");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "NonExistent", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "NonExistent", null, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("Logo", result.Message);
@@ -206,7 +197,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo");
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("Photo", result.ShapeName);
@@ -219,7 +210,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 5, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 5, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message);
@@ -235,7 +226,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Hero Image");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "Hero Image", null, imagePath, "A scenic mountain view");
+        var result = Service.ReplaceImage(pptxPath, 1, "Hero Image", null, imagePath, "A scenic mountain view");
 
         Assert.True(result.Success);
         Assert.Equal("A scenic mountain view", result.AltText);
@@ -255,7 +246,7 @@ public class ImageReplaceTests : IDisposable
         var imagePath = CreateTempImage(PngBytes, ".png");
 
         // Alt text not set initially, should remain null
-        var result = _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Null(result.AltText);
@@ -271,7 +262,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("image/png", result.NewImageContentType);
@@ -283,7 +274,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(JpegBytes, ".jpeg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("image/jpeg", result.NewImageContentType);
@@ -295,7 +286,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("image/jpeg", result.NewImageContentType);
@@ -307,7 +298,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(SvgBytes, ".svg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("image/svg+xml", result.NewImageContentType);
@@ -319,7 +310,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(PngBytes, ".tiff");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("Unsupported image format", result.Message);
@@ -332,7 +323,7 @@ public class ImageReplaceTests : IDisposable
     [Fact]
     public void ReplaceImage_NoSlides_ReturnsError()
     {
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         using (var doc = DocumentFormat.OpenXml.Packaging.PresentationDocument.Create(pptxPath, DocumentFormat.OpenXml.PresentationDocumentType.Presentation))
         {
             var pp = doc.AddPresentationPart();
@@ -344,7 +335,7 @@ public class ImageReplaceTests : IDisposable
         }
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("no slides", result.Message);
@@ -356,7 +347,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 99, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 99, null, 0, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message);
@@ -368,7 +359,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 0, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 0, null, 0, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("must be 1 or greater", result.Message);
@@ -380,7 +371,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture();
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, null, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("Provide either", result.Message);
@@ -390,11 +381,11 @@ public class ImageReplaceTests : IDisposable
     public void ReplaceImage_NoPicturesOnSlide_ReturnsError()
     {
         // Create a presentation with only text shapes, no pictures
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         TestPptxHelper.CreateMinimalPresentation(pptxPath, "Text Only Slide");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("does not contain any picture shapes", result.Message);
@@ -406,7 +397,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo", pictureCount: 3);
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, 1, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 1, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("Photo 1", result.ShapeName);
@@ -419,7 +410,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, null, -1, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, -1, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message);
@@ -429,7 +420,7 @@ public class ImageReplaceTests : IDisposable
     public void ReplaceImage_DuplicateNames_ReturnsAmbiguityError()
     {
         // Create a PPTX with two pictures sharing the same name
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         using (var doc = DocumentFormat.OpenXml.Packaging.PresentationDocument.Create(pptxPath, DocumentFormat.OpenXml.PresentationDocumentType.Presentation))
         {
             var presentationPart = doc.AddPresentationPart();
@@ -505,7 +496,7 @@ public class ImageReplaceTests : IDisposable
 
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("Multiple picture shapes named", result.Message);
@@ -518,7 +509,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo");
         var imagePath = CreateTempImage(PngBytes, ".png");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "   ", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "   ", null, imagePath, null);
 
         Assert.False(result.Success);
         Assert.Contains("Provide either", result.Message);
@@ -531,7 +522,7 @@ public class ImageReplaceTests : IDisposable
         var imagePath = CreateTempImage(PngBytes, ".png");
 
         // Name doesn't match, but index is valid → shapeIndexFallback
-        var result = _service.ReplaceImage(pptxPath, 1, "NonExistent", 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "NonExistent", 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("shapeIndexFallback", result.MatchedBy);
@@ -548,7 +539,7 @@ public class ImageReplaceTests : IDisposable
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
         var expectedBytes = File.ReadAllBytes(imagePath);
 
-        _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+        Service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
 
         using var doc = PresentationDocument.Open(pptxPath, false);
         var slidePart = (SlidePart)doc.PresentationPart!.GetPartById(
@@ -570,7 +561,7 @@ public class ImageReplaceTests : IDisposable
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
         // Replace the middle picture (index 1)
-        _service.ReplaceImage(pptxPath, 1, null, 1, imagePath, null);
+        Service.ReplaceImage(pptxPath, 1, null, 1, imagePath, null);
 
         // All 3 pictures should still exist
         using var doc = PresentationDocument.Open(pptxPath, false);
@@ -596,7 +587,7 @@ public class ImageReplaceTests : IDisposable
         }
 
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
-        _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+        Service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
 
         using var doc2 = PresentationDocument.Open(pptxPath, false);
         var slidePart2 = (SlidePart)doc2.PresentationPart!.GetPartById(
@@ -613,7 +604,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo"); // starts as PNG
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        var result = _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("image/png", result.PreviousImageContentType);
@@ -627,10 +618,10 @@ public class ImageReplaceTests : IDisposable
         var firstImage = CreateTempImage(JpegBytes, ".jpg");
         var secondImage = CreateTempImage(PngBytes, ".png");
 
-        var r1 = _service.ReplaceImage(pptxPath, 1, "Photo", null, firstImage, "First");
+        var r1 = Service.ReplaceImage(pptxPath, 1, "Photo", null, firstImage, "First");
         Assert.True(r1.Success);
 
-        var r2 = _service.ReplaceImage(pptxPath, 1, "Photo", null, secondImage, "Second");
+        var r2 = Service.ReplaceImage(pptxPath, 1, "Photo", null, secondImage, "Second");
         Assert.True(r2.Success);
         Assert.Equal("image/jpeg", r2.PreviousImageContentType);
         Assert.Equal("image/png", r2.NewImageContentType);
@@ -641,7 +632,7 @@ public class ImageReplaceTests : IDisposable
     public void ReplaceImage_OnSecondSlide_TargetsCorrectSlide()
     {
         // Create two-slide deck with images
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         TestPptxHelper.CreatePresentation(pptxPath,
         [
             new TestSlideDefinition { TitleText = "Slide 1", IncludeImage = true },
@@ -649,7 +640,7 @@ public class ImageReplaceTests : IDisposable
         ]);
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        var result = _service.ReplaceImage(pptxPath, 2, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 2, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.SlideNumber);
@@ -658,12 +649,12 @@ public class ImageReplaceTests : IDisposable
     [Fact]
     public void ReplaceImage_WithTemplateDeckPictures_Succeeds()
     {
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         TemplateDeckHelper.CreateTemplatePresentation(pptxPath);
         var imagePath = CreateTempImage(PngBytes, ".png");
 
         // TemplateDeckHelper's source slide has Picture shapes at indices 0 and 1
-        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+        var result = Service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
 
         Assert.True(result.Success);
         Assert.Equal("shapeIndex", result.MatchedBy);
@@ -680,7 +671,7 @@ public class ImageReplaceTests : IDisposable
         var baselineCount = validator.Validate(baselineDoc).Count();
         baselineDoc.Dispose();
 
-        _service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, "Company Logo");
+        Service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, "Company Logo");
 
         using var postDoc = PresentationDocument.Open(pptxPath, false);
         var postCount = validator.Validate(postDoc).Count();
@@ -698,7 +689,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Logo");
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        _service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, "Company logo");
+        Service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, "Company logo");
 
         // Collect baseline validation errors from fixture (SlideMaster warnings are benign)
         var baselinePath = CreatePptxWithPicture("Baseline");
@@ -722,7 +713,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo");
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+        Service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
 
         using var doc = PresentationDocument.Open(pptxPath, false);
         var slidePart = (SlidePart)doc.PresentationPart!.GetPartById(
@@ -744,7 +735,7 @@ public class ImageReplaceTests : IDisposable
         var pptxPath = CreatePptxWithPicture("Photo");
         var imagePath = CreateTempImage(JpegBytes, ".jpg");
 
-        _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+        Service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
 
         using var doc = PresentationDocument.Open(pptxPath, false);
         var slidePart = (SlidePart)doc.PresentationPart!.GetPartById(

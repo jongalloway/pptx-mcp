@@ -5,23 +5,15 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace PptxMcp.Tests.Services;
 
-public class UpdateSlideDataTests : IDisposable
+public class UpdateSlideDataTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = [];
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
 
     [Fact]
     public void UpdateSlideData_UpdatesMetricSlideByShapeName_AndKeepsPresentationCompatible()
     {
         var path = CreateRealMetricDeck();
 
-        var result = _service.UpdateSlideData(path, 2, "Revenue Value", null, "4.8M ARR");
+        var result = Service.UpdateSlideData(path, 2, "Revenue Value", null, "4.8M ARR");
 
         Assert.True(result.Success);
         Assert.Equal(2, result.SlideNumber);
@@ -39,9 +31,9 @@ public class UpdateSlideDataTests : IDisposable
     {
         var path = CreateRealMetricDeck();
 
-        var titleSlideResult = _service.UpdateSlideData(path, 1, null, 1, "Executive metrics review");
-        var contentSlideResult = _service.UpdateSlideData(path, 3, null, 1, "Mitigate EMEA churn\nFinish finance automation");
-        var dashboardSlideResult = _service.UpdateSlideData(path, 2, null, 4, "Pipeline conversion stable");
+        var titleSlideResult = Service.UpdateSlideData(path, 1, null, 1, "Executive metrics review");
+        var contentSlideResult = Service.UpdateSlideData(path, 3, null, 1, "Mitigate EMEA churn\nFinish finance automation");
+        var dashboardSlideResult = Service.UpdateSlideData(path, 2, null, 4, "Pipeline conversion stable");
 
         Assert.True(titleSlideResult.Success);
         Assert.Equal("placeholderIndex", titleSlideResult.MatchedBy);
@@ -72,9 +64,9 @@ public class UpdateSlideDataTests : IDisposable
         var path = CreateRealMetricDeck();
         var untouchedShapeBefore = GetTextBodyOuterXml(path, 1, "Trend Commentary");
 
-        var firstResult = _service.UpdateSlideData(path, 2, "Revenue Value", null, "North America ARR up 18%");
-        var secondResult = _service.UpdateSlideData(path, 2, "Missing metric", 3, "67%");
-        var thirdResult = _service.UpdateSlideData(path, 2, "Owner Status", null, string.Empty);
+        var firstResult = Service.UpdateSlideData(path, 2, "Revenue Value", null, "North America ARR up 18%");
+        var secondResult = Service.UpdateSlideData(path, 2, "Missing metric", 3, "67%");
+        var thirdResult = Service.UpdateSlideData(path, 2, "Owner Status", null, string.Empty);
 
         Assert.True(firstResult.Success);
         Assert.True(secondResult.Success);
@@ -95,15 +87,15 @@ public class UpdateSlideDataTests : IDisposable
     public void UpdateSlideData_ReturnsFailureForMissingShape_WithoutChangingSlideContents()
     {
         var path = CreateRealMetricDeck();
-        var slideXmlBefore = _service.GetSlideXml(path, 1);
+        var slideXmlBefore = Service.GetSlideXml(path, 1);
 
-        var result = _service.UpdateSlideData(path, 2, "Missing Shape", null, "4.0M ARR");
+        var result = Service.UpdateSlideData(path, 2, "Missing Shape", null, "4.0M ARR");
 
         Assert.False(result.Success);
         Assert.Contains("Available shapes", result.Message);
         Assert.Contains("Revenue Value", result.Message);
         Assert.Equal("4.0M ARR", result.NewText);
-        Assert.Equal(slideXmlBefore, _service.GetSlideXml(path, 1));
+        Assert.Equal(slideXmlBefore, Service.GetSlideXml(path, 1));
     }
 
     [Fact]
@@ -112,7 +104,7 @@ public class UpdateSlideDataTests : IDisposable
         var path = CreateRealMetricDeck();
         const string newText = "AT&amp;T < FY27 > 🚀 — café résumé";
 
-        var result = _service.UpdateSlideData(path, 2, "Trend Commentary", null, newText);
+        var result = Service.UpdateSlideData(path, 2, "Trend Commentary", null, newText);
 
         Assert.True(result.Success);
         Assert.Equal(newText, FindShape(path, 1, "Trend Commentary").Text);
@@ -125,7 +117,7 @@ public class UpdateSlideDataTests : IDisposable
     {
         var path = CreateRealMetricDeck();
 
-        var result = _service.UpdateSlideData(path, 2, "Owner Status", null, string.Empty);
+        var result = Service.UpdateSlideData(path, 2, "Owner Status", null, string.Empty);
 
         Assert.True(result.Success);
         Assert.Equal("Amber", result.PreviousText);
@@ -141,10 +133,10 @@ public class UpdateSlideDataTests : IDisposable
         var warmupPath = CreateRealMetricDeck();
         var measuredPath = CreateRealMetricDeck();
 
-        _service.UpdateSlideData(warmupPath, 2, "Revenue Value", null, "4.0M ARR");
+        Service.UpdateSlideData(warmupPath, 2, "Revenue Value", null, "4.0M ARR");
 
         var stopwatch = Stopwatch.StartNew();
-        var result = _service.UpdateSlideData(measuredPath, 2, "Revenue Value", null, "4.1M ARR");
+        var result = Service.UpdateSlideData(measuredPath, 2, "Revenue Value", null, "4.1M ARR");
         stopwatch.Stop();
 
         Assert.True(result.Success);
@@ -155,7 +147,7 @@ public class UpdateSlideDataTests : IDisposable
     }
 
     private string CreateRealMetricDeck() =>
-        CreatePresentation(
+        CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "FY26 Metrics",
@@ -270,17 +262,9 @@ public class UpdateSlideDataTests : IDisposable
                 ]
             });
 
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private ShapeContent FindShape(string path, int slideIndex, string shapeName)
     {
-        var slide = _service.GetSlideContent(path, slideIndex);
+        var slide = Service.GetSlideContent(path, slideIndex);
         return Assert.Single(slide.Shapes, shape => shape.Name == shapeName);
     }
 
