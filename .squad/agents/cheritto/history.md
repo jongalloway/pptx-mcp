@@ -81,3 +81,11 @@
 - `pptx_add_slide_from_layout` and `pptx_duplicate_slide` use semantic placeholder keys in `Type` or `Type:Index` form (for example `Title`, `Body:1`, `Picture:2`) so agents can target template placeholders without relying on shape names.
 - The new template-slide service logic keeps MCP tools thin, validates placeholder requests before mutation, clones slide-related parts recursively, and preserves layout/master inheritance by attaching the duplicated or generated slide to the correct `SlideLayoutPart`.
 - `tests/PptxMcp.Tests\TemplateDeckHelper.cs` is the dedicated fixture builder for template-authoring scenarios; it creates multiple named layouts, indexed placeholders, shared image usage, and round-trip compatibility coverage for layout-based authoring.
+
+### Table insert and update tools (Issue #36)
+- `pptx_insert_table` creates DrawingML tables via GraphicFrame > Graphic > GraphicData > A.Table. The service method `InsertTable()` in `PresentationService.cs` handles row normalization (padding short rows), TableGrid column matching, unique shape IDs via `GetMaxShapeId()`, and the exact GraphicData URI (`http://schemas.openxmlformats.org/drawingml/2006/table`).
+- `pptx_update_table` locates tables by name (case-insensitive, using `NonVisualGraphicFrameProperties.NonVisualDrawingProperties.Name`) or by zero-based index among `GraphicFrame` elements that contain `A.Table`. Cell text replacement preserves `TableCellProperties` (borders, fills) while rebuilding `TextBody` with proper BodyProperties + ListStyle + Paragraph structure.
+- New DTOs: `TableInsertResult`, `TableUpdateResult`, `TableCellUpdate` in `src/PptxMcp/Models/`.
+- Private helper `BuildTableRow()` creates rows with full cell structure; reusable for both header and data rows.
+- Tool methods are thin wrappers returning JSON (matching `pptx_update_slide_data` pattern) with structured error results for file-not-found and exceptions.
+- PR #46 created on branch `squad/36-table-tools`.

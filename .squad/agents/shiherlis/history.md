@@ -39,3 +39,19 @@
 - **Coverage:** 66/66 tests passing (up from 52), includes speaker notes integrity check
 - **Dependency satisfaction:** Both issues unblocked by #19 (Cheritto's tool) and #18 (Copilot's docs)
 - **Result:** Phase 2 testing complete, validates PowerPoint compatibility and multi-source composition pattern
+
+### Issue #36 Table Tools Test Suite (2026-03-17)
+- **Scope:** 28 new tests across 2 files for pptx_insert_table and pptx_update_table
+- **Files created:**
+  - `tests/PptxMcp.Tests/Services/TableOperationTests.cs` — 22 service-level tests
+  - `tests/PptxMcp.Tests/Tools/TableToolsTests.cs` — 6 tool-level tests
+- **Coverage:** 214/214 tests passing (up from 186)
+- **Key patterns learned:**
+  - Test fixtures created with TestPptxHelper produce pre-existing SlideMaster validation errors — always use baseline comparison pattern (`ValidatePresentation` before/after), never `Assert.Empty` on validator output
+  - Table implementation uses result objects with `Success=false` for out-of-range coordinates rather than throwing exceptions — tests must accept both patterns
+  - `TableCellUpdate` record: `(int Row, int Column, string Value)` — 0-based coordinates
+  - `InsertTable` service signature: `(filePath, slideNumber, headers[], rows[][], tableName?, x?, y?, width?, height?)` returns `TableInsertResult`
+  - `UpdateTable` service signature: `(filePath, slideNumber, tableName?, tableIndex?, updates[])` returns `TableUpdateResult`
+  - Table name lookup is case-insensitive; tableIndex is 0-based among tables on slide
+  - GraphicData URI for tables: `http://schemas.openxmlformats.org/drawingml/2006/table` — must be exact
+- **Edge cases tested:** 1x1 table, empty table (headers only), large table (13×6), custom/default positioning, unique shape IDs, cell property preservation, existing shape preservation, multiple cell updates in one call
