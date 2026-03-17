@@ -39,3 +39,10 @@
 - **Coverage:** 66/66 tests passing (up from 52), includes speaker notes integrity check
 - **Dependency satisfaction:** Both issues unblocked by #19 (Cheritto's tool) and #18 (Copilot's docs)
 - **Result:** Phase 2 testing complete, validates PowerPoint compatibility and multi-source composition pattern
+### Table tool tests (2026-03-17T02:25Z)
+- **Issue #36:** 28 comprehensive tests (22 service + 6 tool level)
+- **Coverage:** Insert table with headers/rows and auto-padding, update cell text, locate by name/index, edge cases (missing tables, bounds)
+- **Validation strategy:** Baseline comparison pattern (capture errors before op, verify count unchanged after) — fixture SlideMaster warnings are benign
+- **Quality:** All 214/214 tests passing, format preservation verified, round-trip validation on real presentations
+- **Deliverable:** PR #46 (committed to branch, ready for review alongside Cheritto implementation)
+- **Decision captured:** Test validation pattern encoded in decisions.md for team reuse

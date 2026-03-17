@@ -81,3 +81,10 @@
 - `pptx_add_slide_from_layout` and `pptx_duplicate_slide` use semantic placeholder keys in `Type` or `Type:Index` form (for example `Title`, `Body:1`, `Picture:2`) so agents can target template placeholders without relying on shape names.
 - The new template-slide service logic keeps MCP tools thin, validates placeholder requests before mutation, clones slide-related parts recursively, and preserves layout/master inheritance by attaching the duplicated or generated slide to the correct `SlideLayoutPart`.
 - `tests/PptxMcp.Tests\TemplateDeckHelper.cs` is the dedicated fixture builder for template-authoring scenarios; it creates multiple named layouts, indexed placeholders, shared image usage, and round-trip compatibility coverage for layout-based authoring.
+### Table tools (2026-03-17T02:25Z)
+- **Issue #36:** `pptx_insert_table` and `pptx_update_table` tools completed
+- **Implementation:** 3 DTOs (InsertTableRequest, UpdateTableRequest, TableOperationResult), 3 service methods, 2 tool methods
+- **Scope:** Insert (headers + rows, auto-pad), Update (cell-text-only, preserve properties), Targeting (name + index)
+- **Validation:** Baseline comparison pattern (fixture SlideMaster warnings benign, don't use Assert.Empty)
+- **Testing:** 28 new tests (22 service + 6 tool, 214/214 passing)
+- **Deliverable:** PR #46 (implementation + tests, build clean)
