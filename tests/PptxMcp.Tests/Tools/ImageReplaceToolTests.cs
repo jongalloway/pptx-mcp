@@ -80,19 +80,9 @@ public class ImageReplaceToolTests : PptxTestBase
                 new ApplicationNonVisualDrawingProperties()),
             new GroupShapeProperties(new A.TransformGroup()));
 
-        shapeTree.Append(new Picture(
-            new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties { Id = 2, Name = pictureName },
-                new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
-                new ApplicationNonVisualDrawingProperties()),
-            new P.BlipFill(
-                new A.Blip { Embed = slidePart.GetIdOfPart(imagePart) },
-                new A.Stretch(new A.FillRectangle())),
-            new P.ShapeProperties(
-                new A.Transform2D(
-                    new A.Offset { X = 914400, Y = 914400 },
-                    new A.Extents { Cx = 3657600, Cy = 2743200 }),
-                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
+        shapeTree.Append(TestPptxHelper.CreatePicture(
+            2, slidePart.GetIdOfPart(imagePart),
+            914400, 914400, 3657600, 2743200, pictureName));
 
         slidePart.Slide = new Slide(new CommonSlideData(shapeTree), new ColorMapOverride(new A.MasterColorMapping()));
 

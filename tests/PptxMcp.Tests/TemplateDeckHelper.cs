@@ -176,17 +176,5 @@ internal static class TemplateDeckHelper
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
 
     private static Picture CreatePicture(uint shapeId, string relationshipId, long x, long y, long width, long height) =>
-        new(
-            new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Picture {shapeId}" },
-                new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
-                new ApplicationNonVisualDrawingProperties()),
-            new P.BlipFill(
-                new A.Blip { Embed = relationshipId },
-                new A.Stretch(new A.FillRectangle())),
-            new P.ShapeProperties(
-                new A.Transform2D(
-                    new A.Offset { X = x, Y = y },
-                    new A.Extents { Cx = width, Cy = height }),
-                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
+        TestPptxHelper.CreatePicture(shapeId, relationshipId, x, y, width, height);
 }
