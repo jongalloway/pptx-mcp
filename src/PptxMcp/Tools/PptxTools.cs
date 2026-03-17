@@ -538,6 +538,74 @@ public sealed partial class PptxTools
             return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
         }
     }
+
+    /// <summary>
+    /// Replace an image in an existing picture shape on a slide.
+    /// Target the picture by shape name (case-insensitive) or zero-based index among picture shapes on the slide.
+    /// The replacement image inherits the existing shape geometry (position and size) so no manual EMU coordinates are needed.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideNumber">1-based slide number containing the picture to replace.</param>
+    /// <param name="shapeName">Optional picture shape name to match (case-insensitive). Takes precedence over shapeIndex when both are provided.</param>
+    /// <param name="shapeIndex">Optional zero-based index among picture shapes on the slide. Used as fallback when shapeName is not found or not provided.</param>
+    /// <param name="imagePath">Absolute or relative path to the replacement image file (.png, .jpg, .jpeg, .svg).</param>
+    /// <param name="altText">Optional alt text to set on the picture shape for accessibility.</param>
+    [McpServerTool(Title = "Replace Image")]
+    public partial Task<string> pptx_replace_image(
+        string filePath,
+        int slideNumber,
+        string? shapeName = null,
+        int? shapeIndex = null,
+        string imagePath = "",
+        string? altText = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            var missingFileResult = new ImageReplaceResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                ShapeName: null,
+                MatchedBy: null,
+                PreviousImageContentType: null,
+                NewImageContentType: null,
+                AltText: altText,
+                Message: $"File not found: {filePath}");
+            return Task.FromResult(JsonSerializer.Serialize(missingFileResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        if (!File.Exists(imagePath))
+        {
+            var missingImageResult = new ImageReplaceResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                ShapeName: null,
+                MatchedBy: null,
+                PreviousImageContentType: null,
+                NewImageContentType: null,
+                AltText: altText,
+                Message: $"Image file not found: {imagePath}");
+            return Task.FromResult(JsonSerializer.Serialize(missingImageResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        try
+        {
+            var result = _service.ReplaceImage(filePath, slideNumber, shapeName, shapeIndex, imagePath, altText);
+            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            var failureResult = new ImageReplaceResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                ShapeName: null,
+                MatchedBy: null,
+                PreviousImageContentType: null,
+                NewImageContentType: null,
+                AltText: altText,
+                Message: $"Error: {ex.Message}");
+            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+    }
 }
 
 

@@ -758,6 +758,7 @@ public partial class PresentationService
             ".jpg" or ".jpeg" => ImagePartType.Jpeg,
             ".gif" => ImagePartType.Gif,
             ".bmp" => ImagePartType.Bmp,
+            ".svg" => ImagePartType.Svg,
             _ => ImagePartType.Png
         };
 
@@ -1701,6 +1702,222 @@ public partial class PresentationService
 
         presentationPart.Presentation.Save();
     }
+
+    public ImageReplaceResult ReplaceImage(string filePath, int slideNumber, string? shapeName, int? shapeIndex, string imagePath, string? altText)
+    {
+        var imageContentType = GetImageContentTypeString(imagePath);
+        if (imageContentType is null)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText,
+                $"Unsupported image format: {Path.GetExtension(imagePath)}. Supported formats: .png, .jpg, .jpeg, .svg");
+
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slideIds = GetSlideIds(doc);
+
+        if (slideNumber <= 0)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, "slideNumber must be 1 or greater.");
+
+        if (slideIds.Count == 0)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, "Presentation has no slides.");
+
+        if (slideNumber > slideIds.Count)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText,
+                $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+
+        if (string.IsNullOrWhiteSpace(shapeName) && shapeIndex is null)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, "Provide either shapeName or shapeIndex.");
+
+        var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
+        if (slidePart.Slide is null)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, $"Slide {slideNumber} could not be loaded.");
+
+        var pictureTargets = GetPictureTargets(slidePart.Slide);
+        if (pictureTargets.Count == 0)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, $"Slide {slideNumber} does not contain any picture shapes.");
+
+        var target = ResolvePictureTarget(pictureTargets, shapeName, shapeIndex, out var matchedBy, out var failureMessage);
+        if (target is null)
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, failureMessage ?? "Unable to resolve a target picture.");
+
+        // Capture previous image info
+        var previousContentType = GetExistingImageContentType(slidePart, target.Picture);
+
+        // Create new image part and feed data
+        var imagePartType = GetImagePartType(imagePath);
+        var newImagePart = slidePart.AddImagePart(imagePartType);
+        using (var stream = File.OpenRead(imagePath))
+            newImagePart.FeedData(stream);
+        var newRelId = slidePart.GetIdOfPart(newImagePart);
+
+        // Update blip reference
+        var blipFill = target.Picture.GetFirstChild<P.BlipFill>();
+        if (blipFill is null)
+        {
+            // Picture without BlipFill — create one
+            target.Picture.Append(new P.BlipFill(
+                new A.Blip { Embed = newRelId },
+                new A.Stretch(new A.FillRectangle())));
+        }
+        else
+        {
+            var blip = blipFill.GetFirstChild<A.Blip>();
+            if (blip is not null)
+            {
+                // Remove old image part if no other references
+                var oldRelId = blip.Embed?.Value;
+                blip.Embed = newRelId;
+
+                // Handle SVG extension if present — remove it for non-SVG replacements
+                var extList = blip.GetFirstChild<A.BlipExtensionList>();
+                if (extList is not null && !string.Equals(imageContentType, "image/svg+xml", StringComparison.OrdinalIgnoreCase))
+                    extList.Remove();
+
+                if (!string.IsNullOrEmpty(oldRelId) && oldRelId != newRelId)
+                    TryRemoveUnusedImagePart(slidePart, oldRelId);
+            }
+            else
+            {
+                blipFill.InsertAt(new A.Blip { Embed = newRelId }, 0);
+            }
+        }
+
+        // Set alt text if provided
+        if (altText is not null)
+        {
+            var drawingProps = target.Picture.NonVisualPictureProperties?.NonVisualDrawingProperties;
+            if (drawingProps is not null)
+                drawingProps.Description = altText;
+        }
+
+        slidePart.Slide.Save();
+
+        return new ImageReplaceResult(
+            Success: true,
+            SlideNumber: slideNumber,
+            ShapeName: target.Name,
+            MatchedBy: matchedBy,
+            PreviousImageContentType: previousContentType,
+            NewImageContentType: imageContentType,
+            AltText: altText,
+            Message: $"Replaced image in '{target.Name}' on slide {slideNumber}.");
+    }
+
+    private static IReadOnlyList<PictureTarget> GetPictureTargets(Slide slide)
+    {
+        var shapeTree = slide.CommonSlideData?.ShapeTree;
+        if (shapeTree is null)
+            return [];
+
+        return shapeTree.Elements<Picture>()
+            .Select((picture, index) =>
+            {
+                var drawingProperties = picture.NonVisualPictureProperties?.NonVisualDrawingProperties;
+                var name = drawingProperties?.Name?.Value;
+                return new PictureTarget(
+                    Picture: picture,
+                    Index: index,
+                    Name: string.IsNullOrWhiteSpace(name) ? $"Picture {index}" : name,
+                    ShapeId: drawingProperties?.Id?.Value);
+            })
+            .ToList();
+    }
+
+    private static PictureTarget? ResolvePictureTarget(
+        IReadOnlyList<PictureTarget> targets,
+        string? shapeName,
+        int? shapeIndex,
+        out string? matchedBy,
+        out string? failureMessage)
+    {
+        matchedBy = null;
+        failureMessage = null;
+
+        if (!string.IsNullOrWhiteSpace(shapeName))
+        {
+            var trimmed = shapeName.Trim();
+            var matches = targets
+                .Where(t => string.Equals(t.Name, trimmed, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matches.Count == 1)
+            {
+                matchedBy = "shapeName";
+                return matches[0];
+            }
+
+            if (matches.Count > 1)
+            {
+                failureMessage = $"Multiple picture shapes named '{trimmed}' found. Use shapeIndex to disambiguate.";
+                return null;
+            }
+        }
+
+        if (shapeIndex is null)
+        {
+            failureMessage = $"No picture shape named '{shapeName}' found. Available pictures: {DescribePictureTargets(targets)}";
+            return null;
+        }
+
+        if (shapeIndex.Value < 0 || shapeIndex.Value >= targets.Count)
+        {
+            failureMessage = $"shapeIndex {shapeIndex.Value} is out of range. Slide has {targets.Count} picture shape(s): {DescribePictureTargets(targets)}";
+            return null;
+        }
+
+        matchedBy = string.IsNullOrWhiteSpace(shapeName) ? "shapeIndex" : "shapeIndexFallback";
+        return targets[shapeIndex.Value];
+    }
+
+    private static string DescribePictureTargets(IEnumerable<PictureTarget> targets) =>
+        string.Join(", ", targets.Select(t => $"{t.Index}:{t.Name}"));
+
+    private static string? GetExistingImageContentType(SlidePart slidePart, Picture picture)
+    {
+        var blip = picture.GetFirstChild<P.BlipFill>()?.GetFirstChild<A.Blip>();
+        var relId = blip?.Embed?.Value;
+        if (string.IsNullOrEmpty(relId))
+            return null;
+
+        try
+        {
+            var part = slidePart.GetPartById(relId);
+            return part.ContentType;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void TryRemoveUnusedImagePart(SlidePart slidePart, string relationshipId)
+    {
+        try
+        {
+            // Check if any other element still references this relationship.
+            // Search for the ID surrounded by quotes to avoid false positives from
+            // substring matches (e.g. "rId1" matching inside "rId10").
+            var slideXml = slidePart.Slide.OuterXml;
+            var quotedId = "\"" + relationshipId + "\"";
+            var isStillReferenced = slideXml.Contains(quotedId, StringComparison.Ordinal);
+
+            if (!isStillReferenced)
+                slidePart.DeletePart(relationshipId);
+        }
+        catch
+        {
+            // Silently ignore cleanup failures
+        }
+    }
+
+    private static string? GetImageContentTypeString(string imagePath) =>
+        Path.GetExtension(imagePath).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".svg" => "image/svg+xml",
+            _ => null
+        };
+
+    private record PictureTarget(Picture Picture, int Index, string Name, uint? ShapeId);
 }
 
 
