@@ -8,6 +8,8 @@ namespace PptxMcp.Tools;
 [McpServerToolType]
 public sealed partial class PptxTools
 {
+    private static readonly JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
+
     private readonly PresentationService _service;
 
     public PptxTools(PresentationService service)
@@ -15,17 +17,14 @@ public sealed partial class PptxTools
         _service = service;
     }
 
-    /// <summary>List all slides in a PowerPoint presentation.</summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    [McpServerTool(Title = "List Slides", ReadOnly = true, Idempotent = true)]
-    public Task<string> pptx_list_slides(string filePath)
+    /// <summary>File-check + try-catch wrapper for tools that return a plain string.</summary>
+    private static Task<string> ExecuteTool(string filePath, Func<string> action)
     {
         if (!File.Exists(filePath))
             return Task.FromResult($"Error: File not found: {filePath}");
         try
         {
-            var slides = _service.GetSlides(filePath);
-            return Task.FromResult(JsonSerializer.Serialize(slides, new JsonSerializerOptions { WriteIndented = true }));
+            return Task.FromResult(action());
         }
         catch (Exception ex)
         {
@@ -33,42 +32,60 @@ public sealed partial class PptxTools
         }
     }
 
-    /// <summary>List all available slide layouts in a PowerPoint presentation.</summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    [McpServerTool(Title = "List Layouts", ReadOnly = true, Idempotent = true)]
-    public Task<string> pptx_list_layouts(string filePath)
+    /// <summary>File-check + try-catch + JSON serialization for tools that return a typed result.</summary>
+    private static Task<string> ExecuteToolJson<T>(string filePath, Func<T> action)
     {
         if (!File.Exists(filePath))
             return Task.FromResult($"Error: File not found: {filePath}");
         try
         {
-            var layouts = _service.GetLayouts(filePath);
-            return Task.FromResult(JsonSerializer.Serialize(layouts, new JsonSerializerOptions { WriteIndented = true }));
+            var result = action();
+            return Task.FromResult(JsonSerializer.Serialize(result, IndentedJson));
         }
         catch (Exception ex)
         {
             return Task.FromResult($"Error: {ex.Message}");
         }
     }
+
+    /// <summary>File-check + try-catch + JSON serialization for tools that return structured failure results.</summary>
+    private static Task<string> ExecuteToolStructured<T>(string filePath, Func<T> action, Func<string, T> onError)
+    {
+        if (!File.Exists(filePath))
+            return Task.FromResult(JsonSerializer.Serialize(onError($"File not found: {filePath}"), IndentedJson));
+        try
+        {
+            var result = action();
+            return Task.FromResult(JsonSerializer.Serialize(result, IndentedJson));
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(JsonSerializer.Serialize(onError($"Error: {ex.Message}"), IndentedJson));
+        }
+    }
+
+    /// <summary>List all slides in a PowerPoint presentation.</summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    [McpServerTool(Title = "List Slides", ReadOnly = true, Idempotent = true)]
+    public Task<string> pptx_list_slides(string filePath) =>
+        ExecuteToolJson(filePath, () => _service.GetSlides(filePath));
+
+    /// <summary>List all available slide layouts in a PowerPoint presentation.</summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    [McpServerTool(Title = "List Layouts", ReadOnly = true, Idempotent = true)]
+    public Task<string> pptx_list_layouts(string filePath) =>
+        ExecuteToolJson(filePath, () => _service.GetLayouts(filePath));
 
     /// <summary>Add a new slide to a PowerPoint presentation.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="layoutName">Optional name of the slide layout to use. Defaults to the first available layout.</param>
     [McpServerTool(Title = "Add Slide")]
-    public Task<string> pptx_add_slide(string filePath, string? layoutName = null)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
+    public Task<string> pptx_add_slide(string filePath, string? layoutName = null) =>
+        ExecuteTool(filePath, () =>
         {
             var newIndex = _service.AddSlide(filePath, layoutName);
-            return Task.FromResult($"Slide added successfully at index {newIndex}.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+            return $"Slide added successfully at index {newIndex}.";
+        });
 
     /// <summary>Update the text of a placeholder on a slide.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
@@ -76,20 +93,12 @@ public sealed partial class PptxTools
     /// <param name="placeholderIndex">Zero-based index of the placeholder on the slide.</param>
     /// <param name="text">New text content for the placeholder.</param>
     [McpServerTool(Title = "Update Text")]
-    public Task<string> pptx_update_text(string filePath, int slideIndex, int placeholderIndex, string text)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
+    public Task<string> pptx_update_text(string filePath, int slideIndex, int placeholderIndex, string text) =>
+        ExecuteTool(filePath, () =>
         {
             _service.UpdateTextPlaceholder(filePath, slideIndex, placeholderIndex, text);
-            return Task.FromResult($"Placeholder {placeholderIndex} on slide {slideIndex} updated successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+            return $"Placeholder {placeholderIndex} on slide {slideIndex} updated successfully.";
+        });
 
     /// <summary>
     /// Update a named slide shape with replacement text while preserving the shape's existing formatting.
@@ -101,11 +110,10 @@ public sealed partial class PptxTools
     /// <param name="placeholderIndex">Optional zero-based fallback index across text-capable shapes on the slide.</param>
     /// <param name="newText">Replacement text for the target shape. Newlines create separate paragraphs.</param>
     [McpServerTool(Title = "Update Slide Data")]
-    public partial Task<string> pptx_update_slide_data(string filePath, int slideNumber, string? shapeName = null, int? placeholderIndex = null, string newText = "")
-    {
-        if (!File.Exists(filePath))
-        {
-            var missingFileResult = new SlideDataUpdateResult(
+    public partial Task<string> pptx_update_slide_data(string filePath, int slideNumber, string? shapeName = null, int? placeholderIndex = null, string newText = "") =>
+        ExecuteToolStructured(filePath,
+            () => _service.UpdateSlideData(filePath, slideNumber, shapeName, placeholderIndex, newText),
+            error => new SlideDataUpdateResult(
                 Success: false,
                 SlideNumber: slideNumber,
                 RequestedShapeName: shapeName,
@@ -118,36 +126,7 @@ public sealed partial class PptxTools
                 LayoutPlaceholderIndex: null,
                 PreviousText: null,
                 NewText: newText,
-                Message: $"File not found: {filePath}");
-
-            return Task.FromResult(JsonSerializer.Serialize(missingFileResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
-
-        try
-        {
-            var result = _service.UpdateSlideData(filePath, slideNumber, shapeName, placeholderIndex, newText);
-            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception ex)
-        {
-            var failureResult = new SlideDataUpdateResult(
-                Success: false,
-                SlideNumber: slideNumber,
-                RequestedShapeName: shapeName,
-                RequestedPlaceholderIndex: placeholderIndex,
-                MatchedBy: null,
-                ResolvedShapeName: null,
-                ResolvedShapeIndex: null,
-                ResolvedShapeId: null,
-                PlaceholderType: null,
-                LayoutPlaceholderIndex: null,
-                PreviousText: null,
-                NewText: newText,
-                Message: $"Error: {ex.Message}");
-
-            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
-    }
+                Message: error));
 
     /// <summary>
     /// Apply multiple named text updates across a presentation in a single open/save cycle.
@@ -160,51 +139,22 @@ public sealed partial class PptxTools
     {
         var requestedMutations = mutations ?? [];
         if (requestedMutations.Length == 0)
-        {
-            var emptyResult = new BatchUpdateResult(0, 0, 0, []);
-            return Task.FromResult(JsonSerializer.Serialize(emptyResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
+            return Task.FromResult(JsonSerializer.Serialize(new BatchUpdateResult(0, 0, 0, []), IndentedJson));
 
-        if (!File.Exists(filePath))
-        {
-            var missingFileResult = new BatchUpdateResult(
+        return ExecuteToolStructured(filePath,
+            () => _service.BatchUpdate(filePath, requestedMutations),
+            error => new BatchUpdateResult(
                 TotalMutations: requestedMutations.Length,
                 SuccessCount: 0,
                 FailureCount: requestedMutations.Length,
                 Results: requestedMutations
-                    .Select(mutation => new BatchUpdateMutationResult(
-                        SlideNumber: mutation.SlideNumber,
-                        ShapeName: mutation.ShapeName,
+                    .Select(m => new BatchUpdateMutationResult(
+                        SlideNumber: m.SlideNumber,
+                        ShapeName: m.ShapeName,
                         Success: false,
-                        Error: $"File not found: {filePath}",
+                        Error: error,
                         MatchedBy: null))
-                    .ToArray());
-
-            return Task.FromResult(JsonSerializer.Serialize(missingFileResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
-
-        try
-        {
-            var result = _service.BatchUpdate(filePath, requestedMutations);
-            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception ex)
-        {
-            var failureResult = new BatchUpdateResult(
-                TotalMutations: requestedMutations.Length,
-                SuccessCount: 0,
-                FailureCount: requestedMutations.Length,
-                Results: requestedMutations
-                    .Select(mutation => new BatchUpdateMutationResult(
-                        SlideNumber: mutation.SlideNumber,
-                        ShapeName: mutation.ShapeName,
-                        Success: false,
-                        Error: $"Error: {ex.Message}",
-                        MatchedBy: null))
-                    .ToArray());
-
-            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
+                    .ToArray()));
     }
 
     /// <summary>
@@ -216,21 +166,13 @@ public sealed partial class PptxTools
     /// <param name="notes">Text to write as speaker notes. Use \n to separate paragraphs.</param>
     /// <param name="append">When true, appends to any existing notes instead of replacing them. Defaults to false.</param>
     [McpServerTool(Title = "Write Notes")]
-    public Task<string> pptx_write_notes(string filePath, int slideIndex, string notes, bool append = false)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
+    public Task<string> pptx_write_notes(string filePath, int slideIndex, string notes, bool append = false) =>
+        ExecuteTool(filePath, () =>
         {
             _service.WriteNotes(filePath, slideIndex, notes, append);
             var mode = append ? "appended to" : "written to";
-            return Task.FromResult($"Notes {mode} slide {slideIndex} successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+            return $"Notes {mode} slide {slideIndex} successfully.";
+        });
 
     /// <summary>Insert an image onto a slide.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
@@ -254,34 +196,19 @@ public sealed partial class PptxTools
             return Task.FromResult($"Error: File not found: {filePath}");
         if (!File.Exists(imagePath))
             return Task.FromResult($"Error: Image file not found: {imagePath}");
-        try
+        return ExecuteTool(filePath, () =>
         {
             _service.InsertImage(filePath, slideIndex, imagePath, x, y, width, height);
-            return Task.FromResult($"Image inserted successfully on slide {slideIndex}.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
+            return $"Image inserted successfully on slide {slideIndex}.";
+        });
     }
 
     /// <summary>Get the raw XML of a specific slide.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideIndex">Zero-based index of the slide.</param>
     [McpServerTool(Title = "Get Slide XML", ReadOnly = true, Idempotent = true)]
-    public Task<string> pptx_get_slide_xml(string filePath, int slideIndex)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
-        {
-            return Task.FromResult(_service.GetSlideXml(filePath, slideIndex));
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+    public Task<string> pptx_get_slide_xml(string filePath, int slideIndex) =>
+        ExecuteTool(filePath, () => _service.GetSlideXml(filePath, slideIndex));
 
     /// <summary>
     /// Get structured content from a slide: all shapes with their type, position, size, and text.
@@ -293,20 +220,8 @@ public sealed partial class PptxTools
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideIndex">Zero-based index of the slide.</param>
     [McpServerTool(Title = "Get Slide Content", ReadOnly = true, Idempotent = true)]
-    public Task<string> pptx_get_slide_content(string filePath, int slideIndex)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
-        {
-            var content = _service.GetSlideContent(filePath, slideIndex);
-            return Task.FromResult(JsonSerializer.Serialize(content, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+    public Task<string> pptx_get_slide_content(string filePath, int slideIndex) =>
+        ExecuteToolJson(filePath, () => _service.GetSlideContent(filePath, slideIndex));
 
     /// <summary>
     /// Extract the highest-signal talking points from each slide in a PowerPoint presentation.
@@ -316,20 +231,8 @@ public sealed partial class PptxTools
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="topN">Maximum number of talking points to return per slide. Defaults to 5.</param>
     [McpServerTool(Title = "Extract Talking Points", ReadOnly = true, Idempotent = true)]
-    public Task<string> pptx_extract_talking_points(string filePath, int topN = 5)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
-        {
-            var talkingPoints = _service.ExtractTalkingPoints(filePath, topN);
-            return Task.FromResult(JsonSerializer.Serialize(talkingPoints, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+    public Task<string> pptx_extract_talking_points(string filePath, int topN = 5) =>
+        ExecuteToolJson(filePath, () => _service.ExtractTalkingPoints(filePath, topN));
 
     /// <summary>
     /// Export a PowerPoint presentation to markdown and save it as a .md file.
@@ -339,59 +242,31 @@ public sealed partial class PptxTools
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="outputPath">Optional output path for the markdown file. Defaults to the presentation path with a .md extension.</param>
     [McpServerTool(Title = "Export Markdown", Idempotent = true)]
-    public Task<string> pptx_export_markdown(string filePath, string? outputPath = null)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
-        {
-            var export = _service.ExportMarkdown(filePath, outputPath);
-            return Task.FromResult(export.Markdown);
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+    public Task<string> pptx_export_markdown(string filePath, string? outputPath = null) =>
+        ExecuteTool(filePath, () => _service.ExportMarkdown(filePath, outputPath).Markdown);
 
     /// <summary>Move a slide to a different position in the presentation.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideNumber">1-based number of the slide to move.</param>
     /// <param name="targetPosition">1-based position to move the slide to.</param>
     [McpServerTool(Title = "Move Slide")]
-    public Task<string> pptx_move_slide(string filePath, int slideNumber, int targetPosition)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
+    public Task<string> pptx_move_slide(string filePath, int slideNumber, int targetPosition) =>
+        ExecuteTool(filePath, () =>
         {
             _service.MoveSlide(filePath, slideNumber, targetPosition);
-            return Task.FromResult($"Slide {slideNumber} moved to position {targetPosition} successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+            return $"Slide {slideNumber} moved to position {targetPosition} successfully.";
+        });
 
     /// <summary>Delete a slide from the presentation by its 1-based slide number.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideNumber">1-based number of the slide to delete.</param>
     [McpServerTool(Title = "Delete Slide")]
-    public Task<string> pptx_delete_slide(string filePath, int slideNumber)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
+    public Task<string> pptx_delete_slide(string filePath, int slideNumber) =>
+        ExecuteTool(filePath, () =>
         {
             _service.DeleteSlide(filePath, slideNumber);
-            return Task.FromResult($"Slide {slideNumber} deleted successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+            return $"Slide {slideNumber} deleted successfully.";
+        });
 
     /// <summary>
     /// Reorder all slides in a presentation by providing the new sequence as a 1-based array.
@@ -401,20 +276,12 @@ public sealed partial class PptxTools
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="newOrder">Array specifying the new slide order using 1-based slide numbers. Must be a permutation of 1..n.</param>
     [McpServerTool(Title = "Reorder Slides")]
-    public Task<string> pptx_reorder_slides(string filePath, int[] newOrder)
-    {
-        if (!File.Exists(filePath))
-            return Task.FromResult($"Error: File not found: {filePath}");
-        try
+    public Task<string> pptx_reorder_slides(string filePath, int[] newOrder) =>
+        ExecuteTool(filePath, () =>
         {
             _service.ReorderSlides(filePath, newOrder);
-            return Task.FromResult($"Slides reordered successfully.");
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult($"Error: {ex.Message}");
-        }
-    }
+            return $"Slides reordered successfully.";
+        });
 
     /// <summary>
     /// Insert a new table onto a slide. Pass column headers and data rows as arrays.
@@ -440,11 +307,10 @@ public sealed partial class PptxTools
         long x = 914400,
         long y = 1371600,
         long width = 7315200,
-        long height = 1371600)
-    {
-        if (!File.Exists(filePath))
-        {
-            var missingResult = new TableInsertResult(
+        long height = 1371600) =>
+        ExecuteToolStructured(filePath,
+            () => _service.InsertTable(filePath, slideNumber, headers ?? [], rows ?? [], tableName, x, y, width, height),
+            error => new TableInsertResult(
                 Success: false,
                 SlideNumber: slideNumber,
                 TableName: tableName,
@@ -452,29 +318,7 @@ public sealed partial class PptxTools
                 TableIndex: null,
                 RowCount: 0,
                 ColumnCount: 0,
-                Message: $"File not found: {filePath}");
-            return Task.FromResult(JsonSerializer.Serialize(missingResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
-
-        try
-        {
-            var result = _service.InsertTable(filePath, slideNumber, headers ?? [], rows ?? [], tableName, x, y, width, height);
-            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception ex)
-        {
-            var failureResult = new TableInsertResult(
-                Success: false,
-                SlideNumber: slideNumber,
-                TableName: tableName,
-                TableShapeId: null,
-                TableIndex: null,
-                RowCount: 0,
-                ColumnCount: 0,
-                Message: $"Error: {ex.Message}");
-            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
-    }
+                Message: error));
 
     /// <summary>
     /// Update cell values in an existing table on a slide.
@@ -494,19 +338,6 @@ public sealed partial class PptxTools
         string? tableName = null,
         int? tableIndex = null)
     {
-        if (!File.Exists(filePath))
-        {
-            var missingResult = new TableUpdateResult(
-                Success: false,
-                SlideNumber: slideNumber,
-                TableName: tableName,
-                MatchedBy: null,
-                CellsUpdated: 0,
-                CellsSkipped: 0,
-                Message: $"File not found: {filePath}");
-            return Task.FromResult(JsonSerializer.Serialize(missingResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
-
         if ((updates?.Length ?? 0) == 0)
         {
             var emptyResult = new TableUpdateResult(
@@ -517,26 +348,19 @@ public sealed partial class PptxTools
                 CellsUpdated: 0,
                 CellsSkipped: 0,
                 Message: "No updates provided.");
-            return Task.FromResult(JsonSerializer.Serialize(emptyResult, new JsonSerializerOptions { WriteIndented = true }));
+            return Task.FromResult(JsonSerializer.Serialize(emptyResult, IndentedJson));
         }
 
-        try
-        {
-            var result = _service.UpdateTable(filePath, slideNumber, updates ?? [], tableName, tableIndex);
-            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception ex)
-        {
-            var failureResult = new TableUpdateResult(
+        return ExecuteToolStructured(filePath,
+            () => _service.UpdateTable(filePath, slideNumber, updates ?? [], tableName, tableIndex),
+            error => new TableUpdateResult(
                 Success: false,
                 SlideNumber: slideNumber,
                 TableName: tableName,
                 MatchedBy: null,
                 CellsUpdated: 0,
                 CellsSkipped: 0,
-                Message: $"Error: {ex.Message}");
-            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
+                Message: error));
     }
 
     /// <summary>
@@ -559,51 +383,29 @@ public sealed partial class PptxTools
         string imagePath = "",
         string? altText = null)
     {
-        if (!File.Exists(filePath))
-        {
-            var missingFileResult = new ImageReplaceResult(
-                Success: false,
-                SlideNumber: slideNumber,
-                ShapeName: null,
-                MatchedBy: null,
-                PreviousImageContentType: null,
-                NewImageContentType: null,
-                AltText: altText,
-                Message: $"File not found: {filePath}");
-            return Task.FromResult(JsonSerializer.Serialize(missingFileResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
+        ImageReplaceResult makeError(string message) => new(
+            Success: false,
+            SlideNumber: slideNumber,
+            ShapeName: null,
+            MatchedBy: null,
+            PreviousImageContentType: null,
+            NewImageContentType: null,
+            AltText: altText,
+            Message: message);
 
+        if (!File.Exists(filePath))
+            return Task.FromResult(JsonSerializer.Serialize(makeError($"File not found: {filePath}"), IndentedJson));
         if (!File.Exists(imagePath))
-        {
-            var missingImageResult = new ImageReplaceResult(
-                Success: false,
-                SlideNumber: slideNumber,
-                ShapeName: null,
-                MatchedBy: null,
-                PreviousImageContentType: null,
-                NewImageContentType: null,
-                AltText: altText,
-                Message: $"Image file not found: {imagePath}");
-            return Task.FromResult(JsonSerializer.Serialize(missingImageResult, new JsonSerializerOptions { WriteIndented = true }));
-        }
+            return Task.FromResult(JsonSerializer.Serialize(makeError($"Image file not found: {imagePath}"), IndentedJson));
 
         try
         {
             var result = _service.ReplaceImage(filePath, slideNumber, shapeName, shapeIndex, imagePath, altText);
-            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+            return Task.FromResult(JsonSerializer.Serialize(result, IndentedJson));
         }
         catch (Exception ex)
         {
-            var failureResult = new ImageReplaceResult(
-                Success: false,
-                SlideNumber: slideNumber,
-                ShapeName: null,
-                MatchedBy: null,
-                PreviousImageContentType: null,
-                NewImageContentType: null,
-                AltText: altText,
-                Message: $"Error: {ex.Message}");
-            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
+            return Task.FromResult(JsonSerializer.Serialize(makeError($"Error: {ex.Message}"), IndentedJson));
         }
     }
 }
