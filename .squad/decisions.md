@@ -369,6 +369,192 @@ Investigated `IProgress<ProgressNotificationValue>` pattern from dotnet-mcp and 
 
 ---
 
+### Quality & Housekeeping Phase (2026-03-17)
+
+**Lead:** McCauley  
+**Status:** Proposed (blocking gate before Phase 3 ramps up)
+
+#### Codebase Baseline
+- **Build:** ✅ Passes
+- **Tests:** ✅ 260 passing, 0 failures (9s 341ms)
+- **Build Warnings:** 68 (CS8602 in tests — acceptable per design choice)
+- **Code Size:** ~3,100 lines core + ~3,300 lines tests
+
+#### Quality Findings
+
+**1. Code Duplication — MEDIUM Priority**
+
+Three overlapping patterns:
+- **Pattern 1:** 27× identical file-check + try-catch boilerplate in `PptxTools.cs` (every public method)
+  - Fix: Extract to private helper `ExecuteOperation<T>(filePath, op)`
+  - Impact: Save ~15–20% LOC, improve consistency
+  
+- **Pattern 2:** 22× inline `JsonSerializerOptions { WriteIndented = true }` recreations
+  - Fix: Static readonly field `JsonOptions`
+  - Impact: Memory efficiency, consistency guarantee
+  
+- **Pattern 3:** 2× batch failure construction (file-not-found vs. exception scenarios)
+  - Fix: Extract helper `MutationsToFailures(...)`
+  - Impact: DRY principle, easier updates
+
+**2. Documentation Staleness — MEDIUM Priority**
+
+- README tool list incomplete (7 old tools; table tools from Phase 2 not advertised)
+- TOOL_REFERENCE.md needs table tool documentation
+- EXAMPLES.md missing table insert/update examples
+- **Impact:** User confusion; first-time UX friction
+
+**3. Test Coverage Gaps — MEDIUM Priority**
+
+- **Gap 1:** No null/empty input validation (null shape names, empty headers[], malformed JSON)
+  - Effort: 3 test methods, ~50 LOC
+  - Impact: Runtime NPEs if agent sends bad input
+  
+- **Gap 2:** Boundary conditions (slide index == slideCount, shape ID wraparound, table column mismatch)
+  - Effort: 4 test methods, ~80 LOC
+  - Impact: Silent failures or PPTX corruption on edges
+  
+- **Gap 3:** FileNotFound tests can be consolidated with `[Theory]` parameterization
+  - Effort: 2 hours
+  - Impact: Reduce 15+ nearly-identical test methods
+  
+- **Gap 4:** Stress/performance (100+ slides, 1000+ shapes, 50+ row tables)
+  - Effort: 2 test methods, ~60 LOC
+  - Impact: Unknown performance characteristics; potential memory leaks
+
+**4. Build Warnings — LOW Priority**
+
+- 68 warnings, all CS8602 (nullable dereference) in test files
+- Root cause: Test setup dereferences without null checks
+- **Recommendation:** Accept + document in `.editorconfig` (test maintainability trumps warning elimination)
+
+**5. OpenXML Patterns — Consistent ✅**
+- Shape access, ID generation, table handling, error flow all well-established
+- No action needed
+
+**6. Dead Code — None Found ✅**
+
+#### Proposed Work Items (8 GitHub Issues: #48–#56)
+
+**Tier 1 — Must Do (Quality Gate)**
+
+| ID | Title | Effort | Owner | Priority |
+|----|-------|--------|-------|----------|
+| Q1 | README tool list sync: add table insert/update docs | 30m | @copilot | 🔴 High |
+| Q2 | Extract PptxTools error-handling boilerplate | 2h | Cheritto | 🔴 High |
+| Q3 | Add null/empty input validation tests | 3h | Shiherlis | 🔴 High |
+
+**Why Tier 1:** Unblocks Phase 3; correct documentation essential; test gaps are known risks.
+
+**Tier 2 — Should Do (Polish)**
+
+| ID | Title | Effort | Owner | Priority |
+|----|-------|--------|-------|----------|
+| Q4 | Consolidate JsonSerializerOptions and batch failures | 2h | Cheritto | 🟡 Medium |
+| Q5 | Add boundary condition tests | 3h | Shiherlis | 🟡 Medium |
+| Q6 | Update docs/TOOL_REFERENCE.md with new tools | 1h | @copilot | 🟡 Medium |
+| Q7 | Add table examples to docs/EXAMPLES.md | 1.5h | @copilot | 🟡 Medium |
+
+**Why Tier 2:** Improves test signal; reduces cognitive load; completes docs. Not blockers but worth doing before Phase 3 ramps up.
+
+**Tier 3 — Nice to Have (Future)**
+
+| ID | Title | Effort | Owner | Priority |
+|----|-------|--------|-------|----------|
+| Q8 | Refactor FileNotFound tests to use `[Theory]` | 1h | Shiherlis | 🔵 Low |
+| Q9 | Add stress tests (100+ slides, 1000+ shapes, 50+ rows) | 4h | Shiherlis | 🔵 Low |
+| Q10 | Archive `.squad/` to separate branch/history | 2h | McCauley | 🔵 Low |
+
+**Why Tier 3:** Low risk of regression; can be deferred post-Phase-3.
+
+#### Decision: Scoping for This Phase
+
+**Recommendation:** Commit to Tier 1 + Tier 2 (9 hours total, ~1–2 weeks part-time)
+
+**Rationale:**
+- Tier 1 is blocking gate: incomplete docs + boilerplate will slow Phase 3 onboarding
+- Tier 2 is debt prevention: small tests now prevent big bugs later
+- Tier 3 is polish: deferred unless timeline is loose
+- **Estimated impact:** 25% fewer regressions, 15% faster code review, better new-engineer onboarding
+
+#### Success Criteria
+
+✅ All Tier 1 + Tier 2 issues closed before Phase 3 ramps up  
+✅ Test count stable or increasing (260+ tests)  
+✅ Build warnings same or fewer (68 or less)  
+✅ README/docs reflect all current tools  
+✅ No regression in Phase 2 functionality (all round-trip tests pass)  
+
+#### Timeline
+
+- **Week 1:** Q1–Q3 (unblock Phase 3 start)
+- **Week 2:** Q4–Q7 (polish before full feature work)
+- **Backlog:** Q8–Q10 (future or parallel to Phase 3 lighter tasks)
+
+#### Team Assignments
+
+- **Cheritto:** Q2, Q4 (code refactoring — Backend Dev charter)
+- **Shiherlis:** Q3, Q5, Q8 (test writing — Tester charter)
+- **@copilot:** Q1, Q6, Q7 (documentation — Coding Agent charter)
+- **McCauley:** Milestone oversight; final review before Phase 3 starts
+
+---
+
+### Tool Consolidation Research (2026-03-17)
+
+**Lead:** Nate  
+**Status:** Proposed (optional enhancement for quality pass)
+
+#### Research Scope
+
+How dotnet-mcp consolidated 70+ tools into ~10 using enum-based action parameter switches. Feasibility analysis for pptx-mcp.
+
+#### Key Findings
+
+**dotnet-mcp Consolidation Pattern:**
+- **Before:** 70+ individual tools (combinatorial explosion)
+- **After:** ~10 consolidated tools with enum-based routing (e.g., `DotnetProjectAction` with 21 actions)
+- **Pattern:** One `[McpServerTool]` per domain, required `action` parameter, switch expression to handlers
+- **Attributes:** `[McpMeta("consolidatedTool", true)]` + `[McpMeta("actions", [...])]` for agent introspection
+- **Validation:** Centralized `ParameterValidator.ValidateAction<T>()` prevents typos
+- **Implementation:** Partial methods per domain with shared base class
+
+**pptx-mcp Current State:**
+- **Today:** 18 individual tools (18 methods in one file)
+- **Natural groupings:** 6 semantic clusters (slide inspection, slide management, text content, content extraction, image ops, table ops)
+- **Potential reduction:** 18 → ~6–8 consolidated tools (conservative: 18 → 12)
+
+#### Trade-Off Analysis
+
+**Benefits:**
+- ✅ Fewer tools in agent's tool list (cleaner UX)
+- ✅ Shared validation/error-handling logic
+- ✅ Parameter overlap reduction
+- ✅ Easier maintenance
+
+**Costs:**
+- ❌ Parameter clutter (all actions' params visible)
+- ❌ Migration burden (existing workflows need updates)
+- ❌ Error clarity requires action context
+
+**Fit Assessment:** YES — semantic grouping obvious, parameter overlap real, management burden moderate.
+
+#### Recommended Approach
+
+**Conservative Sequence (1–2 sprint days):**
+1. Start with 3–4 high-confidence groups: slide management, text content, tables
+2. Achieve 18 → 12 reduction first
+3. Hold image + extraction until validated
+4. Reversible if agent performance suffers
+
+#### Decision Point
+
+**Question:** Should pptx-mcp consolidate as part of quality pass?
+
+**Recommendation:** Frame as optional enhancement. Conservative approach minimizes risk. Can defer if squad prioritizes other quality items. If proceeding, recommend post-Tier-1 planning.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
