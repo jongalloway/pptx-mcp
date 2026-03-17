@@ -11,6 +11,7 @@ namespace PptxMcp.Tests.Services;
 /// Written proactively for Issue #36 — table insert and update tools.
 /// These tests verify OpenXML structure, PowerPoint compatibility, and behavioral correctness.
 /// </summary>
+[Trait("Category", "Unit")]
 public class TableOperationTests : PptxTestBase
 {
 

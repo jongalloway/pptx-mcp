@@ -4,6 +4,7 @@ using PptxMcp.Models;
 
 namespace PptxMcp.Tests.Tools;
 
+[Trait("Category", "Integration")]
 public class PptxToolsTests : PptxTestBase
 {
     private readonly PptxTools _tools;

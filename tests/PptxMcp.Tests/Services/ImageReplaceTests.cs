@@ -7,6 +7,7 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Tests.Services;
 
+[Trait("Category", "Unit")]
 public class ImageReplaceTests : PptxTestBase
 {
     private static readonly byte[] PngBytes = Convert.FromBase64String(
@@ -115,8 +116,8 @@ public class ImageReplaceTests : PptxTestBase
 
         presentationPart.Presentation = new Presentation(
             slideIdList,
-            new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
-            new NotesSize { Cx = 6858000, Cy = 9144000 });
+            new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5, Type = SlideSizeValues.Screen4x3 },
+            new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
 
         presentationPart.Presentation.InsertAt(
             new SlideMasterIdList(new SlideMasterId
@@ -319,8 +320,8 @@ public class ImageReplaceTests : PptxTestBase
             var pp = doc.AddPresentationPart();
             pp.Presentation = new Presentation(
                 new SlideIdList(),
-                new SlideSize { Cx = 9144000, Cy = 6858000 },
-                new NotesSize { Cx = 6858000, Cy = 9144000 });
+                new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5 },
+                new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
             pp.Presentation.Save();
         }
         var imagePath = CreateTempImage(PngBytes, ".png");
@@ -470,8 +471,8 @@ public class ImageReplaceTests : PptxTestBase
             slidePart.Slide = new Slide(new CommonSlideData(shapeTree), new ColorMapOverride(new A.MasterColorMapping()));
             presentationPart.Presentation = new Presentation(
                 new SlideIdList(new SlideId { Id = 256, RelationshipId = presentationPart.GetIdOfPart(slidePart) }),
-                new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
-                new NotesSize { Cx = 6858000, Cy = 9144000 });
+                new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5, Type = SlideSizeValues.Screen4x3 },
+                new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
             presentationPart.Presentation.InsertAt(
                 new SlideMasterIdList(new SlideMasterId { Id = 2147483648U, RelationshipId = presentationPart.GetIdOfPart(slideMasterPart) }), 0);
             presentationPart.Presentation.Save();
@@ -706,10 +707,10 @@ public class ImageReplaceTests : PptxTestBase
         // Verify shape properties (position/size) are preserved
         var transform = picture.ShapeProperties?.GetFirstChild<A.Transform2D>();
         Assert.NotNull(transform);
-        Assert.Equal(914400, transform!.Offset!.X!.Value);
-        Assert.Equal(914400, transform.Offset!.Y!.Value);
-        Assert.Equal(3657600, transform.Extents!.Cx!.Value);
-        Assert.Equal(2743200, transform.Extents!.Cy!.Value);
+        Assert.Equal(Emu.OneInch, transform!.Offset!.X!.Value);
+        Assert.Equal(Emu.OneInch, transform.Offset!.Y!.Value);
+        Assert.Equal(Emu.Inches4, transform.Extents!.Cx!.Value);
+        Assert.Equal(Emu.Inches3, transform.Extents!.Cy!.Value);
     }
 
     [Fact]

@@ -169,3 +169,20 @@
 - Decision point: Squad can choose to proceed with consolidation as enhancement or focus on Tier 1+2 core quality work
 - Orchestration log written to `.squad/orchestration-log/2026-03-17T0607Z-nate.md`
 - Decisions merged to decisions.md; inbox files deleted
+
+### 2026-03-17T**TBD**: DocumentFormat.OpenXml 3.5.0 Upgrade Research
+
+**Research Scope:** Evaluate DocumentFormat.OpenXml 3.5.0 (released March 13, 2025) vs. current 3.4.1.
+
+**Key Findings:**
+- **3.5.0 additions:** Minor schema release — adds Office2016.Drawing.ChartDrawing.Offset class, Version/FeatureList/FalbackImg attributes on ChartSpace, ExtensionDropMode enum. Purely additive, no breaking changes.
+- **3.4.1 recent wins:** Most significant improvements already in current version — MP4 video support for PPTX, Q3 2025 Office schema updates, ~2.4× faster base64 decoding (~70% less memory), fixed XML serialization, better error reporting for encrypted/missing parts.
+- **Upgrade assessment:** Safe, low-risk. No code changes needed; dependency update only.
+- **Deliverable:** GitHub issue #75 created with upgrade recommendation, impact analysis, testing checklist.
+
+**Impact:** Unblocks potential MP4 video feature work if future requirements arise. No immediate action required—Cheritto can pick up if Squad prioritizes video embedding in Phase 3+.
+
+**File Paths:**
+- `.csproj` reference: `src/PptxMcp/PptxMcp.csproj` line 26
+- Issue: https://github.com/jongalloway/pptx-mcp/issues/75
+- Reference: Open-XML-SDK releases (https://github.com/dotnet/Open-XML-SDK/releases)

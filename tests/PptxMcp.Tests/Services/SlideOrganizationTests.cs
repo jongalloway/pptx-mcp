@@ -1,5 +1,6 @@
 namespace PptxMcp.Tests.Services;
 
+[Trait("Category", "Unit")]
 public class SlideOrganizationTests : PptxTestBase
 {
     private string CreateNamedSlides(params string[] titles) =>

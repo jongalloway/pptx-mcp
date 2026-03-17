@@ -6,6 +6,7 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Tests.Tools;
 
+[Trait("Category", "Integration")]
 public class ImageReplaceToolTests : PptxTestBase
 {
     private readonly PptxTools _tools;
@@ -88,8 +89,8 @@ public class ImageReplaceToolTests : PptxTestBase
 
         presentationPart.Presentation = new Presentation(
             new SlideIdList(new SlideId { Id = 256, RelationshipId = presentationPart.GetIdOfPart(slidePart) }),
-            new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
-            new NotesSize { Cx = 6858000, Cy = 9144000 });
+            new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5, Type = SlideSizeValues.Screen4x3 },
+            new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
         presentationPart.Presentation.InsertAt(
             new SlideMasterIdList(new SlideMasterId { Id = 2147483648U, RelationshipId = presentationPart.GetIdOfPart(slideMasterPart) }), 0);
         presentationPart.Presentation.Save();

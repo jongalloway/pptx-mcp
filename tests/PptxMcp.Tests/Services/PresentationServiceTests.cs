@@ -4,6 +4,7 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace PptxMcp.Tests.Services;
 
+[Trait("Category", "Unit")]
 public class PresentationServiceTests : PptxTestBase
 {
 
