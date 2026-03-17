@@ -7,7 +7,7 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Services;
 
-public class PresentationService
+public partial class PresentationService
 {
     public IReadOnlyList<SlideInfo> GetSlides(string filePath)
     {

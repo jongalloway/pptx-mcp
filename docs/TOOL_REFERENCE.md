@@ -7,8 +7,10 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 ## Table of Contents
 
 - [pptx_add_slide](#pptx_add_slide)
+- [pptx_add_slide_from_layout](#pptx_add_slide_from_layout)
 - [pptx_batch_update](#pptx_batch_update)
 - [pptx_delete_slide](#pptx_delete_slide)
+- [pptx_duplicate_slide](#pptx_duplicate_slide)
 - [pptx_export_markdown](#pptx_export_markdown)
 - [pptx_extract_talking_points](#pptx_extract_talking_points)
 - [pptx_get_slide_content](#pptx_get_slide_content)
@@ -93,6 +95,51 @@ Slide added successfully at index 5.
 **Response:**
 ```
 Slide added successfully at index 5.
+```
+
+---
+
+## pptx_add_slide_from_layout
+
+**Description:** Create a new slide from a named layout, keep the slide linked to that layout for template inheritance, and optionally populate placeholders in the same call.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `layoutName` | string | ✅ Required | Exact layout name to use. Call `pptx_list_layouts` first if you need to discover available names. |
+| `placeholderValues` | object | ❌ Optional | Object keyed by semantic placeholder identifiers like `Title`, `Body:1`, or `Picture:2`. Values are the replacement text to apply. |
+| `insertAt` | integer | ❌ Optional | 1-based insertion position. Defaults to appending the new slide at the end of the presentation. |
+
+### Returns
+
+A JSON result describing the created slide.
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 4,
+  "LayoutName": "Title and Content",
+  "PlaceholdersPopulated": 2,
+  "Message": "Added slide 4 from layout 'Title and Content'."
+}
+```
+
+### Example
+
+```json
+{
+  "name": "pptx_add_slide_from_layout",
+  "arguments": {
+    "filePath": "/presentations/qbr.pptx",
+    "layoutName": "Title and Content",
+    "placeholderValues": {
+      "Title": "Agenda",
+      "Body:1": "Wins\nRisks\nNext steps"
+    }
+  }
+}
 ```
 
 ---
@@ -189,6 +236,51 @@ Delete the second slide:
   "arguments": {
     "filePath": "/presentations/quarterly.pptx",
     "slideNumber": 2
+  }
+}
+```
+
+---
+
+## pptx_duplicate_slide
+
+**Description:** Duplicate an existing slide, deep-clone related parts such as images, and optionally override placeholders on the duplicate using semantic placeholder keys.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `slideNumber` | integer | ✅ Required | 1-based slide number to duplicate. |
+| `placeholderOverrides` | object | ❌ Optional | Object keyed by semantic placeholder identifiers like `Title` or `Body:2`. Values are applied only to the duplicated slide. |
+| `insertAt` | integer | ❌ Optional | 1-based insertion position. Defaults to inserting immediately after the source slide. |
+
+### Returns
+
+A JSON result describing the duplicated slide.
+
+```json
+{
+  "Success": true,
+  "NewSlideNumber": 3,
+  "ShapesCopied": 6,
+  "OverridesApplied": 1,
+  "Message": "Duplicated slide 2 to slide 3."
+}
+```
+
+### Example
+
+```json
+{
+  "name": "pptx_duplicate_slide",
+  "arguments": {
+    "filePath": "/presentations/qbr.pptx",
+    "slideNumber": 2,
+    "placeholderOverrides": {
+      "Title": "EMEA Deep Dive",
+      "Body:2": "Mitigate churn\nRebalance pipeline"
+    }
   }
 }
 ```

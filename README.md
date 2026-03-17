@@ -64,6 +64,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_get_slide_content` | Extract structured content from a slide (shapes, text, tables) |
 | `pptx_get_slide_xml` | Get the raw XML for a slide (power users) |
 | `pptx_add_slide` | Add a new slide using a named layout |
+| `pptx_add_slide_from_layout` | Create a slide from a named layout and populate placeholders by semantic key |
+| `pptx_duplicate_slide` | Clone a slide, including related parts, with optional placeholder overrides |
 | `pptx_update_text` | Update text in a placeholder on a slide by index |
 | `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for single data-driven updates |
 | `pptx_batch_update` | Apply multiple named text updates across a deck in one open/save cycle |
@@ -76,6 +78,10 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 
 **When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
+
+**When to use `pptx_add_slide_from_layout`:** Use `pptx_add_slide_from_layout` when you want PowerPoint to respect an existing template layout while you fill placeholders in one call. Placeholder keys use semantic names like `Title`, `Body:1`, or `Picture:2`.
+
+**When to use `pptx_duplicate_slide`:** Use `pptx_duplicate_slide` when you already have a styled slide you want to reuse. It deep-clones the slide and related parts, then applies optional placeholder overrides to the duplicate only.
 
 **When to use `pptx_batch_update`:** Use `pptx_batch_update` when you already know several shape names and want to refresh an entire deck in one pass. It applies multiple text mutations in one open/save cycle and returns per-mutation success details.
 
