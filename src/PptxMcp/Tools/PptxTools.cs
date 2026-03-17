@@ -415,6 +415,116 @@ public sealed partial class PptxTools
             return Task.FromResult($"Error: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Insert a new table onto a slide. Pass column headers and data rows as arrays.
+    /// Creates a DrawingML table (GraphicFrame) with proper PowerPoint-compatible structure.
+    /// Position and size are specified in EMUs (English Metric Units). 1 inch = 914400 EMUs.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideNumber">1-based slide number to insert the table on.</param>
+    /// <param name="headers">Array of column header strings. Determines the number of columns.</param>
+    /// <param name="rows">Array of arrays, each containing cell values for one data row.</param>
+    /// <param name="tableName">Optional name for the table. Defaults to "Table {id}".</param>
+    /// <param name="x">Horizontal offset from the left edge in EMUs. Default is 914400 (1 inch).</param>
+    /// <param name="y">Vertical offset from the top edge in EMUs. Default is 1371600 (1.5 inches).</param>
+    /// <param name="width">Width of the table in EMUs. Default is 7315200 (~8 inches).</param>
+    /// <param name="height">Height of the table in EMUs. Default is 1371600 (1.5 inches).</param>
+    [McpServerTool(Title = "Insert Table")]
+    public partial Task<string> pptx_insert_table(
+        string filePath,
+        int slideNumber,
+        string[] headers,
+        string[][] rows,
+        string? tableName = null,
+        long x = 914400,
+        long y = 1371600,
+        long width = 7315200,
+        long height = 1371600)
+    {
+        if (!File.Exists(filePath))
+        {
+            var missingResult = new TableInsertResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                TableName: tableName,
+                TableShapeId: null,
+                TableIndex: null,
+                RowCount: 0,
+                ColumnCount: 0,
+                Message: $"File not found: {filePath}");
+            return Task.FromResult(JsonSerializer.Serialize(missingResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        try
+        {
+            var result = _service.InsertTable(filePath, slideNumber, headers, rows, tableName, x, y, width, height);
+            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            var failureResult = new TableInsertResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                TableName: tableName,
+                TableShapeId: null,
+                TableIndex: null,
+                RowCount: 0,
+                ColumnCount: 0,
+                Message: $"Error: {ex.Message}");
+            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+    }
+
+    /// <summary>
+    /// Update cell values in an existing table on a slide.
+    /// Locate the table by name (case-insensitive) or by zero-based index among tables on the slide.
+    /// Each update targets a specific cell by zero-based row and column indices.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    /// <param name="slideNumber">1-based slide number containing the table.</param>
+    /// <param name="updates">Array of cell updates. Each must include row (0-based), column (0-based), and value.</param>
+    /// <param name="tableName">Optional table name to match (case-insensitive). Takes precedence over tableIndex.</param>
+    /// <param name="tableIndex">Optional zero-based index among tables on the slide. Used when tableName is not provided.</param>
+    [McpServerTool(Title = "Update Table")]
+    public partial Task<string> pptx_update_table(
+        string filePath,
+        int slideNumber,
+        TableCellUpdate[] updates,
+        string? tableName = null,
+        int? tableIndex = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            var missingResult = new TableUpdateResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                TableName: tableName,
+                MatchedBy: null,
+                CellsUpdated: 0,
+                CellsSkipped: 0,
+                Message: $"File not found: {filePath}");
+            return Task.FromResult(JsonSerializer.Serialize(missingResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        try
+        {
+            var result = _service.UpdateTable(filePath, slideNumber, updates, tableName, tableIndex);
+            return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            var failureResult = new TableUpdateResult(
+                Success: false,
+                SlideNumber: slideNumber,
+                TableName: tableName,
+                MatchedBy: null,
+                CellsUpdated: 0,
+                CellsSkipped: 0,
+                Message: $"Error: {ex.Message}");
+            return Task.FromResult(JsonSerializer.Serialize(failureResult, new JsonSerializerOptions { WriteIndented = true }));
+        }
+    }
 }
 
 
