@@ -70,6 +70,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for single data-driven updates |
 | `pptx_batch_update` | Apply multiple named text updates across a deck in one open/save cycle |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
+| `pptx_replace_image` | Replace an image in an existing picture shape — inherits geometry from the layout, no manual coordinates needed |
 | `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
 | `pptx_move_slide` | Move a slide to a different position |
 | `pptx_delete_slide` | Remove a slide by its 1-based slide number |
@@ -82,6 +83,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 **When to use `pptx_add_slide_from_layout`:** Use `pptx_add_slide_from_layout` when you want PowerPoint to respect an existing template layout while you fill placeholders in one call. Placeholder keys use semantic names like `Title`, `Body:1`, or `Picture:2`.
 
 **When to use `pptx_duplicate_slide`:** Use `pptx_duplicate_slide` when you already have a styled slide you want to reuse. It deep-clones the slide and related parts, then applies optional placeholder overrides to the duplicate only.
+
+**When to use `pptx_replace_image`:** Use `pptx_replace_image` to swap the image in an existing picture shape (by name or index). The shape's position and size are preserved from the layout, so no EMU coordinates are needed. Supports PNG, JPEG, and SVG. Use the optional `altText` parameter for accessibility.
 
 **When to use `pptx_batch_update`:** Use `pptx_batch_update` when you already know several shape names and want to refresh an entire deck in one pass. It applies multiple text mutations in one open/save cycle and returns per-mutation success details.
 
