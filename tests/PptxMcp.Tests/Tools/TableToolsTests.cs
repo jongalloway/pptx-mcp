@@ -60,27 +60,36 @@ public class TableToolsTests : IDisposable
         Assert.Equal("My Table", insertResult.TableName);
     }
 
-    [Fact]
-    public async Task pptx_insert_table_FileNotFound_ReturnsStructuredFailure()
+    // ────────────────────────────────────────────────────────
+    // File-not-found: both table tools
+    // ────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("pptx_insert_table")]
+    [InlineData("pptx_update_table")]
+    public async Task FileNotFound_ReturnsError(string toolName)
     {
         var fakePath = "C:\\does-not-exist\\file.pptx";
-        var headers = new[] { "A" };
-        var rows = new[] { new[] { "1" } };
-
-        var result = await _tools.pptx_insert_table(fakePath, 1, headers, rows);
-
-        // Should either return JSON with Success=false or Error: prefix
-        var isErrorString = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
-        if (!isErrorString)
+        var result = toolName switch
         {
-            var insertResult = JsonSerializer.Deserialize<TableInsertResult>(result);
-            Assert.NotNull(insertResult);
-            Assert.False(insertResult.Success);
-            Assert.Contains("not found", insertResult.Message, StringComparison.OrdinalIgnoreCase);
+            "pptx_insert_table" => await _tools.pptx_insert_table(fakePath, 1, ["A"], [["1"]]),
+            "pptx_update_table" => await _tools.pptx_update_table(fakePath, 1,
+                tableName: "Missing", updates: [new TableCellUpdate(0, 0, "X")]),
+            _ => throw new ArgumentException($"Unknown tool: {toolName}")
+        };
+
+        var isErrorString = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
+        if (isErrorString)
+        {
+            Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
         }
         else
         {
-            Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
+            using var doc = JsonDocument.Parse(result);
+            Assert.False(doc.RootElement.GetProperty("Success").GetBoolean());
+            Assert.Contains("not found",
+                doc.RootElement.GetProperty("Message").GetString()!,
+                StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -124,29 +133,6 @@ public class TableToolsTests : IDisposable
         Assert.NotNull(updateResult);
         Assert.True(updateResult.Success);
         Assert.Equal(1, updateResult.SlideNumber);
-    }
-
-    [Fact]
-    public async Task pptx_update_table_FileNotFound_ReturnsError()
-    {
-        var fakePath = "C:\\does-not-exist\\file.pptx";
-
-        var result = await _tools.pptx_update_table(fakePath, 1,
-            tableName: "Missing",
-            updates: [new TableCellUpdate(0, 0, "X")]);
-
-        var isErrorString = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
-        if (!isErrorString)
-        {
-            var updateResult = JsonSerializer.Deserialize<TableUpdateResult>(result);
-            Assert.NotNull(updateResult);
-            Assert.False(updateResult.Success);
-            Assert.Contains("not found", updateResult.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        else
-        {
-            Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
-        }
     }
 
     [Fact]

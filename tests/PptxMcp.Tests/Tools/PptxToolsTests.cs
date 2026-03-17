@@ -45,6 +45,37 @@ public class PptxToolsTests : IDisposable
         return path;
     }
 
+    // ────────────────────────────────────────────────────────
+    // File-not-found: tools that return "Error:" prefix
+    // ────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("pptx_list_slides")]
+    [InlineData("pptx_list_layouts")]
+    [InlineData("pptx_get_slide_content")]
+    [InlineData("pptx_extract_talking_points")]
+    [InlineData("pptx_write_notes")]
+    [InlineData("pptx_move_slide")]
+    [InlineData("pptx_delete_slide")]
+    [InlineData("pptx_reorder_slides")]
+    public async Task FileNotFound_ReturnsError(string toolName)
+    {
+        var fakePath = "C:\\does-not-exist\\file.pptx";
+        var result = toolName switch
+        {
+            "pptx_list_slides" => await _tools.pptx_list_slides(fakePath),
+            "pptx_list_layouts" => await _tools.pptx_list_layouts(fakePath),
+            "pptx_get_slide_content" => await _tools.pptx_get_slide_content(fakePath, 0),
+            "pptx_extract_talking_points" => await _tools.pptx_extract_talking_points(fakePath),
+            "pptx_write_notes" => await _tools.pptx_write_notes(fakePath, 0, "notes"),
+            "pptx_move_slide" => await _tools.pptx_move_slide(fakePath, 1, 2),
+            "pptx_delete_slide" => await _tools.pptx_delete_slide(fakePath, 1),
+            "pptx_reorder_slides" => await _tools.pptx_reorder_slides(fakePath, [1, 2]),
+            _ => throw new ArgumentException($"Unknown tool: {toolName}")
+        };
+        Assert.StartsWith("Error:", result);
+    }
+
     [Fact]
     public async Task pptx_list_slides_ReturnsJson()
     {
@@ -54,25 +85,11 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
-    public async Task pptx_list_slides_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_list_slides("C:\\does-not-exist\\file.pptx");
-        Assert.StartsWith("Error:", result);
-    }
-
-    [Fact]
     public async Task pptx_list_layouts_ReturnsJson()
     {
         var path = CreateTempPptx();
         var result = await _tools.pptx_list_layouts(path);
         Assert.Contains("Name", result);
-    }
-
-    [Fact]
-    public async Task pptx_list_layouts_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_list_layouts("C:\\does-not-exist\\file.pptx");
-        Assert.StartsWith("Error:", result);
     }
 
     [Fact]
@@ -293,13 +310,6 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
-    public async Task pptx_get_slide_content_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_get_slide_content("C:\\does-not-exist\\file.pptx", 0);
-        Assert.StartsWith("Error:", result);
-    }
-
-    [Fact]
     public async Task pptx_get_slide_content_ContainsShapeType()
     {
         var path = CreateTempPptx();
@@ -385,13 +395,6 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
-    public async Task pptx_extract_talking_points_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_extract_talking_points("C:\\does-not-exist\\file.pptx");
-        Assert.StartsWith("Error:", result);
-    }
-
-    [Fact]
     public async Task pptx_write_notes_CreatesNotes()
     {
         var path = CreateTempPptx();
@@ -418,13 +421,6 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
-    public async Task pptx_write_notes_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_write_notes("C:\\does-not-exist\\file.pptx", 0, "notes");
-        Assert.StartsWith("Error:", result);
-    }
-
-    [Fact]
     public async Task pptx_move_slide_ReturnsSuccessMessage()
     {
         var path = CreateCustomPptx(
@@ -439,13 +435,6 @@ public class PptxToolsTests : IDisposable
         Assert.Equal("Slide B", slides[0].Title);
         Assert.Equal("Slide C", slides[1].Title);
         Assert.Equal("Slide A", slides[2].Title);
-    }
-
-    [Fact]
-    public async Task pptx_move_slide_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_move_slide("C:\\does-not-exist\\file.pptx", 1, 2);
-        Assert.StartsWith("Error:", result);
     }
 
     [Fact]
@@ -475,13 +464,6 @@ public class PptxToolsTests : IDisposable
     }
 
     [Fact]
-    public async Task pptx_delete_slide_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_delete_slide("C:\\does-not-exist\\file.pptx", 1);
-        Assert.StartsWith("Error:", result);
-    }
-
-    [Fact]
     public async Task pptx_delete_slide_LastSlide_ReturnsError()
     {
         var path = CreateTempPptx();
@@ -504,13 +486,6 @@ public class PptxToolsTests : IDisposable
         Assert.Equal("Third", slides[0].Title);
         Assert.Equal("First", slides[1].Title);
         Assert.Equal("Second", slides[2].Title);
-    }
-
-    [Fact]
-    public async Task pptx_reorder_slides_FileNotFound_ReturnsError()
-    {
-        var result = await _tools.pptx_reorder_slides("C:\\does-not-exist\\file.pptx", [1, 2]);
-        Assert.StartsWith("Error:", result);
     }
 
     [Fact]
@@ -570,28 +545,20 @@ public class PptxToolsTests : IDisposable
         Assert.True(parsed.Success);
     }
 
-    [Fact]
-    public async Task pptx_replace_image_FileNotFound_ReturnsStructuredError()
+    [Theory]
+    [InlineData(false, true, "File not found")]
+    [InlineData(true, false, "Image file not found")]
+    public async Task pptx_replace_image_MissingFile_ReturnsStructuredError(bool pptxExists, bool imageExists, string expectedMessage)
     {
-        var imagePath = CreateTempImageFile();
-        var result = await _tools.pptx_replace_image("C:\\does-not-exist\\file.pptx", 1, shapeIndex: 0, imagePath: imagePath);
+        var pptxPath = pptxExists ? CreatePptxWithPicture() : "C:\\does-not-exist\\file.pptx";
+        var imagePath = imageExists ? CreateTempImageFile() : "C:\\does-not-exist\\image.png";
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath);
         var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
 
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
-        Assert.Contains("File not found", parsed.Message);
-    }
-
-    [Fact]
-    public async Task pptx_replace_image_ImageNotFound_ReturnsStructuredError()
-    {
-        var pptxPath = CreatePptxWithPicture();
-        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: "C:\\does-not-exist\\image.png");
-        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
-
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-        Assert.Contains("Image file not found", parsed.Message);
+        Assert.Contains(expectedMessage, parsed.Message);
     }
 
     [Fact]
