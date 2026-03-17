@@ -24,9 +24,9 @@ internal static class TemplateDeckHelper
 
         titleBodyLayoutPart.SlideLayout = new SlideLayout(
             new CommonSlideData(CreateLayoutShapeTree(
-                CreatePlaceholderShape(2U, "Layout Title", PlaceholderValues.Title, 0U, 457200, 274320, 8229600, 685800, "Click to add title"),
-                CreatePlaceholderShape(3U, "Layout Body", PlaceholderValues.Body, 1U, 914400, 1600200, 7315200, 1371600, "Click to add text"),
-                CreatePlaceholderShape(4U, "Layout Body 2", PlaceholderValues.Body, 2U, 914400, 3200400, 7315200, 914400, "Click to add text"))),
+                CreatePlaceholderShape(2U, "Layout Title", PlaceholderValues.Title, 0U, Emu.HalfInch, Emu.Inches0_3, Emu.Inches9, Emu.ThreeQuartersInch, "Click to add title"),
+                CreatePlaceholderShape(3U, "Layout Body", PlaceholderValues.Body, 1U, Emu.OneInch, Emu.Inches1_75, Emu.Inches8, Emu.Inches1_5, "Click to add text"),
+                CreatePlaceholderShape(4U, "Layout Body 2", PlaceholderValues.Body, 2U, Emu.OneInch, Emu.Inches3_5, Emu.Inches8, Emu.OneInch, "Click to add text"))),
             new ColorMapOverride(new A.MasterColorMapping()))
         {
             Type = SlideLayoutValues.Text
@@ -35,9 +35,9 @@ internal static class TemplateDeckHelper
 
         pictureCaptionLayoutPart.SlideLayout = new SlideLayout(
             new CommonSlideData(CreateLayoutShapeTree(
-                CreatePlaceholderShape(2U, "Picture Layout Title", PlaceholderValues.Title, 0U, 457200, 274320, 8229600, 685800, "Click to add title"),
-                CreatePicturePlaceholder(3U, "Picture Placeholder", 1U, 914400, 1600200, 3657600, 2743200),
-                CreatePlaceholderShape(4U, "Picture Caption Body", PlaceholderValues.Body, 2U, 5029200, 1600200, 2743200, 1143000, "Click to add text"))),
+                CreatePlaceholderShape(2U, "Picture Layout Title", PlaceholderValues.Title, 0U, Emu.HalfInch, Emu.Inches0_3, Emu.Inches9, Emu.ThreeQuartersInch, "Click to add title"),
+                CreatePicturePlaceholder(3U, "Picture Placeholder", 1U, Emu.OneInch, Emu.Inches1_75, Emu.Inches4, Emu.Inches3),
+                CreatePlaceholderShape(4U, "Picture Caption Body", PlaceholderValues.Body, 2U, Emu.Inches5_5, Emu.Inches1_75, Emu.Inches3, Emu.Inches1_25, "Click to add text"))),
             new ColorMapOverride(new A.MasterColorMapping()))
         {
             Type = SlideLayoutValues.Text
@@ -79,8 +79,8 @@ internal static class TemplateDeckHelper
                     Id = 256U,
                     RelationshipId = presentationPart.GetIdOfPart(firstSlidePart)
                 }),
-            new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
-            new NotesSize { Cx = 6858000, Cy = 9144000 });
+            new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5, Type = SlideSizeValues.Screen4x3 },
+            new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
 
         presentationPart.Presentation.InsertAt(
             new SlideMasterIdList(
@@ -97,9 +97,9 @@ internal static class TemplateDeckHelper
     private static Slide CreateSourceSlide(SlidePart slidePart)
     {
         var shapeTree = CreateLayoutShapeTree(
-            CreatePlaceholderShape(2U, "Title 1", PlaceholderValues.Title, 0U, 457200, 274320, 8229600, 685800, "Quarterly Business Review"),
-            CreatePlaceholderShape(3U, "Body 1", PlaceholderValues.Body, 1U, 914400, 1600200, 7315200, 1371600, "Revenue up 12%", "EMEA stable"),
-            CreatePlaceholderShape(4U, "Body 2", PlaceholderValues.Body, 2U, 914400, 3200400, 7315200, 914400, "Follow-up items"));
+            CreatePlaceholderShape(2U, "Title 1", PlaceholderValues.Title, 0U, Emu.HalfInch, Emu.Inches0_3, Emu.Inches9, Emu.ThreeQuartersInch, "Quarterly Business Review"),
+            CreatePlaceholderShape(3U, "Body 1", PlaceholderValues.Body, 1U, Emu.OneInch, Emu.Inches1_75, Emu.Inches8, Emu.Inches1_5, "Revenue up 12%", "EMEA stable"),
+            CreatePlaceholderShape(4U, "Body 2", PlaceholderValues.Body, 2U, Emu.OneInch, Emu.Inches3_5, Emu.Inches8, Emu.OneInch, "Follow-up items"));
 
         var imagePart = slidePart.AddImagePart(ImagePartType.Png);
         using (var stream = new MemoryStream(SampleImageBytes))
@@ -107,8 +107,8 @@ internal static class TemplateDeckHelper
 
         var imageRelationshipId = slidePart.GetIdOfPart(imagePart);
 
-        shapeTree.Append(CreatePicture(5U, imageRelationshipId, 5486400, 1600200, 2286000, 1828800));
-        shapeTree.Append(CreatePicture(6U, imageRelationshipId, 5486400, 3657600, 1828800, 1371600));
+        shapeTree.Append(CreatePicture(5U, imageRelationshipId, Emu.Inches6, Emu.Inches1_75, Emu.Inches2_5, Emu.Inches2));
+        shapeTree.Append(CreatePicture(6U, imageRelationshipId, Emu.Inches6, Emu.Inches4, Emu.Inches2, Emu.Inches1_5));
 
         return new Slide(
             new CommonSlideData(shapeTree),

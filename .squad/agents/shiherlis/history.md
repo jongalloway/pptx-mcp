@@ -64,3 +64,29 @@
   - `TableToolsTests.cs` (1 conflict): Same naming changes from #71; PR #65 changed `.First(predicate)` → `Assert.Single`
 - **Resolution strategy:** Keep main's naming conventions (`CreateMinimalPptx`, `Service.`) AND PR's assertion pattern improvements (`Assert.Single` over `FirstOrDefault`/`.Single`/`.First`)
 - **Result:** 377/377 tests passing, CI green, force-pushed with `--force-with-lease`
+### Issue #56 Theory Parameterization Refactor (2026-03-17)
+- **Scope:** Consolidated 14 repetitive file-not-found `[Fact]` tests into 4 `[Theory]` parameterized tests across 3 files
+- **Files modified:**
+  - `tests/PptxMcp.Tests/Tools/PptxToolsTests.cs` — 8 simple "Error:" tests → 1 Theory; 2 replace_image tests → 1 Theory
+  - `tests/PptxMcp.Tests/Tools/TableToolsTests.cs` — 2 table file-not-found tests → 1 Theory (using JsonDocument for type-agnostic assertion)
+  - `tests/PptxMcp.Tests/Tools/ImageReplaceToolTests.cs` — 2 pptx/image-not-found tests → 1 Theory with bool flags for setup variation
+- **Net result:** -55 lines, 260/260 tests passing (unchanged count), adding new tools needs only a new `[InlineData]` row
+- **Patterns used:**
+  - `switch` expression to dispatch tool calls by name string in Theory body
+  - Bool parameters (`pptxExists`, `imageExists`) to vary test setup within a single Theory
+  - `JsonDocument` for type-agnostic Success/Message assertions when result types differ
+- **Key decision:** Left `PptxExportMarkdownToolTests.cs` alone (only 1 file-not-found test — no consolidation value) and kept `BothFilesMissing` test as separate `[Fact]` (tests ordering concern, not just error detection)
+
+### Issue #67 PptxTestBase Extraction (2026-03-17)
+- **Scope:** Extracted `PptxTestBase` abstract base class to eliminate duplicated setup across 16 test files
+- **File created:** `tests/PptxMcp.Tests/PptxTestBase.cs`
+- **Files modified:** 16 test files + `TestPptxHelper.cs` (visibility change for definition types)
+- **Net result:** -239 lines, 260/260 tests passing (unchanged count), PR #71
+- **Base class provides:**
+  - `Service` (PresentationService), `CreateMinimalPptx()`, `CreatePptxWithSlides()`, `TrackTempFile()`, `Dispose()` with ordered cleanup
+- **Key patterns:**
+  - Test definition types (`TestSlideDefinition`, etc.) changed from `internal` to `public` to allow `protected` base class methods
+  - Classes with custom OpenXML fixture creation (ImageReplaceTests, ImageReplaceToolTests) keep their own `CreatePptxWithPicture` and use `CreateTrackedPath()` wrapper for path generation + tracking
+  - `SlideOrganizationTests` uses `CreateNamedSlides(params string[])` wrapper around `CreatePptxWithSlides`
+  - `PptxCompletionHandlerTests` wraps both `CreateMinimalPptx()` and `CreatePptxWithSlides()` in a single `CreateTempPptx(params TestSlideDefinition[])` for backward compatibility
+  - `PptxPromptsTests` has no disposable pattern — correctly excluded from base class

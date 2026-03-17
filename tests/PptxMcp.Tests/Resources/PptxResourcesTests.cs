@@ -4,6 +4,7 @@ using PptxMcp.Resources;
 
 namespace PptxMcp.Tests.Resources;
 
+[Trait("Category", "Integration")]
 public class PptxResourcesTests : PptxTestBase
 {
     private readonly PptxResources _resources;

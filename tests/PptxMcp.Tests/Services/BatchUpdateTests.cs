@@ -5,6 +5,7 @@ using PptxMcp.Models;
 
 namespace PptxMcp.Tests.Services;
 
+[Trait("Category", "Unit")]
 public class BatchUpdateTests : PptxTestBase
 {
 
@@ -155,19 +156,19 @@ public class BatchUpdateTests : PptxTestBase
                                 Level = 1
                             }
                         ],
-                        X = 914400,
-                        Y = 1828800,
-                        Width = 2743200,
-                        Height = 685800
+                        X = Emu.OneInch,
+                        Y = Emu.Inches2,
+                        Width = Emu.Inches3,
+                        Height = Emu.ThreeQuartersInch
                     },
                     new TestTextShapeDefinition
                     {
                         Name = "Gross Margin",
                         Paragraphs = ["62%"],
-                        X = 3657600,
-                        Y = 1828800,
-                        Width = 1828800,
-                        Height = 685800
+                        X = Emu.Inches4,
+                        Y = Emu.Inches2,
+                        Width = Emu.Inches2,
+                        Height = Emu.ThreeQuartersInch
                     },
                     new TestTextShapeDefinition
                     {
@@ -178,10 +179,10 @@ public class BatchUpdateTests : PptxTestBase
                             new TestParagraphDefinition { Text = "Pipeline stable", IsBullet = true },
                             new TestParagraphDefinition { Text = "Upsell motion healthy", IsBullet = true }
                         ],
-                        X = 914400,
-                        Y = 2743200,
-                        Width = 3657600,
-                        Height = 1143000
+                        X = Emu.OneInch,
+                        Y = Emu.Inches3,
+                        Width = Emu.Inches4,
+                        Height = Emu.Inches1_25
                     }
                 ],
                 IncludeImage = true

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace PptxMcp.Tests.Services;
 
+[Trait("Category", "Unit")]
 public class MarkdownExportTests : PptxTestBase
 {
 

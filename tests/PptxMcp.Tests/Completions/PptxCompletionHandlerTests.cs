@@ -3,6 +3,7 @@ using PptxMcp.Completions;
 
 namespace PptxMcp.Tests.Completions;
 
+[Trait("Category", "Integration")]
 public class PptxCompletionHandlerTests : PptxTestBase
 {
     private string CreateTempPptx(params TestSlideDefinition[] slides)

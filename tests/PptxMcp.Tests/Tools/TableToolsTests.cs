@@ -7,6 +7,7 @@ namespace PptxMcp.Tests.Tools;
 /// Written proactively for Issue #36 — table insert and update tools.
 /// These tests verify JSON output format, error handling, and parameter validation at the MCP tool layer.
 /// </summary>
+[Trait("Category", "Integration")]
 public class TableToolsTests : PptxTestBase
 {
     private readonly PptxTools _tools;

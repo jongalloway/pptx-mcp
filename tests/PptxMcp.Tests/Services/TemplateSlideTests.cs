@@ -5,6 +5,7 @@ using PptxMcp.Models;
 
 namespace PptxMcp.Tests.Services;
 
+[Trait("Category", "Unit")]
 public class TemplateSlideTests : PptxTestBase
 {
 

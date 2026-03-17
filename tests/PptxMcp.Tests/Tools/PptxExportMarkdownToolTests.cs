@@ -1,5 +1,6 @@
 namespace PptxMcp.Tests.Tools;
 
+[Trait("Category", "Integration")]
 public class PptxExportMarkdownToolTests : PptxTestBase
 {
     private readonly PptxTools _tools;

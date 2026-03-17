@@ -5,6 +5,7 @@ using DocumentFormat.OpenXml.Validation;
 
 namespace PptxMcp.Tests.Tools;
 
+[Trait("Category", "E2E")]
 public class PptxPhase2E2eTests : PptxTestBase
 {
     private readonly PptxTools _tools;
