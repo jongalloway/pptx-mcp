@@ -68,3 +68,8 @@
 - `src/PptxMcp/Services/PresentationService.cs` batches named text mutations through one `PresentationDocument` open/save cycle, reuses the `UpdateSlideData` targeting/formatting path, and saves each touched slide once after processing the whole batch.
 - Batch request/result contracts live in `src/PptxMcp/Models/BatchUpdateMutation.cs`, `BatchUpdateMutationResult.cs`, and `BatchUpdateResult.cs`.
 - Compatibility validation for batch refresh now lives in `tests/PptxMcp.Tests/Services/BatchUpdateTests.cs`, which compares post-update `OpenXmlValidator` output against the baseline deck in addition to opening the file successfully.
+
+### Template-aware slide tools (2026-03-17)
+- `pptx_add_slide_from_layout` and `pptx_duplicate_slide` use semantic placeholder keys in `Type` or `Type:Index` form (for example `Title`, `Body:1`, `Picture:2`) so agents can target template placeholders without relying on shape names.
+- The new template-slide service logic keeps MCP tools thin, validates placeholder requests before mutation, clones slide-related parts recursively, and preserves layout/master inheritance by attaching the duplicated or generated slide to the correct `SlideLayoutPart`.
+- `tests/PptxMcp.Tests\TemplateDeckHelper.cs` is the dedicated fixture builder for template-authoring scenarios; it creates multiple named layouts, indexed placeholders, shared image usage, and round-trip compatibility coverage for layout-based authoring.

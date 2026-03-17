@@ -37,6 +37,14 @@ public class PptxToolsTests : IDisposable
         return path;
     }
 
+    private string CreateTemplatePptx()
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        _tempFiles.Add(path);
+        TemplateDeckHelper.CreateTemplatePresentation(path);
+        return path;
+    }
+
     [Fact]
     public async Task pptx_list_slides_ReturnsJson()
     {
@@ -81,6 +89,55 @@ public class PptxToolsTests : IDisposable
         var path = CreateTempPptx();
         var result = await _tools.pptx_update_text(path, 0, 0, "New Text");
         Assert.Contains("successfully", result);
+    }
+
+    [Fact]
+    public async Task pptx_add_slide_from_layout_ReturnsStructuredJson()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_add_slide_from_layout(path, TemplateDeckHelper.TitleBodyLayoutName, new Dictionary<string, string>
+        {
+            ["Title"] = "Agenda",
+            ["Body:1"] = "Wins",
+            ["Body:2"] = "Risks"
+        });
+        var addResult = JsonSerializer.Deserialize<AddSlideFromLayoutResult>(result);
+
+        Assert.NotNull(addResult);
+        Assert.True(addResult.Success);
+        Assert.Equal(2, addResult.SlideNumber);
+        Assert.Equal(3, addResult.PlaceholdersPopulated);
+    }
+
+    [Fact]
+    public async Task pptx_add_slide_from_layout_ReturnsStructuredFailureJson()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_add_slide_from_layout(path, "Missing Layout");
+        var addResult = JsonSerializer.Deserialize<AddSlideFromLayoutResult>(result);
+
+        Assert.NotNull(addResult);
+        Assert.False(addResult.Success);
+        Assert.Contains("Missing Layout", addResult.Message);
+    }
+
+    [Fact]
+    public async Task pptx_duplicate_slide_ReturnsStructuredJson()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_duplicate_slide(path, 1, new Dictionary<string, string>
+        {
+            ["Title"] = "Duplicated Review"
+        });
+        var duplicateResult = JsonSerializer.Deserialize<DuplicateSlideResult>(result);
+
+        Assert.NotNull(duplicateResult);
+        Assert.True(duplicateResult.Success);
+        Assert.Equal(2, duplicateResult.NewSlideNumber);
+        Assert.Equal(1, duplicateResult.OverridesApplied);
     }
 
     [Fact]
