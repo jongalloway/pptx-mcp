@@ -323,10 +323,10 @@ internal static class TestPptxHelper
                 }));
     }
 
-    private static Picture CreatePicture(uint shapeId, string relationshipId, long x, long y, long width, long height) =>
+    internal static Picture CreatePicture(uint shapeId, string relationshipId, long x, long y, long width, long height, string? name = null) =>
         new(
             new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Picture {shapeId}" },
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = name ?? $"Picture {shapeId}" },
                 new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
                 new ApplicationNonVisualDrawingProperties()),
             new P.BlipFill(

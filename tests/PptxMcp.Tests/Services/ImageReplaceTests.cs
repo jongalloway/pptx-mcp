@@ -106,19 +106,9 @@ public class ImageReplaceTests : IDisposable
             using var imageStream = new MemoryStream(PngBytes);
             imagePart.FeedData(imageStream);
 
-            shapeTree.Append(new Picture(
-                new P.NonVisualPictureProperties(
-                    new P.NonVisualDrawingProperties { Id = nextId, Name = name },
-                    new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
-                    new ApplicationNonVisualDrawingProperties()),
-                new P.BlipFill(
-                    new A.Blip { Embed = slidePart.GetIdOfPart(imagePart) },
-                    new A.Stretch(new A.FillRectangle())),
-                new P.ShapeProperties(
-                    new A.Transform2D(
-                        new A.Offset { X = 914400, Y = 914400 },
-                        new A.Extents { Cx = 3657600, Cy = 2743200 }),
-                    new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
+            shapeTree.Append(TestPptxHelper.CreatePicture(
+                nextId, slidePart.GetIdOfPart(imagePart),
+                914400, 914400, 3657600, 2743200, name));
             nextId++;
         }
 
@@ -482,15 +472,8 @@ public class ImageReplaceTests : IDisposable
             // Two pictures with same name
             for (uint id = 2; id <= 3; id++)
             {
-                shapeTree.Append(new Picture(
-                    new P.NonVisualPictureProperties(
-                        new P.NonVisualDrawingProperties { Id = id, Name = "Logo" },
-                        new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
-                        new ApplicationNonVisualDrawingProperties()),
-                    new P.BlipFill(new A.Blip { Embed = relId }, new A.Stretch(new A.FillRectangle())),
-                    new P.ShapeProperties(
-                        new A.Transform2D(new A.Offset { X = 914400, Y = 914400 }, new A.Extents { Cx = 3657600, Cy = 2743200 }),
-                        new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
+                shapeTree.Append(TestPptxHelper.CreatePicture(
+                    id, relId, 914400, 914400, 3657600, 2743200, "Logo"));
             }
 
             slidePart.Slide = new Slide(new CommonSlideData(shapeTree), new ColorMapOverride(new A.MasterColorMapping()));
