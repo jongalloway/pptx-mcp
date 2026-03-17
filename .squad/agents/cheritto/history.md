@@ -77,3 +77,7 @@
 - PR #44 merged after Nate code review (production-ready verdict)
 - Code: +609 lines across 11 files
 - Impact: Batch operations now unblock multi-slide workflows without repeated disk I/O; Phase 3 #34 complete
+### Template-aware slide tools (2026-03-17)
+- `pptx_add_slide_from_layout` and `pptx_duplicate_slide` use semantic placeholder keys in `Type` or `Type:Index` form (for example `Title`, `Body:1`, `Picture:2`) so agents can target template placeholders without relying on shape names.
+- The new template-slide service logic keeps MCP tools thin, validates placeholder requests before mutation, clones slide-related parts recursively, and preserves layout/master inheritance by attaching the duplicated or generated slide to the correct `SlideLayoutPart`.
+- `tests/PptxMcp.Tests\TemplateDeckHelper.cs` is the dedicated fixture builder for template-authoring scenarios; it creates multiple named layouts, indexed placeholders, shared image usage, and round-trip compatibility coverage for layout-based authoring.
