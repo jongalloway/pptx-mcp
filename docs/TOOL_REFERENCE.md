@@ -16,11 +16,13 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_get_slide_content](#pptx_get_slide_content)
 - [pptx_get_slide_xml](#pptx_get_slide_xml)
 - [pptx_insert_image](#pptx_insert_image)
+- [pptx_insert_table](#pptx_insert_table)
 - [pptx_list_layouts](#pptx_list_layouts)
 - [pptx_list_slides](#pptx_list_slides)
 - [pptx_move_slide](#pptx_move_slide)
 - [pptx_reorder_slides](#pptx_reorder_slides)
 - [pptx_update_slide_data](#pptx_update_slide_data)
+- [pptx_update_table](#pptx_update_table)
 - [pptx_update_text](#pptx_update_text)
 
 ---
@@ -681,6 +683,134 @@ Image inserted successfully on slide 0.
 
 ---
 
+## pptx_insert_table
+
+**Description:** Insert a new table onto a slide. Pass column headers and data rows as arrays. Creates a DrawingML table (GraphicFrame) with proper PowerPoint-compatible structure. Position and size are specified in EMUs (English Metric Units). 1 inch = 914,400 EMUs.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `slideNumber` | integer | ✅ Required | 1-based slide number to insert the table on. |
+| `headers` | string[] | ✅ Required | Array of column header strings. Determines the number of columns. |
+| `rows` | string[][] | ✅ Required | Array of arrays, each containing cell values for one data row. |
+| `tableName` | string | ❌ Optional | Name for the table's GraphicFrame shape. Defaults to `"Table {id}"`. |
+| `x` | long | ❌ Optional | Horizontal offset from the left edge of the slide in EMUs. Default: `914400` (1 inch). |
+| `y` | long | ❌ Optional | Vertical offset from the top edge of the slide in EMUs. Default: `1371600` (1.5 inches). |
+| `width` | long | ❌ Optional | Width of the table in EMUs. Default: `7315200` (~8 inches). |
+| `height` | long | ❌ Optional | Height of the table in EMUs. Default: `1371600` (1.5 inches). |
+
+### Returns
+
+A JSON object describing the outcome of the insert operation.
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "Revenue Table",
+  "TableShapeId": 5,
+  "TableIndex": 0,
+  "RowCount": 3,
+  "ColumnCount": 3,
+  "Message": "Table inserted successfully on slide 2."
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` when the table was inserted successfully. |
+| `SlideNumber` | integer | 1-based slide number where the table was inserted. |
+| `TableName` | string \| null | Name assigned to the table's GraphicFrame shape. |
+| `TableShapeId` | integer \| null | OpenXML shape ID assigned to the table. |
+| `TableIndex` | integer \| null | Zero-based index of this table among all tables on the slide. |
+| `RowCount` | integer | Total number of rows in the inserted table, including the header row. |
+| `ColumnCount` | integer | Number of columns in the inserted table. |
+| `Message` | string | Human-readable status message describing the outcome. |
+
+On failure, `Success` is `false` and `Message` explains the error.
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_insert_table",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "slideNumber": 2,
+    "headers": ["Region", "Q1", "Q2"],
+    "rows": [
+      ["North", "$1.2M", "$1.4M"],
+      ["South", "$0.9M", "$1.1M"]
+    ],
+    "tableName": "Revenue Table"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "Revenue Table",
+  "TableShapeId": 5,
+  "TableIndex": 0,
+  "RowCount": 3,
+  "ColumnCount": 3,
+  "Message": "Table inserted successfully on slide 2."
+}
+```
+
+**Request (custom position and size):**
+```json
+{
+  "name": "pptx_insert_table",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "slideNumber": 3,
+    "headers": ["Metric", "Value"],
+    "rows": [["ARR", "$4.6M"], ["NRR", "112%"]],
+    "x": 457200,
+    "y": 914400,
+    "width": 4572000,
+    "height": 1371600
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "Success": true,
+  "SlideNumber": 3,
+  "TableName": "Table 6",
+  "TableShapeId": 6,
+  "TableIndex": 0,
+  "RowCount": 3,
+  "ColumnCount": 2,
+  "Message": "Table inserted successfully on slide 3."
+}
+```
+
+**Response (file not found):**
+```json
+{
+  "Success": false,
+  "SlideNumber": 2,
+  "TableName": null,
+  "TableShapeId": null,
+  "TableIndex": null,
+  "RowCount": 0,
+  "ColumnCount": 0,
+  "Message": "File not found: /path/to/presentation.pptx"
+}
+```
+
+---
+
 ## pptx_list_layouts
 
 **Description:** List all available slide layouts in a PowerPoint presentation. Use the returned layout names with `pptx_add_slide`.
@@ -1006,6 +1136,143 @@ On failure, `Success` is `false` and `Message` explains what was missing or out 
   "PreviousText": null,
   "NewText": "$4.6M",
   "Message": "No shape named 'Revenue Total' found on slide 3, and no placeholderIndex was supplied."
+}
+```
+
+---
+
+## pptx_update_table
+
+**Description:** Update cell values in an existing table on a slide. Locate the table by name (case-insensitive) or by zero-based index among tables on the slide. Each update targets a specific cell by zero-based row and column indices. Out-of-range cell updates are skipped without failing the overall operation.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+| `slideNumber` | integer | ✅ Required | 1-based slide number containing the table. |
+| `updates` | object[] | ✅ Required | Array of cell update objects. Each object must include `row` (0-based), `column` (0-based), and `value`. |
+| `tableName` | string | ❌ Optional | Table name to match (case-insensitive). Takes precedence over `tableIndex` when both are provided. |
+| `tableIndex` | integer | ❌ Optional | Zero-based index among tables on the slide. Used when `tableName` is not provided. |
+
+#### Cell Update Object (`updates` items)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `row` | integer | ✅ Required | Zero-based row index of the target cell. |
+| `column` | integer | ✅ Required | Zero-based column index of the target cell. |
+| `value` | string | ✅ Required | New text value for the cell. |
+
+### Returns
+
+A JSON object describing the outcome of the update operation.
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "Revenue Table",
+  "MatchedBy": "tableName",
+  "CellsUpdated": 2,
+  "CellsSkipped": 0,
+  "Message": "Updated 2 cell(s) in table 'Revenue Table' on slide 2."
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` when the update was applied (even if some cells were skipped). |
+| `SlideNumber` | integer | 1-based slide number where the table was updated. |
+| `TableName` | string \| null | Name of the matched table's GraphicFrame shape. |
+| `MatchedBy` | string \| null | How the table was located: `"tableName"` or `"tableIndex"`. |
+| `CellsUpdated` | integer | Number of cells that were successfully updated. |
+| `CellsSkipped` | integer | Number of update requests skipped because the row or column index was out of range. |
+| `Message` | string | Human-readable status message describing the outcome. |
+
+On failure, `Success` is `false` and `Message` explains the error.
+
+### Example
+
+**Request (update by table name):**
+```json
+{
+  "name": "pptx_update_table",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "slideNumber": 2,
+    "tableName": "Revenue Table",
+    "updates": [
+      { "row": 1, "column": 1, "value": "$1.5M" },
+      { "row": 1, "column": 2, "value": "$1.7M" }
+    ]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "Revenue Table",
+  "MatchedBy": "tableName",
+  "CellsUpdated": 2,
+  "CellsSkipped": 0,
+  "Message": "Updated 2 cell(s) in table 'Revenue Table' on slide 2."
+}
+```
+
+**Request (update by table index):**
+```json
+{
+  "name": "pptx_update_table",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "slideNumber": 2,
+    "tableIndex": 0,
+    "updates": [
+      { "row": 0, "column": 0, "value": "Product" }
+    ]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "Revenue Table",
+  "MatchedBy": "tableIndex",
+  "CellsUpdated": 1,
+  "CellsSkipped": 0,
+  "Message": "Updated 1 cell(s) in table 'Revenue Table' on slide 2."
+}
+```
+
+**Response (some cells out of range):**
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "Revenue Table",
+  "MatchedBy": "tableName",
+  "CellsUpdated": 1,
+  "CellsSkipped": 1,
+  "Message": "Updated 1 cell(s) in table 'Revenue Table' on slide 2. 1 update(s) skipped (out of range)."
+}
+```
+
+**Response (file not found):**
+```json
+{
+  "Success": false,
+  "SlideNumber": 2,
+  "TableName": null,
+  "MatchedBy": null,
+  "CellsUpdated": 0,
+  "CellsSkipped": 0,
+  "Message": "File not found: /path/to/presentation.pptx"
 }
 ```
 
