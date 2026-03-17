@@ -535,4 +535,92 @@ public class PptxToolsTests : IDisposable
         var result = await _tools.pptx_reorder_slides(path, [1, 2]);
         Assert.StartsWith("Error:", result);
     }
+
+    #region pptx_replace_image tool tests
+
+    private static readonly byte[] ToolTestPngBytes = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nZxQAAAAASUVORK5CYII=");
+
+    private string CreatePptxWithPicture()
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        _tempFiles.Add(path);
+        TestPptxHelper.CreatePresentation(path, [new TestSlideDefinition { TitleText = "Slide With Image", IncludeImage = true }]);
+        return path;
+    }
+
+    private string CreateTempImageFile(string extension = ".png")
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+        _tempFiles.Add(path);
+        File.WriteAllBytes(path, ToolTestPngBytes);
+        return path;
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_ReturnsStructuredJson()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var imagePath = CreateTempImageFile();
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath);
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_FileNotFound_ReturnsStructuredError()
+    {
+        var imagePath = CreateTempImageFile();
+        var result = await _tools.pptx_replace_image("C:\\does-not-exist\\file.pptx", 1, shapeIndex: 0, imagePath: imagePath);
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("File not found", parsed.Message);
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_ImageNotFound_ReturnsStructuredError()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: "C:\\does-not-exist\\image.png");
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("Image file not found", parsed.Message);
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_WithAltText_ReturnsInResult()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var imagePath = CreateTempImageFile();
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath, altText: "Team photo");
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+        Assert.Equal("Team photo", parsed.AltText);
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_Exception_ReturnsStructuredError()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var imagePath = CreateTempImageFile(".tiff");
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath);
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("Unsupported", parsed.Message);
+    }
+
+    #endregion
 }
