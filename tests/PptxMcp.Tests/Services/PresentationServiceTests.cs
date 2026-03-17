@@ -240,8 +240,7 @@ public class PresentationServiceTests : PptxTestBase
     {
         var path = CreateMinimalPptx("My Title");
         var content = Service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
-        Assert.NotNull(titleShape);
+        var titleShape = Assert.Single(content.Shapes, shape => shape.IsPlaceholder);
         Assert.Equal("My Title", titleShape.Text);
     }
 
@@ -250,8 +249,7 @@ public class PresentationServiceTests : PptxTestBase
     {
         var path = CreateMinimalPptx();
         var content = Service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
-        Assert.NotNull(titleShape);
+        var titleShape = Assert.Single(content.Shapes, shape => shape.IsPlaceholder);
         Assert.Equal("Text", titleShape.ShapeType);
     }
 
@@ -260,8 +258,7 @@ public class PresentationServiceTests : PptxTestBase
     {
         var path = CreateMinimalPptx();
         var content = Service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
-        Assert.NotNull(titleShape);
+        var titleShape = Assert.Single(content.Shapes, shape => shape.IsPlaceholder);
         Assert.NotNull(titleShape.PlaceholderType);
     }
 
@@ -506,8 +503,8 @@ public class PresentationServiceTests : PptxTestBase
         var slidePart = (SlidePart)doc.PresentationPart.GetPartById(
             slideIdList.Elements<SlideId>().First().RelationshipId!.Value!);
         var notesSlide = slidePart.NotesSlidePart!.NotesSlide;
-        var bodyShape = notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>()
-            .First(s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?
+        var bodyShape = Assert.Single(notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>(),
+            s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?
                 .PlaceholderShape?.Type?.Value == PlaceholderValues.Body);
         var paragraphs = bodyShape.TextBody!.Elements<A.Paragraph>().ToList();
         Assert.Equal(3, paragraphs.Count);

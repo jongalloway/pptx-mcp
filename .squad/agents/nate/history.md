@@ -82,6 +82,84 @@
 
 ### 2026-03-17T06:07Z: Tool Consolidation Research Integrated into Quality Pass
 
+### 2026-03-17: Phase 3 Planning — McCauley + Nate Collaboration
+
+- Collaborated with McCauley on Phase 3 planning per Jon directive to consult Nate early on architectural decisions
+- Completed comprehensive research on MarpToPptx and dotnet-mcp prior art:
+  - **MarpToPptx:** Template-aware slide creation, placeholder resolution, layout/master inheritance, picture-placeholder insertion, native tables, media embedding, notes/transitions/backgrounds, captions/alt text, SVG diagram insertion (High feasibility; Medium complexity for most features)
+  - **dotnet-mcp:** Prompts, resources, subscriptions, completions, progress notifications, async task-store, telemetry filters (High feasibility; improve agent UX but not required for core Phase 3 work)
+- Identified the highest-ROI upgrade path: move from raw slide mutation to **template-aware authoring** using placeholder identity and layout/master inheritance (directly applicable to features #2–#5)
+- Found strong transplant patterns for batch refresh (#1), tables (#3), notes (#5), but noted chart authoring (#6) has no direct MarpToPptx prior art (would be net-new design)
+- Ranked Phase 3 sequence aligned with McCauley: batch refresh first (multiplier), authoring second (fidelity), tables third (data parity), then polish/UX, then optional media
+- Recommended validation discipline from MarpToPptx (OpenXmlPackageValidator patterns) for Phase 3 test harness
+- Decision: Continue McCauley+Nate partnership for major decisions; model worked well (aligned thinking, caught gotchas)
+
+### Phase 2 Code Review & Completion (2026-03-16)
+- **Code review of #19 implementation:** Approved for production release
+- **MCP patterns:** Exact match to dotnet-mcp conventions (attributes, doc comments, error wrapping)
+- **OpenXML excellence:** Template cloning approach (ReplaceShapeTextPreservingFormatting) is cleaner than MarpToPptx's explicit property assignment; preserves bullets, indentation, fonts, colors
+- **Dual targeting:** shapeName (primary) + placeholderIndex (fallback) with MatchedBy breadcrumb is perfect for multi-source composition
+- **Test quality:** Realistic E2E (4-slide KPI deck), comprehensive edge case coverage, format verification, PowerPoint round-trip validation
+- **Phase 2 completion:** All 5 issues (#15–#19) closed, PRs #29–#33 merged, 66/66 tests passing
+- **Risk assessment:** All low-risk; recommendations are polish, not blockers
+- **Verdict:** Production-ready. Code quality rivals reference projects (dotnet-mcp, MarpToPptx)
+
+### Round 1: Batch Patterns Research — Issue #34 Support (2026-03-16T22:36Z)
+- Researched `IProgress<ProgressNotificationValue>` pattern from dotnet-mcp and batch/error-handling strategies from MarpToPptx
+- Key finding: Progress is orthogonal to error handling; patterns from both repos are complementary
+- dotnet-mcp: Real-time progress reporting with optional `IProgress<T>?` parameter; pattern: report at start (0), per-item, completion (even on throw)
+- MarpToPptx: Stop-on-first-error with atomic file writes and context-rich exceptions (slide index + operation)
+- Recommended hybrid for #34: Progress notifications + per-slide result objects + atomic PPTX save + exception wrapping
+- Deliverable: Comprehensive pattern guide (merged to decisions.md) with code templates, comparison table, implementation checklist
+- Code review: Approved Cheritto's PR #44 as production-ready (MCP SDK patterns match dotnet-mcp exactly)
+- Impact: Cheritto had battle-tested patterns from two shipped reference projects ready to adopt; team aligned on batch semantics before implementation
+
+### 2026-03-17: Tool Consolidation Research — Quality Pass Planning
+
+**Research Scope:** How dotnet-mcp consolidated 70+ tools into ~10 using enum-based `action` parameter switches. Feasibility analysis for pptx-mcp.
+
+**Key Findings:**
+
+**dotnet-mcp consolidation:**
+- **Before:** 70+ individual tools (combinatorial explosion of templates × configurations × operations)
+- **After:** ~10 consolidated tools with enum-based routing (e.g., `DotnetProjectAction` with 21 actions)
+- **Pattern:** One `[McpServerTool]` per domain, required `DotnetProjectAction action` parameter, switch expression to handler methods
+- **Attributes:** Mark with `[McpMeta("consolidatedTool", true)]` and `[McpMeta("actions", JsonValue = [list])]` for agent introspection
+- **Validation:** Centralized `ParameterValidator.ValidateAction<T>()` helper prevents typos
+- **Implementation:** Partial methods per domain (Project.Consolidated.cs, Package.Consolidated.cs, etc.) with shared base class
+
+**pptx-mcp current state:**
+- **Today:** 18 individual tools (18 methods in one file)
+- **Natural groupings:** 6 semantic clusters (slide inspection, slide management, text content, content extraction, image ops, table ops)
+- **Potential reduction:** 18 → ~6–8 consolidated tools
+
+**Consolidation trade-offs:**
+- ✅ Benefits: Fewer tools in list, shared validation/error-handling, parameter overlap reduction, easier maintenance
+- ❌ Costs: Parameter clutter (all actions' params visible), migration burden, error clarity requires action context
+- 🤔 Right fit? Yes — semantic grouping obvious, parameter overlap real, management burden moderate
+
+**Recommended approach:**
+- **Conservative:** Start with 3–4 high-confidence groups (slide management, text content, tables) → reduce from 18 to ~12
+- **Sequence:** Slide ops first (highest validation ROI), then text, then tables. Hold off on image/extraction until validated
+- **Timeline:** ~15–21 hours (1–2 sprint days for one engineer); reversible if agent performance suffers
+
+**Deliverable:** Comprehensive research document `.squad/decisions/inbox/nate-tool-consolidation.md` with:
+- dotnet-mcp pattern breakdown (enums, attributes, switch routing, partial methods)
+- pptx-mcp current tool inventory (all 18 listed with grouping rationale)
+- 6 proposed consolidated tool signatures (with parameter mapping)
+- Trade-off analysis (when to consolidate, when not to)
+- Implementation checklist
+- Reference to dotnet-mcp key files for transplant patterns
+
+**Impact:** Unblocks quality pass planning. Jon + squad can now make informed decision: proceed with consolidation (high ROI, proven pattern) or defer for later. Conservative approach minimizes risk.
+
+**File Paths:**
+- Research output: `.squad/decisions/inbox/nate-tool-consolidation.md` (21KB)
+- dotnet-mcp reference: `DotNetMcp/Actions/DotnetActions.cs` (enum definitions), `DotNetMcp/Tools/Cli/*Consolidated.cs` (implementations)
+- pptx-mcp baseline: `src/PptxMcp/Tools/PptxTools.cs` (18 methods)
+
+### 2026-03-17T06:07Z: Tool Consolidation Research Integrated into Quality Pass
+
 - Completed consolidation research finalization; framed as optional enhancement for quality pass
 - Key deliverable: `.squad/decisions/inbox/nate-tool-consolidation.md` (21 KB comprehensive research)
 - Consolidation opportunity: 18 tools → 6–8 consolidated (conservative: 18 → 12)

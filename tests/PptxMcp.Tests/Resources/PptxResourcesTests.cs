@@ -179,18 +179,10 @@ public class PptxResourcesTests : PptxTestBase
         var doc = JsonDocument.Parse(result.Text!);
         var shapes = doc.RootElement.GetProperty("0");
 
-        var hasKpiShape = false;
-        foreach (var shape in shapes.EnumerateArray())
-        {
-            if (shape.TryGetProperty("Name", out var nameProp) && nameProp.GetString() == "KPI Shape")
-            {
-                hasKpiShape = true;
-                Assert.True(shape.TryGetProperty("ShapeType", out _));
-                Assert.True(shape.TryGetProperty("Text", out _));
-                break;
-            }
-        }
-        Assert.True(hasKpiShape, "Expected to find 'KPI Shape' in the shape map");
+        var kpiShape = Assert.Single(shapes.EnumerateArray(),
+            shape => shape.TryGetProperty("Name", out var nameProp) && nameProp.GetString() == "KPI Shape");
+        Assert.True(kpiShape.TryGetProperty("ShapeType", out _));
+        Assert.True(kpiShape.TryGetProperty("Text", out _));
     }
 
     [Fact]
