@@ -99,3 +99,59 @@
 - Deliverable: Comprehensive pattern guide (merged to decisions.md) with code templates, comparison table, implementation checklist
 - Code review: Approved Cheritto's PR #44 as production-ready (MCP SDK patterns match dotnet-mcp exactly)
 - Impact: Cheritto had battle-tested patterns from two shipped reference projects ready to adopt; team aligned on batch semantics before implementation
+
+### 2026-03-17: Tool Consolidation Research — Quality Pass Planning
+
+**Research Scope:** How dotnet-mcp consolidated 70+ tools into ~10 using enum-based `action` parameter switches. Feasibility analysis for pptx-mcp.
+
+**Key Findings:**
+
+**dotnet-mcp consolidation:**
+- **Before:** 70+ individual tools (combinatorial explosion of templates × configurations × operations)
+- **After:** ~10 consolidated tools with enum-based routing (e.g., `DotnetProjectAction` with 21 actions)
+- **Pattern:** One `[McpServerTool]` per domain, required `DotnetProjectAction action` parameter, switch expression to handler methods
+- **Attributes:** Mark with `[McpMeta("consolidatedTool", true)]` and `[McpMeta("actions", JsonValue = [list])]` for agent introspection
+- **Validation:** Centralized `ParameterValidator.ValidateAction<T>()` helper prevents typos
+- **Implementation:** Partial methods per domain (Project.Consolidated.cs, Package.Consolidated.cs, etc.) with shared base class
+
+**pptx-mcp current state:**
+- **Today:** 18 individual tools (18 methods in one file)
+- **Natural groupings:** 6 semantic clusters (slide inspection, slide management, text content, content extraction, image ops, table ops)
+- **Potential reduction:** 18 → ~6–8 consolidated tools
+
+**Consolidation trade-offs:**
+- ✅ Benefits: Fewer tools in list, shared validation/error-handling, parameter overlap reduction, easier maintenance
+- ❌ Costs: Parameter clutter (all actions' params visible), migration burden, error clarity requires action context
+- 🤔 Right fit? Yes — semantic grouping obvious, parameter overlap real, management burden moderate
+
+**Recommended approach:**
+- **Conservative:** Start with 3–4 high-confidence groups (slide management, text content, tables) → reduce from 18 to ~12
+- **Sequence:** Slide ops first (highest validation ROI), then text, then tables. Hold off on image/extraction until validated
+- **Timeline:** ~15–21 hours (1–2 sprint days for one engineer); reversible if agent performance suffers
+
+**Deliverable:** Comprehensive research document `.squad/decisions/inbox/nate-tool-consolidation.md` with:
+- dotnet-mcp pattern breakdown (enums, attributes, switch routing, partial methods)
+- pptx-mcp current tool inventory (all 18 listed with grouping rationale)
+- 6 proposed consolidated tool signatures (with parameter mapping)
+- Trade-off analysis (when to consolidate, when not to)
+- Implementation checklist
+- Reference to dotnet-mcp key files for transplant patterns
+
+**Impact:** Unblocks quality pass planning. Jon + squad can now make informed decision: proceed with consolidation (high ROI, proven pattern) or defer for later. Conservative approach minimizes risk.
+
+**File Paths:**
+- Research output: `.squad/decisions/inbox/nate-tool-consolidation.md` (21KB)
+- dotnet-mcp reference: `DotNetMcp/Actions/DotnetActions.cs` (enum definitions), `DotNetMcp/Tools/Cli/*Consolidated.cs` (implementations)
+- pptx-mcp baseline: `src/PptxMcp/Tools/PptxTools.cs` (18 methods)
+
+### 2026-03-17T06:07Z: Tool Consolidation Research Integrated into Quality Pass
+
+- Completed consolidation research finalization; framed as optional enhancement for quality pass
+- Key deliverable: `.squad/decisions/inbox/nate-tool-consolidation.md` (21 KB comprehensive research)
+- Consolidation opportunity: 18 tools → 6–8 consolidated (conservative: 18 → 12)
+- Recommendation: Optional feature; recommend deferring to post-Tier-1 planning if pursued
+- Pattern transplant ready: dotnet-mcp enum + switch routing + attribute introspection + validator pattern
+- Risk mitigation: Conservative approach (slide management → text content → tables first)
+- Decision point: Squad can choose to proceed with consolidation as enhancement or focus on Tier 1+2 core quality work
+- Orchestration log written to `.squad/orchestration-log/2026-03-17T0607Z-nate.md`
+- Decisions merged to decisions.md; inbox files deleted

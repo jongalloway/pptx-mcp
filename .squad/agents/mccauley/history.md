@@ -61,4 +61,34 @@
 - Consulted with Nate (per Jon directive) on prior-art research from MarpToPptx and dotnet-mcp; aligned on feasibility and implementation patterns
 - Created 7 GitHub issues (#34–#40) under Phase 3 milestone with comprehensive ownership, acceptance criteria, and dependencies
 - Recorded decision to continue McCauley+Nate partnership for major architectural decisions (worked well for aligned thinking, caught gotchas)
-- Scope cuts: no full theme/master editing, no net-new chart authoring (refresh existing only)
+- Scope cuts: no full theme/master editing, no net-new chart authoring (refresh existing only).
+
+### Quality & Housekeeping Phase (2026-03-18)
+
+**Status:** Proposed (blocking gate before Phase 3 ramps up)
+
+- Analyzed post-Phase-2 codebase: 260 tests passing, 68 build warnings, ~3,100 core LOC
+- Identified three high-priority quality issues:
+  1. **Code duplication:** 27× identical file-check + try-catch pattern in PptxTools.cs; 22× inline JsonSerializerOptions; 2× batch failure construction
+  2. **Documentation staleness:** README tool list incomplete (table tools from Phase 2 not advertised); TOOL_REFERENCE.md and EXAMPLES.md need sync
+  3. **Test coverage gaps:** Missing null/empty input validation, boundary conditions (slide indices, shape IDs, table columns), FileNotFound parameterization
+- Assessed OpenXML patterns as consistent and well-established (no action needed); dead code audit found none
+- **Created 8 GitHub issues (#48–#56)** under new "Quality & Housekeeping" milestone (tier 1: Q1–Q3 are blocking gates; tier 2: Q4–Q7 are polish; tier 3 deferred)
+- Proposed schedule: Week 1 (Q1–Q3 unblock Phase 3), Week 2 (Q4–Q7 polish)
+- Team assignments: Cheritto (Q2, Q4 refactoring), Shiherlis (Q3, Q5, Q8 testing), @copilot (Q1, Q6, Q7 docs)
+- Decision document written to `.squad/decisions/inbox/mccauley-quality-phase.md`
+- **Key finding:** Phase 2 delivered production-ready table operations; quality pass ensures Phase 3 starts with a clean foundation.
+
+### 2026-03-17T06:07Z: Quality & Housekeeping Phase Finalized
+
+- Completed full codebase quality analysis: baseline, duplication patterns, documentation gaps, test coverage assessment
+- Outcome: 8 GitHub issues (#48–#56) under "Quality & Housekeeping" milestone
+  - Tier 1 (Must Do): Q1–Q3 blocking gates (documentation, boilerplate extraction, validation tests)
+  - Tier 2 (Should Do): Q4–Q7 polish (consolidation, boundary tests, doc sync)
+  - Tier 3 (Nice to Have): Q8–Q10 deferred (parameterized tests, stress tests, squad archive)
+- Decision: Commit to Tier 1 + Tier 2 (9 hours, 1–2 weeks part-time) before Phase 3 ramps up
+- Team assignments aligned: Cheritto (refactoring), Shiherlis (testing), @copilot (docs), McCauley (oversight)
+- Success criteria: All Tier 1+2 closed, 260+ tests, 68 or fewer warnings, docs reflect all tools, zero Phase 2 regression
+- Orchestration log written to `.squad/orchestration-log/2026-03-17T0607Z-mccauley.md`
+- Session log written to `.squad/log/2026-03-17T0607Z-quality-phase.md`
+- Decisions merged to decisions.md; inbox files deleted
