@@ -55,3 +55,12 @@
   - Table name lookup is case-insensitive; tableIndex is 0-based among tables on slide
   - GraphicData URI for tables: `http://schemas.openxmlformats.org/drawingml/2006/table` — must be exact
 - **Edge cases tested:** 1x1 table, empty table (headers only), large table (13×6), custom/default positioning, unique shape IDs, cell property preservation, existing shape preservation, multiple cell updates in one call
+
+### PR #74 Rebase — Assertion Pattern Standardization (2026-03-18)
+- **Task:** Rebased `squad/65-assertion-patterns` onto `origin/main` after PRs #59, #71, #73 were merged
+- **Conflicts found (3 files, 6 conflict regions):**
+  - `PresentationServiceTests.cs` (3 conflicts): PptxTestBase extraction (#71) renamed `CreateTempPptx` → `CreateMinimalPptx` and `_service` → `Service`; PR #65 changed `FirstOrDefault` + `Assert.NotNull` → `Assert.Single`
+  - `TemplateSlideTests.cs` (2 conflicts): Same naming changes from #71; PR #65 changed `.Single(predicate).Text` → `Assert.Single` + named variable
+  - `TableToolsTests.cs` (1 conflict): Same naming changes from #71; PR #65 changed `.First(predicate)` → `Assert.Single`
+- **Resolution strategy:** Keep main's naming conventions (`CreateMinimalPptx`, `Service.`) AND PR's assertion pattern improvements (`Assert.Single` over `FirstOrDefault`/`.Single`/`.First`)
+- **Result:** 377/377 tests passing, CI green, force-pushed with `--force-with-lease`
