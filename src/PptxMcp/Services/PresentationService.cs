@@ -393,6 +393,260 @@ public partial class PresentationService
         slidePart.Slide.Save();
     }
 
+    public TableInsertResult InsertTable(
+        string filePath,
+        int slideNumber,
+        string[] headers,
+        string[][] rows,
+        string? tableName = null,
+        long x = 914400,
+        long y = 1371600,
+        long width = 7315200,
+        long height = 1371600)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slideIds = GetSlideIds(doc);
+        var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
+        var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
+
+        var columnCount = headers.Length;
+        if (columnCount == 0)
+            throw new ArgumentException("Headers array must not be empty.", nameof(headers));
+
+        // Normalize rows: pad short rows with empty strings
+        var normalizedRows = new List<string[]>();
+        foreach (var row in rows)
+        {
+            var padded = new string[columnCount];
+            for (int i = 0; i < columnCount; i++)
+                padded[i] = i < row.Length ? (row[i] ?? string.Empty) : string.Empty;
+            normalizedRows.Add(padded);
+        }
+
+        var totalRowCount = 1 + normalizedRows.Count; // header + data rows
+
+        uint newId = GetMaxShapeId(shapeTree) + 1;
+        var resolvedName = string.IsNullOrWhiteSpace(tableName) ? $"Table {newId}" : tableName!;
+
+        var rowHeight = Math.Max(342900L, height / totalRowCount);
+        // If the minimum row height makes all rows taller than the supplied height,
+        // expand the frame so that Cy equals the actual total row height.
+        var effectiveHeight = rowHeight * totalRowCount;
+        var columnWidth = Math.Max(1L, width / columnCount);
+
+        // Build the DrawingML table
+        var drawingTable = new A.Table(new A.TableProperties { FirstRow = true, BandRow = true });
+        var tableGrid = drawingTable.AppendChild(new A.TableGrid());
+        for (int c = 0; c < columnCount; c++)
+            tableGrid.Append(new A.GridColumn { Width = columnWidth });
+
+        // Header row
+        drawingTable.Append(BuildTableRow(headers, rowHeight));
+
+        // Data rows
+        foreach (var row in normalizedRows)
+            drawingTable.Append(BuildTableRow(row, rowHeight));
+
+        var graphicFrame = new P.GraphicFrame(
+            new P.NonVisualGraphicFrameProperties(
+                new P.NonVisualDrawingProperties { Id = newId, Name = resolvedName },
+                new P.NonVisualGraphicFrameDrawingProperties(),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.Transform(
+                new A.Offset { X = x, Y = y },
+                new A.Extents { Cx = width, Cy = effectiveHeight }),
+            new A.Graphic(
+                new A.GraphicData(drawingTable)
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/table"
+                }));
+
+        shapeTree.Append(graphicFrame);
+        slidePart.Slide.Save();
+
+        // Count tables on this slide for the index
+        int tableIndex = shapeTree.Elements<P.GraphicFrame>()
+            .Count(gf => gf.Graphic?.GraphicData?.GetFirstChild<A.Table>() is not null) - 1;
+
+        return new TableInsertResult(
+            Success: true,
+            SlideNumber: slideNumber,
+            TableName: resolvedName,
+            TableShapeId: newId,
+            TableIndex: tableIndex,
+            RowCount: totalRowCount,
+            ColumnCount: columnCount,
+            Message: $"Table '{resolvedName}' inserted on slide {slideNumber} with {totalRowCount} rows and {columnCount} columns.");
+    }
+
+    public TableUpdateResult UpdateTable(
+        string filePath,
+        int slideNumber,
+        TableCellUpdate[] updates,
+        string? tableName = null,
+        int? tableIndex = null)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var slideIds = GetSlideIds(doc);
+        var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
+        var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
+
+        // Find tables on the slide
+        var tables = shapeTree.Elements<P.GraphicFrame>()
+            .Where(gf => gf.Graphic?.GraphicData?.GetFirstChild<A.Table>() is not null)
+            .ToList();
+
+        if (tables.Count == 0)
+            throw new InvalidOperationException($"Slide {slideNumber} has no tables.");
+
+        P.GraphicFrame? targetFrame = null;
+        string matchedBy;
+
+        if (!string.IsNullOrWhiteSpace(tableName))
+        {
+            targetFrame = tables.FirstOrDefault(gf =>
+                string.Equals(
+                    gf.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Name?.Value,
+                    tableName,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (targetFrame is null)
+            {
+                var available = string.Join(", ",
+                    tables.Select((gf, i) =>
+                        $"{i}:{gf.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Name?.Value ?? "(unnamed)"}"));
+                throw new InvalidOperationException(
+                    $"No table named '{tableName}' found on slide {slideNumber}. Available tables: {available}");
+            }
+
+            matchedBy = "tableName";
+        }
+        else if (tableIndex.HasValue)
+        {
+            if (tableIndex.Value < 0 || tableIndex.Value >= tables.Count)
+                throw new ArgumentOutOfRangeException(nameof(tableIndex),
+                    $"Table index {tableIndex.Value} is out of range. Slide {slideNumber} has {tables.Count} table(s).");
+
+            targetFrame = tables[tableIndex.Value];
+            matchedBy = "tableIndex";
+        }
+        else
+        {
+            if (tables.Count > 1)
+                throw new InvalidOperationException(
+                    $"Slide {slideNumber} has {tables.Count} tables. Specify tableName or tableIndex to identify the target.");
+
+            targetFrame = tables[0];
+            matchedBy = "tableIndex";
+        }
+
+        var table = targetFrame.Graphic!.GraphicData!.GetFirstChild<A.Table>()!;
+        var tableRows = table.Elements<A.TableRow>().ToList();
+
+        int cellsUpdated = 0;
+        int cellsSkipped = 0;
+
+        foreach (var update in updates)
+        {
+            if (update.Row < 0 || update.Row >= tableRows.Count)
+            {
+                cellsSkipped++;
+                continue;
+            }
+
+            var cells = tableRows[update.Row].Elements<A.TableCell>().ToList();
+            if (update.Column < 0 || update.Column >= cells.Count)
+            {
+                cellsSkipped++;
+                continue;
+            }
+
+            var cell = cells[update.Column];
+
+            // Update text in-place, preserving BodyProperties, ListStyle, ParagraphProperties,
+            // and RunProperties — only the text value changes.
+            var textBody = cell.GetFirstChild<A.TextBody>();
+            if (textBody is not null)
+            {
+                // Collapse to a single paragraph
+                foreach (var p in textBody.Elements<A.Paragraph>().Skip(1).ToList())
+                    p.Remove();
+
+                var firstPara = textBody.GetFirstChild<A.Paragraph>()
+                    ?? textBody.AppendChild(new A.Paragraph());
+
+                // Preserve run properties from the existing first run (font, bold, size, etc.)
+                var existingRunProps = firstPara.Elements<A.Run>()
+                    .FirstOrDefault()
+                    ?.GetFirstChild<A.RunProperties>()
+                    ?.CloneNode(true) as A.RunProperties;
+
+                // Remove all runs and insert a single new one with the updated text
+                foreach (var r in firstPara.Elements<A.Run>().ToList())
+                    r.Remove();
+
+                var newRun = new A.Run(new A.Text(update.Value ?? string.Empty));
+                if (existingRunProps is not null)
+                    newRun.PrependChild(existingRunProps);
+
+                var endParaRunProps = firstPara.GetFirstChild<A.EndParagraphRunProperties>();
+                if (endParaRunProps is not null)
+                    firstPara.InsertBefore(newRun, endParaRunProps);
+                else
+                    firstPara.Append(newRun);
+            }
+            else
+            {
+                // No existing TextBody — create one, inserting it before TableCellProperties
+                // to maintain the required OpenXML child order (a:txBody before a:tcPr).
+                var newTextBody = new A.TextBody(
+                    new A.BodyProperties(),
+                    new A.ListStyle(),
+                    new A.Paragraph(
+                        new A.Run(new A.Text(update.Value ?? string.Empty)),
+                        new A.EndParagraphRunProperties()));
+                var tcPr = cell.GetFirstChild<A.TableCellProperties>();
+                if (tcPr is not null)
+                    cell.InsertBefore(newTextBody, tcPr);
+                else
+                    cell.Append(newTextBody);
+            }
+
+            cellsUpdated++;
+        }
+
+        slidePart.Slide.Save();
+
+        var resolvedName = targetFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Name?.Value;
+
+        return new TableUpdateResult(
+            Success: true,
+            SlideNumber: slideNumber,
+            TableName: resolvedName,
+            MatchedBy: matchedBy,
+            CellsUpdated: cellsUpdated,
+            CellsSkipped: cellsSkipped,
+            Message: $"Updated {cellsUpdated} cell(s) in table '{resolvedName}' on slide {slideNumber}."
+                + (cellsSkipped > 0 ? $" {cellsSkipped} update(s) skipped (out of range)." : ""));
+    }
+
+    private static A.TableRow BuildTableRow(string[] cellValues, long rowHeight)
+    {
+        var tableRow = new A.TableRow { Height = rowHeight };
+        foreach (var cellText in cellValues)
+        {
+            tableRow.Append(new A.TableCell(
+                new A.TextBody(
+                    new A.BodyProperties(),
+                    new A.ListStyle(),
+                    new A.Paragraph(
+                        new A.Run(new A.Text(cellText ?? string.Empty)),
+                        new A.EndParagraphRunProperties())),
+                new A.TableCellProperties()));
+        }
+        return tableRow;
+    }
+
     public string GetSlideXml(string filePath, int slideIndex)
     {
         using var doc = PresentationDocument.Open(filePath, false);
