@@ -305,12 +305,12 @@ public class PptxPhase2E2eTests : PptxTestBase
         Assert.NotNull(slideIds);
         Assert.Equal(expectedSlideCount, slideIds!.Count);
 
-        foreach (var slideId in slideIds)
+        Assert.All(slideIds, slideId =>
         {
             var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
             Assert.NotNull(slidePart.Slide);
             Assert.NotNull(slidePart.Slide.CommonSlideData?.ShapeTree);
-        }
+        });
     }
 
     private static List<string> ValidatePresentation(string path)

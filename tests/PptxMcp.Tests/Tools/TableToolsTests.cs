@@ -165,7 +165,7 @@ public class TableToolsTests : PptxTestBase
 
         // Verify via service-level read
         var slideContent = Service.GetSlideContent(path, 0);
-        var tableShape = slideContent.Shapes.First(s => s.ShapeType == "Table");
+        var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.Equal("4.8M", tableShape.TableRows![1][1]);
         Assert.Equal("118%", tableShape.TableRows[2][1]);
     }

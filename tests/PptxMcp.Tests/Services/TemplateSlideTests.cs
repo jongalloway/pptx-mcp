@@ -29,8 +29,10 @@ public class TemplateSlideTests : PptxTestBase
         Assert.Equal("Executive Summary", slides[1].Title);
 
         var addedSlide = Service.GetSlideContent(path, 1);
-        Assert.Equal("Revenue up 18%", addedSlide.Shapes.Single(shape => shape.PlaceholderIndex == 1).Text);
-        Assert.Equal("Pipeline healthy", addedSlide.Shapes.Single(shape => shape.PlaceholderIndex == 2).Text);
+        var body1 = Assert.Single(addedSlide.Shapes, shape => shape.PlaceholderIndex == 1);
+        Assert.Equal("Revenue up 18%", body1.Text);
+        var body2 = Assert.Single(addedSlide.Shapes, shape => shape.PlaceholderIndex == 2);
+        Assert.Equal("Pipeline healthy", body2.Text);
         AssertPresentationCompatible(path);
     }
 
@@ -102,10 +104,12 @@ public class TemplateSlideTests : PptxTestBase
         Assert.Equal("Duplicated Review", slides[1].Title);
 
         var duplicatedSlide = Service.GetSlideContent(path, 1);
-        Assert.Equal("Action owners assigned", duplicatedSlide.Shapes.Single(shape => shape.PlaceholderIndex == 2).Text);
+        var duplicatedBody = Assert.Single(duplicatedSlide.Shapes, shape => shape.PlaceholderIndex == 2);
+        Assert.Equal("Action owners assigned", duplicatedBody.Text);
 
         var originalSlide = Service.GetSlideContent(path, 0);
-        Assert.Equal("Follow-up items", originalSlide.Shapes.Single(shape => shape.PlaceholderIndex == 2).Text);
+        var originalBody = Assert.Single(originalSlide.Shapes, shape => shape.PlaceholderIndex == 2);
+        Assert.Equal("Follow-up items", originalBody.Text);
         AssertPresentationCompatible(path);
     }
 
