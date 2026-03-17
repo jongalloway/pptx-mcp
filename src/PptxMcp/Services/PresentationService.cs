@@ -504,6 +504,7 @@ public partial class PresentationService
             ".jpg" or ".jpeg" => ImagePartType.Jpeg,
             ".gif" => ImagePartType.Gif,
             ".bmp" => ImagePartType.Bmp,
+            ".svg" => ImagePartType.Svg,
             _ => ImagePartType.Png
         };
 
@@ -1637,18 +1638,14 @@ public partial class PresentationService
     {
         try
         {
-            // Check if any other element still references this relationship
+            // Check if any other element still references this relationship.
+            // Search for the ID surrounded by quotes to avoid false positives from
+            // substring matches (e.g. "rId1" matching inside "rId10").
             var slideXml = slidePart.Slide.OuterXml;
-            var count = 0;
-            var searchIndex = 0;
-            while ((searchIndex = slideXml.IndexOf(relationshipId, searchIndex, StringComparison.Ordinal)) >= 0)
-            {
-                count++;
-                searchIndex += relationshipId.Length;
-                if (count > 1) break;
-            }
+            var quotedId = "\"" + relationshipId + "\"";
+            var isStillReferenced = slideXml.Contains(quotedId, StringComparison.Ordinal);
 
-            if (count <= 0)
+            if (!isStillReferenced)
                 slidePart.DeletePart(relationshipId);
         }
         catch
