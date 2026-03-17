@@ -10,6 +10,9 @@ Real-world use case walkthroughs showing how to use pptx-mcp with AI agents.
 2. [Documentation Generator](#2-documentation-generator)
 3. [Research Synthesis Tool](#3-research-synthesis-tool)
 4. [Data Dashboard Updater](#4-data-dashboard-updater)
+5. [Sprint Status Board Builder](#5-sprint-status-board-builder)
+6. [Quarterly Metrics Table Updater](#6-quarterly-metrics-table-updater)
+7. [Product Feature Comparison Matrix](#7-product-feature-comparison-matrix)
 
 ---
 
@@ -413,6 +416,311 @@ weekly-board.pptx is ready for Monday's board meeting.
 2. Add both to your AI client config (see [MULTI_SOURCE_COMPOSITION.md](MULTI_SOURCE_COMPOSITION.md)).
 3. Point the agent at any `.pptx` file with text placeholders and use the prompt above.
 4. For a complete walkthrough with architecture diagrams, two full scenarios, and design guidance, see [docs/MULTI_SOURCE_COMPOSITION.md](MULTI_SOURCE_COMPOSITION.md).
+
+---
+
+- [README](../README.md) — Full tool reference and configuration
+- [PRD](PRD.md) — Product requirements, goals, and roadmap
+- [Multi-Source Composition Guide](MULTI_SOURCE_COMPOSITION.md) — Architecture, configuration, and full walkthroughs for composing pptx-mcp with external data MCPs
+- [mock-data-mcp](../examples/mock-data-mcp/README.md) — Runnable example MCP server providing mock business metrics and blog data
+
+---
+
+## 5. Sprint Status Board Builder
+
+### Scenario
+
+Your engineering team holds a weekly sprint review and needs a slide showing task status at a glance. Instead of manually typing a table into PowerPoint, you ask an AI agent to build the sprint tracking slide automatically from your task list and then patch individual cell values as status changes during the meeting.
+
+### Agent Prompt
+
+```
+I have a sprint review deck at /presentations/sprint-42-review.pptx.
+Slide 3 is the "Sprint Status" slide. Build a task-status table there
+from the following data, then mark the "API Integration" task as "Done"
+and the "Load Testing" task as "Blocked – infra outage".
+```
+
+### Tool Workflow
+
+1. **`pptx_insert_table`** — Create the sprint status table on slide 3 with header row and one data row per task.
+
+   ```json
+   {
+     "name": "pptx_insert_table",
+     "arguments": {
+       "filePath": "/presentations/sprint-42-review.pptx",
+       "slideNumber": 3,
+       "tableName": "Sprint Status",
+       "headers": ["Task", "Owner", "Points", "Status"],
+       "rows": [
+         ["API Integration",   "Priya",  "5",  "In Progress"],
+         ["Auth Refactor",     "Marcus", "8",  "Done"],
+         ["Dashboard UI",      "Sofia",  "3",  "In Progress"],
+         ["Load Testing",      "Kai",    "5",  "In Progress"],
+         ["Docs Update",       "Elena",  "2",  "Done"]
+       ],
+       "x": 457200,
+       "y": 1143000,
+       "width": 8229600,
+       "height": 2286000
+     }
+   }
+   ```
+
+2. **`pptx_update_table`** — Patch just the two status cells that changed during the meeting.
+
+   ```json
+   {
+     "name": "pptx_update_table",
+     "arguments": {
+       "filePath": "/presentations/sprint-42-review.pptx",
+       "slideNumber": 3,
+       "tableName": "Sprint Status",
+       "updates": [
+         { "Row": 1, "Column": 3, "Value": "Done" },
+         { "Row": 4, "Column": 3, "Value": "Blocked – infra outage" }
+       ]
+     }
+   }
+   ```
+
+### Example Output
+
+`pptx_insert_table` returns:
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 3,
+  "TableName": "Sprint Status",
+  "TableShapeId": 7,
+  "TableIndex": 0,
+  "RowCount": 6,
+  "ColumnCount": 4,
+  "Message": "Table inserted successfully."
+}
+```
+
+`pptx_update_table` returns:
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 3,
+  "TableName": "Sprint Status",
+  "MatchedBy": "tableName",
+  "CellsUpdated": 2,
+  "CellsSkipped": 0,
+  "Message": "Table updated successfully."
+}
+```
+
+### Try It Yourself
+
+1. Open any `.pptx` file and choose a blank slide.
+2. Call `pptx_insert_table` with your own task list.
+3. As statuses change, call `pptx_update_table` with only the cells that need updating — the rest of the table is untouched.
+
+---
+
+## 6. Quarterly Metrics Table Updater
+
+### Scenario
+
+Your finance team maintains a quarterly board deck with a KPI summary table on the executive slide. Each quarter the numbers change but the table structure stays the same. An AI agent reads the current table to confirm the layout, then writes the new values into the exact cells — without touching formatting or other slide content.
+
+### Agent Prompt
+
+```
+Open /presentations/q3-board-deck.pptx. Slide 2 has a metrics table named
+"KPI Summary". Read the current table to understand its layout, then update
+it with Q3 actuals: Revenue $24.1M, Gross Margin 68%, ARR $31.4M,
+NRR 114%, New Logos 22, Churn 1.4%.
+```
+
+### Tool Workflow
+
+1. **`pptx_get_slide_content`** — Read slide 2 to inspect the table structure before writing.
+
+   ```json
+   {
+     "name": "pptx_get_slide_content",
+     "arguments": {
+       "filePath": "/presentations/q3-board-deck.pptx",
+       "slideIndex": 1
+     }
+   }
+   ```
+
+2. **`pptx_update_table`** — Write the Q3 actuals into the value column (column 1) of each metric row.
+
+   ```json
+   {
+     "name": "pptx_update_table",
+     "arguments": {
+       "filePath": "/presentations/q3-board-deck.pptx",
+       "slideNumber": 2,
+       "tableName": "KPI Summary",
+       "updates": [
+         { "Row": 1, "Column": 1, "Value": "$24.1M" },
+         { "Row": 2, "Column": 1, "Value": "68%" },
+         { "Row": 3, "Column": 1, "Value": "$31.4M" },
+         { "Row": 4, "Column": 1, "Value": "114%" },
+         { "Row": 5, "Column": 1, "Value": "22" },
+         { "Row": 6, "Column": 1, "Value": "1.4%" }
+       ]
+     }
+   }
+   ```
+
+### Example Output
+
+`pptx_get_slide_content` for slide 2 shows the existing table:
+
+```json
+{
+  "SlideIndex": 1,
+  "Shapes": [
+    {
+      "ShapeType": "Text",
+      "Name": "Title 1",
+      "Text": "Q3 Executive Summary"
+    },
+    {
+      "ShapeType": "Table",
+      "Name": "KPI Summary",
+      "TableRows": [
+        ["Metric",        "Q3 Actual"],
+        ["Revenue",       "$22.8M"],
+        ["Gross Margin",  "65%"],
+        ["ARR",           "$29.7M"],
+        ["NRR",           "109%"],
+        ["New Logos",     "18"],
+        ["Churn",         "1.9%"]
+      ]
+    }
+  ]
+}
+```
+
+`pptx_update_table` returns:
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 2,
+  "TableName": "KPI Summary",
+  "MatchedBy": "tableName",
+  "CellsUpdated": 6,
+  "CellsSkipped": 0,
+  "Message": "Table updated successfully."
+}
+```
+
+### Try It Yourself
+
+1. Open any `.pptx` that already contains a table.
+2. Call `pptx_get_slide_content` on the slide to discover table name and row/column layout.
+3. Call `pptx_update_table` using `tableName` to target the table precisely and pass just the cells that changed.
+
+---
+
+## 7. Product Feature Comparison Matrix
+
+### Scenario
+
+Your sales team needs a fresh competitive comparison slide for every major prospect meeting. The products and features stay mostly the same, but availability and notes change per prospect. An AI agent builds the full table in one call, then applies per-prospect customizations with a follow-up update.
+
+### Agent Prompt
+
+```
+Create a feature comparison table on slide 4 of
+/presentations/acme-prospect-deck.pptx. Include our product and two
+competitors across five key features. Then mark "SSO / SAML" as
+"Coming Q4" for Competitor B since we know Acme cares about that gap.
+```
+
+### Tool Workflow
+
+1. **`pptx_insert_table`** — Build the full comparison matrix with headers and all feature rows.
+
+   ```json
+   {
+     "name": "pptx_insert_table",
+     "arguments": {
+       "filePath": "/presentations/acme-prospect-deck.pptx",
+       "slideNumber": 4,
+       "tableName": "Feature Comparison",
+       "headers": ["Feature", "Our Product", "Competitor A", "Competitor B"],
+       "rows": [
+         ["MCP / AI Integration", "✓ Native",   "✗ None",       "Beta"],
+         ["SSO / SAML",           "✓ Included", "✓ Add-on (Enterprise tier)", "✗ Roadmap"],
+         ["Audit Logs",           "✓ 12 months","✓ 3 months",   "✓ 6 months"],
+         ["Mobile App",           "✓ iOS + Android", "iOS only","✗ None"],
+         ["SLA",                  "99.99%",     "99.9%",        "99.9%"]
+       ],
+       "x": 457200,
+       "y": 1143000,
+       "width": 8229600,
+       "height": 2743200
+     }
+   }
+   ```
+
+2. **`pptx_update_table`** — Apply the prospect-specific customization to the SSO row.
+
+   ```json
+   {
+     "name": "pptx_update_table",
+     "arguments": {
+       "filePath": "/presentations/acme-prospect-deck.pptx",
+       "slideNumber": 4,
+       "tableName": "Feature Comparison",
+       "updates": [
+         { "Row": 2, "Column": 3, "Value": "Coming Q4" }
+       ]
+     }
+   }
+   ```
+
+### Example Output
+
+`pptx_insert_table` returns:
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 4,
+  "TableName": "Feature Comparison",
+  "TableShapeId": 9,
+  "TableIndex": 0,
+  "RowCount": 6,
+  "ColumnCount": 4,
+  "Message": "Table inserted successfully."
+}
+```
+
+`pptx_update_table` returns:
+
+```json
+{
+  "Success": true,
+  "SlideNumber": 4,
+  "TableName": "Feature Comparison",
+  "MatchedBy": "tableName",
+  "CellsUpdated": 1,
+  "CellsSkipped": 0,
+  "Message": "Table updated successfully."
+}
+```
+
+### Try It Yourself
+
+1. Prepare a prospect deck with an empty or placeholder slide.
+2. Call `pptx_insert_table` once to build the base matrix (reuse the same data for all prospects).
+3. Call `pptx_update_table` with only the cells that differ per prospect — the rest of the table is inherited from the base.
+4. Combine with `pptx_update_slide_data` to also stamp the title slide with the prospect name.
 
 ---
 
