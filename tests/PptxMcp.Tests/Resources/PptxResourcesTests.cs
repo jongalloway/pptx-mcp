@@ -4,37 +4,13 @@ using PptxMcp.Resources;
 
 namespace PptxMcp.Tests.Resources;
 
-public class PptxResourcesTests : IDisposable
+public class PptxResourcesTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly PptxResources _resources;
-    private readonly List<string> _tempFiles = new();
 
     public PptxResourcesTests()
     {
-        _resources = new PptxResources(_service);
-    }
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
-    private string CreateTempPptx(string? titleText = "Test Slide")
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreateMinimalPresentation(path, titleText);
-        return path;
-    }
-
-    private string CreateCustomPptx(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
+        _resources = new PptxResources(Service);
     }
 
     // --- GetSlides resource ---
@@ -42,7 +18,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetSlides_ValidFile_ReturnsTextResourceContents()
     {
-        var path = CreateTempPptx("My Title");
+        var path = CreateMinimalPptx("My Title");
         var result = _resources.GetSlides(path);
 
         Assert.NotNull(result);
@@ -53,7 +29,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetSlides_ValidFile_ReturnsJsonArray()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         var result = _resources.GetSlides(path);
 
         var doc = JsonDocument.Parse(result.Text!);
@@ -64,7 +40,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetSlides_ValidFile_SlideHasExpectedFields()
     {
-        var path = CreateTempPptx("Slide One");
+        var path = CreateMinimalPptx("Slide One");
         var result = _resources.GetSlides(path);
 
         var doc = JsonDocument.Parse(result.Text!);
@@ -87,7 +63,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetSlides_UrlEncodedPath_DecodesCorrectly()
     {
-        var path = CreateTempPptx("Encoded Title");
+        var path = CreateMinimalPptx("Encoded Title");
         var encoded = Uri.EscapeDataString(path);
         var result = _resources.GetSlides(encoded);
 
@@ -99,7 +75,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetSlides_UriIncludesEncodedFile()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         var encoded = Uri.EscapeDataString(path);
         var result = _resources.GetSlides(encoded);
 
@@ -112,7 +88,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetLayouts_ValidFile_ReturnsTextResourceContents()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         var result = _resources.GetLayouts(path);
 
         Assert.NotNull(result);
@@ -123,7 +99,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetLayouts_ValidFile_ReturnsJsonArrayWithNames()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         var result = _resources.GetLayouts(path);
 
         var doc = JsonDocument.Parse(result.Text!);
@@ -145,7 +121,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetLayouts_UriEndsWithLayouts()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         var encoded = Uri.EscapeDataString(path);
         var result = _resources.GetLayouts(encoded);
 
@@ -158,7 +134,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetShapeMap_ValidFile_ReturnsTextResourceContents()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Slide 1",
@@ -178,7 +154,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetShapeMap_ValidFile_ContainsSlideKeys()
     {
-        var path = CreateTempPptx("Title Slide");
+        var path = CreateMinimalPptx("Title Slide");
         var result = _resources.GetShapeMap(path);
 
         var doc = JsonDocument.Parse(result.Text!);
@@ -189,7 +165,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetShapeMap_ValidFile_ShapeHasExpectedFields()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Title",
@@ -229,7 +205,7 @@ public class PptxResourcesTests : IDisposable
     [Fact]
     public void GetShapeMap_UriEndsWithShapeMap()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         var encoded = Uri.EscapeDataString(path);
         var result = _resources.GetShapeMap(encoded);
 

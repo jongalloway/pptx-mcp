@@ -3,26 +3,13 @@ using PptxMcp.Completions;
 
 namespace PptxMcp.Tests.Completions;
 
-public class PptxCompletionHandlerTests : IDisposable
+public class PptxCompletionHandlerTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = new();
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
     private string CreateTempPptx(params TestSlideDefinition[] slides)
     {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
         if (slides.Length > 0)
-            TestPptxHelper.CreatePresentation(path, slides);
-        else
-            TestPptxHelper.CreateMinimalPresentation(path);
-        return path;
+            return CreatePptxWithSlides(slides);
+        return CreateMinimalPptx();
     }
 
     private static CompleteResult Invoke(
@@ -90,7 +77,7 @@ public class PptxCompletionHandlerTests : IDisposable
         var path = CreateTempPptx();
         var result = Invoke(
             "layoutName",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
         Assert.NotEmpty(result.Completion.Values);
@@ -104,7 +91,7 @@ public class PptxCompletionHandlerTests : IDisposable
         var result = Invoke(
             "layoutName",
             partialValue: "Title",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
         Assert.All(result.Completion.Values,
@@ -114,7 +101,7 @@ public class PptxCompletionHandlerTests : IDisposable
     [Fact]
     public void GetCompletions_LayoutName_NoFileContext_ReturnsEmpty()
     {
-        var result = Invoke("layoutName", service: _service);
+        var result = Invoke("layoutName", service: Service);
         Assert.Empty(result.Completion.Values);
     }
 
@@ -123,7 +110,7 @@ public class PptxCompletionHandlerTests : IDisposable
     {
         var result = Invoke(
             "layoutName",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = "/nonexistent/deck.pptx" });
 
         Assert.Empty(result.Completion.Values);
@@ -136,7 +123,7 @@ public class PptxCompletionHandlerTests : IDisposable
         var encoded = Uri.EscapeDataString(path);
         var result = Invoke(
             "layoutName",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = encoded });
 
         Assert.NotEmpty(result.Completion.Values);
@@ -171,7 +158,7 @@ public class PptxCompletionHandlerTests : IDisposable
 
         var result = Invoke(
             "shapeName",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
         Assert.NotEmpty(result.Completion.Values);
@@ -195,7 +182,7 @@ public class PptxCompletionHandlerTests : IDisposable
         var result = Invoke(
             "shapeName",
             partialValue: "Rev",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
         Assert.All(result.Completion.Values,
@@ -218,7 +205,7 @@ public class PptxCompletionHandlerTests : IDisposable
 
         var result = Invoke(
             "shapeName",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["filePath"] = path });
 
         Assert.NotEmpty(result.Completion.Values);
@@ -228,7 +215,7 @@ public class PptxCompletionHandlerTests : IDisposable
     [Fact]
     public void GetCompletions_ShapeName_NoFileContext_ReturnsEmpty()
     {
-        var result = Invoke("shapeName", service: _service);
+        var result = Invoke("shapeName", service: Service);
         Assert.Empty(result.Completion.Values);
     }
 
@@ -256,7 +243,7 @@ public class PptxCompletionHandlerTests : IDisposable
 
         var result = Invoke(
             "shapeName",
-            service: _service,
+            service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
         var count = result.Completion.Values.Count(v => v.Equals(sharedName, StringComparison.OrdinalIgnoreCase));

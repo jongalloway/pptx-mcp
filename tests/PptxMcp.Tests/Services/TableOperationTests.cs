@@ -11,16 +11,8 @@ namespace PptxMcp.Tests.Services;
 /// Written proactively for Issue #36 — table insert and update tools.
 /// These tests verify OpenXML structure, PowerPoint compatibility, and behavioral correctness.
 /// </summary>
-public class TableOperationTests : IDisposable
+public class TableOperationTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = [];
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
 
     // ────────────────────────────────────────────────────────
     // InsertTable: happy path
@@ -29,7 +21,7 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_CreatesTableOnSlide_WithCorrectRowAndColumnCounts()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Data Slide" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Data Slide" });
         var headers = new[] { "Region", "Revenue", "Growth" };
         var rows = new[]
         {
@@ -37,7 +29,7 @@ public class TableOperationTests : IDisposable
             new[] { "EMEA", "1.4M", "8%" }
         };
 
-        var result = _service.InsertTable(path, 1, headers, rows);
+        var result = Service.InsertTable(path, 1, headers, rows);
 
         Assert.True(result.Success);
         Assert.Equal(1, result.SlideNumber);
@@ -45,7 +37,7 @@ public class TableOperationTests : IDisposable
         Assert.Equal(3, result.ColumnCount);
 
         // Verify table exists on the slide via GetSlideContent
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.NotNull(tableShape.TableRows);
         Assert.Equal(3, tableShape.TableRows.Count);
@@ -55,7 +47,7 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_CellTextMatchesInput()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Metrics" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Metrics" });
         var headers = new[] { "KPI", "Value" };
         var rows = new[]
         {
@@ -63,9 +55,9 @@ public class TableOperationTests : IDisposable
             new[] { "NRR", "112%" }
         };
 
-        _service.InsertTable(path, 1, headers, rows);
+        Service.InsertTable(path, 1, headers, rows);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.NotNull(tableShape.TableRows);
 
@@ -83,7 +75,7 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_AssignsUniqueShapeId_NoDuplicates()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Existing Shapes",
             TextShapes =
@@ -94,7 +86,7 @@ public class TableOperationTests : IDisposable
         var headers = new[] { "Col1" };
         var rows = new[] { new[] { "Data1" } };
 
-        var result = _service.InsertTable(path, 1, headers, rows);
+        var result = Service.InsertTable(path, 1, headers, rows);
 
         Assert.True(result.Success);
         Assert.NotNull(result.TableShapeId);
@@ -110,11 +102,11 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_GraphicDataUri_IsCorrectTableUri()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "URI Check" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "URI Check" });
         var headers = new[] { "A" };
         var rows = new[] { new[] { "1" } };
 
-        _service.InsertTable(path, 1, headers, rows);
+        Service.InsertTable(path, 1, headers, rows);
 
         using var doc = PresentationDocument.Open(path, false);
         var slidePart = GetSlidePart(doc, 0);
@@ -129,11 +121,11 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_TableGridColumnCount_MatchesHeaderCount()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Grid Check" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Grid Check" });
         var headers = new[] { "A", "B", "C", "D" };
         var rows = new[] { new[] { "1", "2", "3", "4" } };
 
-        _service.InsertTable(path, 1, headers, rows);
+        Service.InsertTable(path, 1, headers, rows);
 
         using var doc = PresentationDocument.Open(path, false);
         var slidePart = GetSlidePart(doc, 0);
@@ -152,17 +144,17 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_HeadersOnly_NoDataRows_CreatesTableWithOneRow()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Empty Table" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Empty Table" });
         var headers = new[] { "Name", "Status" };
         var rows = Array.Empty<string[]>();
 
-        var result = _service.InsertTable(path, 1, headers, rows);
+        var result = Service.InsertTable(path, 1, headers, rows);
 
         Assert.True(result.Success);
         Assert.Equal(1, result.RowCount);   // Header row only
         Assert.Equal(2, result.ColumnCount);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.NotNull(tableShape.TableRows);
         Assert.Single(tableShape.TableRows);
@@ -173,12 +165,12 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_SingleCell_1x1_CreatesValidTable()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Tiny" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Tiny" });
         var baselineErrors = ValidatePresentation(path);
         var headers = new[] { "Value" };
         var rows = Array.Empty<string[]>();
 
-        var result = _service.InsertTable(path, 1, headers, rows);
+        var result = Service.InsertTable(path, 1, headers, rows);
 
         Assert.True(result.Success);
         Assert.Equal(1, result.ColumnCount);
@@ -189,14 +181,14 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_LargeTable_ManyRowsAndColumns()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Large" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Large" });
         var baselineErrors = ValidatePresentation(path);
         var headers = Enumerable.Range(1, 6).Select(i => $"Col{i}").ToArray();
         var rows = Enumerable.Range(1, 12)
             .Select(r => Enumerable.Range(1, 6).Select(c => $"R{r}C{c}").ToArray())
             .ToArray();
 
-        var result = _service.InsertTable(path, 1, headers, rows);
+        var result = Service.InsertTable(path, 1, headers, rows);
 
         Assert.True(result.Success);
         Assert.Equal(13, result.RowCount);  // 1 header + 12 data
@@ -208,12 +200,12 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_CustomPositioning_UsesSpecifiedEmuValues()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Positioned" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Positioned" });
         var headers = new[] { "X" };
         var rows = new[] { new[] { "1" } };
         long customX = 500000, customY = 2000000, customW = 5000000, customH = 1500000;
 
-        _service.InsertTable(path, 1, headers, rows, x: customX, y: customY, width: customW, height: customH);
+        Service.InsertTable(path, 1, headers, rows, x: customX, y: customY, width: customW, height: customH);
 
         using var doc = PresentationDocument.Open(path, false);
         var slidePart = GetSlidePart(doc, 0);
@@ -230,11 +222,11 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_DefaultPositioning_WhenNotSpecified()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Default Pos" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Default Pos" });
         var headers = new[] { "A" };
         var rows = new[] { new[] { "1" } };
 
-        _service.InsertTable(path, 1, headers, rows);
+        Service.InsertTable(path, 1, headers, rows);
 
         using var doc = PresentationDocument.Open(path, false);
         var slidePart = GetSlidePart(doc, 0);
@@ -252,11 +244,11 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_CustomTableName_IsStored()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Named" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Named" });
         var headers = new[] { "Region" };
         var rows = new[] { new[] { "NA" } };
 
-        var result = _service.InsertTable(path, 1, headers, rows, tableName: "Revenue Table");
+        var result = Service.InsertTable(path, 1, headers, rows, tableName: "Revenue Table");
 
         Assert.True(result.Success);
         Assert.Equal("Revenue Table", result.TableName);
@@ -278,12 +270,12 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_InvalidSlideNumber_ThrowsOrReturnsFailure()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Single" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Single" });
         var headers = new[] { "A" };
         var rows = new[] { new[] { "1" } };
 
         // Slide 5 does not exist in a 1-slide presentation
-        var ex = Assert.ThrowsAny<Exception>(() => _service.InsertTable(path, 5, headers, rows));
+        var ex = Assert.ThrowsAny<Exception>(() => Service.InsertTable(path, 5, headers, rows));
         Assert.NotNull(ex);
     }
 
@@ -294,7 +286,7 @@ public class TableOperationTests : IDisposable
         var rows = new[] { new[] { "1" } };
         var fakePath = Path.Join(Path.GetTempPath(), "nonexistent_" + Guid.NewGuid() + ".pptx");
 
-        Assert.ThrowsAny<Exception>(() => _service.InsertTable(fakePath, 1, headers, rows));
+        Assert.ThrowsAny<Exception>(() => Service.InsertTable(fakePath, 1, headers, rows));
     }
 
     // ────────────────────────────────────────────────────────
@@ -304,7 +296,7 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_PassesOpenXmlValidator()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Validated" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Validated" });
         var baselineErrors = ValidatePresentation(path);
         var headers = new[] { "Metric", "Q1", "Q2" };
         var rows = new[]
@@ -313,7 +305,7 @@ public class TableOperationTests : IDisposable
             new[] { "Margin", "58%", "62%" }
         };
 
-        _service.InsertTable(path, 1, headers, rows);
+        Service.InsertTable(path, 1, headers, rows);
 
         // Should not introduce new validation errors
         var postErrors = ValidatePresentation(path);
@@ -323,8 +315,8 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_CellTextBodyStructure_IsWellFormed()
     {
-        var path = CreatePresentation(new TestSlideDefinition { TitleText = "Structure" });
-        _service.InsertTable(path, 1, new[] { "H1" }, new[] { new[] { "D1" } });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Structure" });
+        Service.InsertTable(path, 1, new[] { "H1" }, new[] { new[] { "D1" } });
 
         using var doc = PresentationDocument.Open(path, false);
         var slidePart = GetSlidePart(doc, 0);
@@ -351,7 +343,7 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void InsertTable_PreservesExistingShapes()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Dashboard",
             TextShapes =
@@ -364,10 +356,10 @@ public class TableOperationTests : IDisposable
             ]
         });
 
-        _service.InsertTable(path, 1, new[] { "Region" }, new[] { new[] { "NA" } });
+        Service.InsertTable(path, 1, new[] { "Region" }, new[] { new[] { "NA" } });
 
         // Original shapes must still be present
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         Assert.Contains(slideContent.Shapes, s => s.Name == "Revenue Value");
         Assert.Contains(slideContent.Shapes, s => s.ShapeType == "Table");
     }
@@ -382,14 +374,14 @@ public class TableOperationTests : IDisposable
         var path = CreatePresentationWithTable("Sales Data",
             [["Region", "Revenue"], ["NA", "3.2M"], ["EMEA", "1.4M"]]);
 
-        var result = _service.UpdateTable(path, 1, tableName: "Sales Data", updates:
+        var result = Service.UpdateTable(path, 1, tableName: "Sales Data", updates:
         [
             new TableCellUpdate(1, 1, "4.8M")  // Row 1, Col 1 → "4.8M"
         ]);
 
         Assert.True(result.Success);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.Equal("4.8M", tableShape.TableRows![1][1]);
 
@@ -407,7 +399,7 @@ public class TableOperationTests : IDisposable
         var path = CreatePresentationWithTable("Quarterly",
             [["Q1", "Q2", "Q3"], ["1.0M", "1.2M", "1.5M"]]);
 
-        var result = _service.UpdateTable(path, 1, tableName: "Quarterly", updates:
+        var result = Service.UpdateTable(path, 1, tableName: "Quarterly", updates:
         [
             new TableCellUpdate(1, 0, "1.1M"),
             new TableCellUpdate(1, 1, "1.3M"),
@@ -416,7 +408,7 @@ public class TableOperationTests : IDisposable
 
         Assert.True(result.Success);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.Equal("1.1M", tableShape.TableRows![1][0]);
         Assert.Equal("1.3M", tableShape.TableRows[1][1]);
@@ -429,14 +421,14 @@ public class TableOperationTests : IDisposable
         var path = CreatePresentationWithTable("Revenue Table",
             [["Metric", "Value"], ["ARR", "3.2M"]]);
 
-        var result = _service.UpdateTable(path, 1, tableName: "revenue table", updates:
+        var result = Service.UpdateTable(path, 1, tableName: "revenue table", updates:
         [
             new TableCellUpdate(1, 1, "4.0M")
         ]);
 
         Assert.True(result.Success);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.Equal("4.0M", tableShape.TableRows![1][1]);
     }
@@ -447,14 +439,14 @@ public class TableOperationTests : IDisposable
         var path = CreatePresentationWithTable("First Table",
             [["A", "B"], ["1", "2"]]);
 
-        var result = _service.UpdateTable(path, 1, tableIndex: 0, updates:
+        var result = Service.UpdateTable(path, 1, tableIndex: 0, updates:
         [
             new TableCellUpdate(1, 0, "Updated")
         ]);
 
         Assert.True(result.Success);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.Equal("Updated", tableShape.TableRows![1][0]);
     }
@@ -470,7 +462,7 @@ public class TableOperationTests : IDisposable
             [["A"], ["1"]]);
 
         var ex = Assert.ThrowsAny<Exception>(() =>
-            _service.UpdateTable(path, 1, tableName: "Missing Table", updates:
+            Service.UpdateTable(path, 1, tableName: "Missing Table", updates:
             [
                 new TableCellUpdate(0, 0, "X")
             ]));
@@ -484,7 +476,7 @@ public class TableOperationTests : IDisposable
             [["A"], ["1"]]);
 
         var ex = Assert.ThrowsAny<Exception>(() =>
-            _service.UpdateTable(path, 1, tableIndex: 5, updates:
+            Service.UpdateTable(path, 1, tableIndex: 5, updates:
             [
                 new TableCellUpdate(0, 0, "X")
             ]));
@@ -497,7 +489,7 @@ public class TableOperationTests : IDisposable
         var path = CreatePresentationWithTable("Small",
             [["A", "B"], ["1", "2"]]);
 
-        var result = _service.UpdateTable(path, 1, tableName: "Small", updates:
+        var result = Service.UpdateTable(path, 1, tableName: "Small", updates:
         [
             new TableCellUpdate(99, 99, "Out of bounds")
         ]);
@@ -521,7 +513,7 @@ public class TableOperationTests : IDisposable
         // Capture cell properties XML before update
         var cellPropsBeforeUpdate = GetTableCellPropertiesXml(path, 0);
 
-        _service.UpdateTable(path, 1, tableName: "Styled", updates:
+        Service.UpdateTable(path, 1, tableName: "Styled", updates:
         [
             new TableCellUpdate(1, 1, "200")
         ]);
@@ -534,7 +526,7 @@ public class TableOperationTests : IDisposable
     [Fact]
     public void UpdateTable_PreservesOtherShapes()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Dashboard",
             TextShapes =
@@ -555,12 +547,12 @@ public class TableOperationTests : IDisposable
             ]
         });
 
-        _service.UpdateTable(path, 1, tableName: "Region Data", updates:
+        Service.UpdateTable(path, 1, tableName: "Region Data", updates:
         [
             new TableCellUpdate(1, 1, "4.0M")
         ]);
 
-        var slideContent = _service.GetSlideContent(path, 0);
+        var slideContent = Service.GetSlideContent(path, 0);
         var revenueShape = Assert.Single(slideContent.Shapes, s => s.Name == "Revenue Value");
         Assert.Equal("3.2M", revenueShape.Text);
     }
@@ -572,7 +564,7 @@ public class TableOperationTests : IDisposable
             [["Metric", "Value"], ["ARR", "3.2M"], ["NRR", "112%"]]);
         var baselineErrors = ValidatePresentation(path);
 
-        _service.UpdateTable(path, 1, tableName: "Validated", updates:
+        Service.UpdateTable(path, 1, tableName: "Validated", updates:
         [
             new TableCellUpdate(1, 1, "4.8M"),
             new TableCellUpdate(2, 1, "118%")
@@ -588,7 +580,7 @@ public class TableOperationTests : IDisposable
         var path = CreatePresentationWithTable("Structure Check",
             [["A", "B"], ["1", "2"]]);
 
-        _service.UpdateTable(path, 1, tableName: "Structure Check", updates:
+        Service.UpdateTable(path, 1, tableName: "Structure Check", updates:
         [
             new TableCellUpdate(0, 0, "Updated Header")
         ]);
@@ -600,17 +592,9 @@ public class TableOperationTests : IDisposable
     // Helpers
     // ────────────────────────────────────────────────────────
 
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private string CreatePresentationWithTable(string tableName, IReadOnlyList<IReadOnlyList<string>> rows)
     {
-        return CreatePresentation(new TestSlideDefinition
+        return CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Table Slide",
             Tables =

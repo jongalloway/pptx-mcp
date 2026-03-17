@@ -3,26 +3,13 @@ using System.Text.RegularExpressions;
 
 namespace PptxMcp.Tests.Services;
 
-public class MarkdownExportTests : IDisposable
+public class MarkdownExportTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempArtifacts = [];
-
-    public void Dispose()
-    {
-        foreach (var artifact in _tempArtifacts.OrderByDescending(path => path.Length))
-        {
-            if (File.Exists(artifact))
-                File.Delete(artifact);
-            else if (Directory.Exists(artifact))
-                Directory.Delete(artifact, recursive: true);
-        }
-    }
 
     [Fact]
     public void ExportMarkdown_WritesMarkdownFileAndSlideHeading()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Quarterly Review",
@@ -37,7 +24,7 @@ public class MarkdownExportTests : IDisposable
             });
         var outputPath = CreateOutputPath();
 
-        var export = _service.ExportMarkdown(path, outputPath);
+        var export = Service.ExportMarkdown(path, outputPath);
 
         Assert.Equal(Path.GetFullPath(outputPath), export.OutputPath);
         Assert.True(File.Exists(outputPath));
@@ -49,7 +36,7 @@ public class MarkdownExportTests : IDisposable
     [Fact]
     public void ExportMarkdown_PreservesNestedBulletIndentation()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Release Plan",
@@ -68,7 +55,7 @@ public class MarkdownExportTests : IDisposable
                 ]
             });
 
-        var export = _service.ExportMarkdown(path, CreateOutputPath());
+        var export = Service.ExportMarkdown(path, CreateOutputPath());
 
         Assert.Contains("- Ship the MCP tool", export.Markdown);
         Assert.Contains("  - Export markdown", export.Markdown);
@@ -78,7 +65,7 @@ public class MarkdownExportTests : IDisposable
     [Fact]
     public void ExportMarkdown_FormatsSubtitleAsHeading()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Kickoff",
@@ -96,7 +83,7 @@ public class MarkdownExportTests : IDisposable
                 ]
             });
 
-        var export = _service.ExportMarkdown(path, CreateOutputPath());
+        var export = Service.ExportMarkdown(path, CreateOutputPath());
 
         Assert.Contains("### Agenda", export.Markdown);
         Assert.Contains("Discuss scope and owners", export.Markdown);
@@ -105,7 +92,7 @@ public class MarkdownExportTests : IDisposable
     [Fact]
     public void ExportMarkdown_ExportsImageWithRelativeReference()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Architecture",
@@ -113,7 +100,7 @@ public class MarkdownExportTests : IDisposable
             });
         var outputPath = CreateOutputPath();
 
-        var export = _service.ExportMarkdown(path, outputPath);
+        var export = Service.ExportMarkdown(path, outputPath);
         var imageMatch = Regex.Match(export.Markdown, @"!\[[^\]]+\]\(([^)]+)\)");
         var imageDirectory = Path.Join(
             Path.GetDirectoryName(outputPath)!,
@@ -129,7 +116,7 @@ public class MarkdownExportTests : IDisposable
     [Fact]
     public void ExportMarkdown_FormatsTablesAsMarkdown()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Metrics",
@@ -147,7 +134,7 @@ public class MarkdownExportTests : IDisposable
                 ]
             });
 
-        var export = _service.ExportMarkdown(path, CreateOutputPath());
+        var export = Service.ExportMarkdown(path, CreateOutputPath());
 
         Assert.Contains("| Metric | Value |", export.Markdown);
         Assert.Contains("| --- | --- |", export.Markdown);
@@ -158,12 +145,12 @@ public class MarkdownExportTests : IDisposable
     [Fact]
     public void ExportMarkdown_DefaultOutputPath_WritesMarkdownAlongsideSource()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition { TitleText = "Default Path Test" });
         var expectedOutputPath = Path.ChangeExtension(path, ".md");
-        _tempArtifacts.Add(expectedOutputPath);
+        TrackTempFile(expectedOutputPath);
 
-        var export = _service.ExportMarkdown(path);
+        var export = Service.ExportMarkdown(path);
 
         Assert.Equal(Path.GetFullPath(expectedOutputPath), export.OutputPath);
         Assert.True(File.Exists(expectedOutputPath));
@@ -173,7 +160,7 @@ public class MarkdownExportTests : IDisposable
     [Fact]
     public void ExportMarkdown_RealWorldStyleDeck_RendersSlidesInOrder()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Launch Plan",
@@ -217,7 +204,7 @@ public class MarkdownExportTests : IDisposable
                 ]
             });
 
-        var export = _service.ExportMarkdown(path, CreateOutputPath());
+        var export = Service.ExportMarkdown(path, CreateOutputPath());
 
         var slide1 = export.Markdown.IndexOf("## Slide 1: Launch Plan", StringComparison.Ordinal);
         var slide2 = export.Markdown.IndexOf("## Slide 2: Architecture", StringComparison.Ordinal);
@@ -230,19 +217,11 @@ public class MarkdownExportTests : IDisposable
         Assert.Contains("| Metric | Status |", export.Markdown);
     }
 
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempArtifacts.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private string CreateOutputPath()
     {
         var directory = Path.Join(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(directory);
-        _tempArtifacts.Add(directory);
+        TrackTempFile(directory);
         return Path.Join(directory, "presentation.md");
     }
 }
