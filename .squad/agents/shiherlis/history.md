@@ -46,3 +46,11 @@
 - **Quality:** All 214/214 tests passing, format preservation verified, round-trip validation on real presentations
 - **Deliverable:** PR #46 (committed to branch, ready for review alongside Cheritto implementation)
 - **Decision captured:** Test validation pattern encoded in decisions.md for team reuse
+
+### Image replacement tests — Issue #37 (2026-03-17)
+- **Issue #37:** 41 total tests (34 service-level + 7 tool-level)
+- **Service coverage:** Name/index targeting, case-insensitive matching, alt text persistence, geometry preservation, PNG/JPEG/SVG format support, cross-format replacement, shape ID stability, multi-picture preservation, multi-slide targeting, successive replacements, template deck fixtures
+- **Error coverage:** Name not found (lists available), index out of range (negative + positive), duplicate name ambiguity, no pictures on slide, empty name, slide number validation (zero, negative, out of range), unsupported format, neither name nor index provided, name-fallback-to-index
+- **Tool coverage:** JSON output structure, all fields present, indented format, file-not-found (PPTX + image), unsupported format passthrough
+- **Validation strategy:** Baseline comparison (error count unchanged), OpenXmlValidator, blip relationship ID verification, raw image byte comparison
+- **Quality:** All 225/225 tests passing, implementation already on main — tests written against actual API

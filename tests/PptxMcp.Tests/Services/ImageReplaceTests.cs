@@ -413,6 +413,281 @@ public class ImageReplaceTests : IDisposable
         Assert.Equal("shapeIndex", result.MatchedBy);
     }
 
+    [Fact]
+    public void ReplaceImage_NegativeIndex_ReturnsError()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo");
+        var imagePath = CreateTempImage(PngBytes, ".png");
+
+        var result = _service.ReplaceImage(pptxPath, 1, null, -1, imagePath, null);
+
+        Assert.False(result.Success);
+        Assert.Contains("out of range", result.Message);
+    }
+
+    [Fact]
+    public void ReplaceImage_DuplicateNames_ReturnsAmbiguityError()
+    {
+        // Create a PPTX with two pictures sharing the same name
+        var pptxPath = TrackTempFile();
+        using (var doc = DocumentFormat.OpenXml.Packaging.PresentationDocument.Create(pptxPath, DocumentFormat.OpenXml.PresentationDocumentType.Presentation))
+        {
+            var presentationPart = doc.AddPresentationPart();
+            var slideMasterPart = presentationPart.AddNewPart<SlideMasterPart>();
+            var slideLayoutPart = slideMasterPart.AddNewPart<SlideLayoutPart>();
+
+            slideLayoutPart.SlideLayout = new SlideLayout(
+                new CommonSlideData(new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1, Name = string.Empty },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(new A.TransformGroup()))),
+                new ColorMapOverride(new A.MasterColorMapping())) { Type = SlideLayoutValues.Title };
+            slideLayoutPart.SlideLayout.CommonSlideData!.Name = "Title Slide";
+
+            slideMasterPart.SlideMaster = new SlideMaster(
+                new CommonSlideData(new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1, Name = string.Empty },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(new A.TransformGroup()))),
+                new P.ColorMap
+                {
+                    Background1 = A.ColorSchemeIndexValues.Light1, Text1 = A.ColorSchemeIndexValues.Dark1,
+                    Background2 = A.ColorSchemeIndexValues.Light2, Text2 = A.ColorSchemeIndexValues.Dark2,
+                    Accent1 = A.ColorSchemeIndexValues.Accent1, Accent2 = A.ColorSchemeIndexValues.Accent2,
+                    Accent3 = A.ColorSchemeIndexValues.Accent3, Accent4 = A.ColorSchemeIndexValues.Accent4,
+                    Accent5 = A.ColorSchemeIndexValues.Accent5, Accent6 = A.ColorSchemeIndexValues.Accent6,
+                    Hyperlink = A.ColorSchemeIndexValues.Hyperlink, FollowedHyperlink = A.ColorSchemeIndexValues.FollowedHyperlink
+                },
+                new SlideLayoutIdList(new SlideLayoutId { Id = 2049, RelationshipId = slideMasterPart.GetIdOfPart(slideLayoutPart) }));
+            slideLayoutPart.AddPart(slideMasterPart);
+
+            var slidePart = presentationPart.AddNewPart<SlidePart>();
+            slidePart.AddPart(slideLayoutPart);
+
+            var imgPart = slidePart.AddImagePart(ImagePartType.Png);
+            using (var ms = new MemoryStream(PngBytes)) imgPart.FeedData(ms);
+            var relId = slidePart.GetIdOfPart(imgPart);
+
+            var shapeTree = new ShapeTree(
+                new P.NonVisualGroupShapeProperties(
+                    new P.NonVisualDrawingProperties { Id = 1, Name = string.Empty },
+                    new P.NonVisualGroupShapeDrawingProperties(),
+                    new ApplicationNonVisualDrawingProperties()),
+                new GroupShapeProperties(new A.TransformGroup()));
+
+            // Two pictures with same name
+            for (uint id = 2; id <= 3; id++)
+            {
+                shapeTree.Append(new Picture(
+                    new P.NonVisualPictureProperties(
+                        new P.NonVisualDrawingProperties { Id = id, Name = "Logo" },
+                        new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new P.BlipFill(new A.Blip { Embed = relId }, new A.Stretch(new A.FillRectangle())),
+                    new P.ShapeProperties(
+                        new A.Transform2D(new A.Offset { X = 914400, Y = 914400 }, new A.Extents { Cx = 3657600, Cy = 2743200 }),
+                        new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
+            }
+
+            slidePart.Slide = new Slide(new CommonSlideData(shapeTree), new ColorMapOverride(new A.MasterColorMapping()));
+            presentationPart.Presentation = new Presentation(
+                new SlideIdList(new SlideId { Id = 256, RelationshipId = presentationPart.GetIdOfPart(slidePart) }),
+                new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
+                new NotesSize { Cx = 6858000, Cy = 9144000 });
+            presentationPart.Presentation.InsertAt(
+                new SlideMasterIdList(new SlideMasterId { Id = 2147483648U, RelationshipId = presentationPart.GetIdOfPart(slideMasterPart) }), 0);
+            presentationPart.Presentation.Save();
+        }
+
+        var imagePath = CreateTempImage(PngBytes, ".png");
+
+        var result = _service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, null);
+
+        Assert.False(result.Success);
+        Assert.Contains("Multiple picture shapes named", result.Message);
+        Assert.Contains("shapeIndex", result.Message);
+    }
+
+    [Fact]
+    public void ReplaceImage_EmptyShapeName_ReturnsError()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo");
+        var imagePath = CreateTempImage(PngBytes, ".png");
+
+        var result = _service.ReplaceImage(pptxPath, 1, "   ", null, imagePath, null);
+
+        Assert.False(result.Success);
+        Assert.Contains("Provide either", result.Message);
+    }
+
+    [Fact]
+    public void ReplaceImage_NameFallbackToIndex_UsesShapeIndexFallback()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo", pictureCount: 2);
+        var imagePath = CreateTempImage(PngBytes, ".png");
+
+        // Name doesn't match, but index is valid → shapeIndexFallback
+        var result = _service.ReplaceImage(pptxPath, 1, "NonExistent", 0, imagePath, null);
+
+        Assert.True(result.Success);
+        Assert.Equal("shapeIndexFallback", result.MatchedBy);
+    }
+
+    #endregion
+
+    #region Image bytes and relationship verification
+
+    [Fact]
+    public void ReplaceImage_ReplacesActualImageBytes()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo");
+        var imagePath = CreateTempImage(JpegBytes, ".jpg");
+        var expectedBytes = File.ReadAllBytes(imagePath);
+
+        _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+
+        using var doc = PresentationDocument.Open(pptxPath, false);
+        var slidePart = (SlidePart)doc.PresentationPart!.GetPartById(
+            doc.PresentationPart.Presentation.SlideIdList!.Elements<SlideId>().First().RelationshipId!.Value!);
+        var blip = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Picture>().First()
+            .GetFirstChild<P.BlipFill>()!.GetFirstChild<A.Blip>()!;
+        var part = slidePart.GetPartById(blip.Embed!.Value!);
+
+        using var stream = part.GetStream();
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        Assert.Equal(expectedBytes, ms.ToArray());
+    }
+
+    [Fact]
+    public void ReplaceImage_OtherPicturesPreserved()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo", pictureCount: 3);
+        var imagePath = CreateTempImage(JpegBytes, ".jpg");
+
+        // Replace the middle picture (index 1)
+        _service.ReplaceImage(pptxPath, 1, null, 1, imagePath, null);
+
+        // All 3 pictures should still exist
+        using var doc = PresentationDocument.Open(pptxPath, false);
+        var slidePart = (SlidePart)doc.PresentationPart!.GetPartById(
+            doc.PresentationPart.Presentation.SlideIdList!.Elements<SlideId>().First().RelationshipId!.Value!);
+        var pictures = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Picture>().ToList();
+        Assert.Equal(3, pictures.Count);
+    }
+
+    [Fact]
+    public void ReplaceImage_ShapeIdPreserved()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo");
+
+        // Capture original shape ID
+        uint? originalId;
+        using (var doc = PresentationDocument.Open(pptxPath, false))
+        {
+            var slidePart = (SlidePart)doc.PresentationPart!.GetPartById(
+                doc.PresentationPart.Presentation.SlideIdList!.Elements<SlideId>().First().RelationshipId!.Value!);
+            originalId = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Picture>().First()
+                .NonVisualPictureProperties?.NonVisualDrawingProperties?.Id?.Value;
+        }
+
+        var imagePath = CreateTempImage(JpegBytes, ".jpg");
+        _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+
+        using var doc2 = PresentationDocument.Open(pptxPath, false);
+        var slidePart2 = (SlidePart)doc2.PresentationPart!.GetPartById(
+            doc2.PresentationPart.Presentation.SlideIdList!.Elements<SlideId>().First().RelationshipId!.Value!);
+        var newId = slidePart2.Slide.CommonSlideData!.ShapeTree!.Elements<Picture>().First()
+            .NonVisualPictureProperties?.NonVisualDrawingProperties?.Id?.Value;
+
+        Assert.Equal(originalId, newId);
+    }
+
+    [Fact]
+    public void ReplaceImage_CrossFormatReplacement_TracksPreviousContentType()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo"); // starts as PNG
+        var imagePath = CreateTempImage(JpegBytes, ".jpg");
+
+        var result = _service.ReplaceImage(pptxPath, 1, "Photo", null, imagePath, null);
+
+        Assert.True(result.Success);
+        Assert.Equal("image/png", result.PreviousImageContentType);
+        Assert.Equal("image/jpeg", result.NewImageContentType);
+    }
+
+    [Fact]
+    public void ReplaceImage_SuccessiveReplacements_AllSucceed()
+    {
+        var pptxPath = CreatePptxWithPicture("Photo");
+        var firstImage = CreateTempImage(JpegBytes, ".jpg");
+        var secondImage = CreateTempImage(PngBytes, ".png");
+
+        var r1 = _service.ReplaceImage(pptxPath, 1, "Photo", null, firstImage, "First");
+        Assert.True(r1.Success);
+
+        var r2 = _service.ReplaceImage(pptxPath, 1, "Photo", null, secondImage, "Second");
+        Assert.True(r2.Success);
+        Assert.Equal("image/jpeg", r2.PreviousImageContentType);
+        Assert.Equal("image/png", r2.NewImageContentType);
+        Assert.Equal("Second", r2.AltText);
+    }
+
+    [Fact]
+    public void ReplaceImage_OnSecondSlide_TargetsCorrectSlide()
+    {
+        // Create two-slide deck with images
+        var pptxPath = TrackTempFile();
+        TestPptxHelper.CreatePresentation(pptxPath,
+        [
+            new TestSlideDefinition { TitleText = "Slide 1", IncludeImage = true },
+            new TestSlideDefinition { TitleText = "Slide 2", IncludeImage = true }
+        ]);
+        var imagePath = CreateTempImage(JpegBytes, ".jpg");
+
+        var result = _service.ReplaceImage(pptxPath, 2, null, 0, imagePath, null);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.SlideNumber);
+    }
+
+    [Fact]
+    public void ReplaceImage_WithTemplateDeckPictures_Succeeds()
+    {
+        var pptxPath = TrackTempFile();
+        TemplateDeckHelper.CreateTemplatePresentation(pptxPath);
+        var imagePath = CreateTempImage(PngBytes, ".png");
+
+        // TemplateDeckHelper's source slide has Picture shapes at indices 0 and 1
+        var result = _service.ReplaceImage(pptxPath, 1, null, 0, imagePath, null);
+
+        Assert.True(result.Success);
+        Assert.Equal("shapeIndex", result.MatchedBy);
+    }
+
+    [Fact]
+    public void ReplaceImage_ValidationErrorCountUnchanged()
+    {
+        var pptxPath = CreatePptxWithPicture("Logo");
+        var imagePath = CreateTempImage(JpegBytes, ".jpg");
+
+        using var baselineDoc = PresentationDocument.Open(pptxPath, false);
+        var validator = new OpenXmlValidator();
+        var baselineCount = validator.Validate(baselineDoc).Count();
+        baselineDoc.Dispose();
+
+        _service.ReplaceImage(pptxPath, 1, "Logo", null, imagePath, "Company Logo");
+
+        using var postDoc = PresentationDocument.Open(pptxPath, false);
+        var postCount = validator.Validate(postDoc).Count();
+
+        Assert.Equal(baselineCount, postCount);
+    }
+
     #endregion
 
     #region PowerPoint compatibility
