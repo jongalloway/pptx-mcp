@@ -154,34 +154,26 @@ public class ImageReplaceToolTests : PptxTestBase
 
     #region File not found error messages
 
-    [Fact]
-    public async Task pptx_replace_image_PptxNotFound_ReturnsJsonError()
+    [Theory]
+    [InlineData(false, true, "File not found", "nonexistent_file.pptx")]
+    [InlineData(true, false, "Image file not found", "nonexistent_image.png")]
+    public async Task pptx_replace_image_MissingFile_ReturnsJsonError(
+        bool pptxExists, bool imageExists, string expectedMessage, string expectedFileName)
     {
-        var fakePptx = Path.Join(Path.GetTempPath(), "nonexistent_file.pptx");
-        var imagePath = CreateTempImage(PngBytes, ".png");
+        var pptxPath = pptxExists
+            ? CreatePptxWithPicture("Photo")
+            : Path.Join(Path.GetTempPath(), "nonexistent_file.pptx");
+        var imagePath = imageExists
+            ? CreateTempImage(PngBytes, ".png")
+            : Path.Join(Path.GetTempPath(), "nonexistent_image.png");
 
-        var json = await _tools.pptx_replace_image(fakePptx, 1, "Photo", null, imagePath, null);
+        var json = await _tools.pptx_replace_image(pptxPath, 1, "Photo", null, imagePath, null);
 
         var result = JsonSerializer.Deserialize<ImageReplaceResult>(json);
         Assert.NotNull(result);
         Assert.False(result!.Success);
-        Assert.Contains("File not found", result.Message);
-        Assert.Contains("nonexistent_file.pptx", result.Message);
-    }
-
-    [Fact]
-    public async Task pptx_replace_image_ImageNotFound_ReturnsJsonError()
-    {
-        var pptxPath = CreatePptxWithPicture("Photo");
-        var fakeImage = Path.Join(Path.GetTempPath(), "nonexistent_image.png");
-
-        var json = await _tools.pptx_replace_image(pptxPath, 1, "Photo", null, fakeImage, null);
-
-        var result = JsonSerializer.Deserialize<ImageReplaceResult>(json);
-        Assert.NotNull(result);
-        Assert.False(result!.Success);
-        Assert.Contains("Image file not found", result.Message);
-        Assert.Contains("nonexistent_image.png", result.Message);
+        Assert.Contains(expectedMessage, result.Message);
+        Assert.Contains(expectedFileName, result.Message);
     }
 
     #endregion
