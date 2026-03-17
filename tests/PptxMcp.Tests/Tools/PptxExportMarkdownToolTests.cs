@@ -1,31 +1,19 @@
 namespace PptxMcp.Tests.Tools;
 
-public class PptxExportMarkdownToolTests : IDisposable
+[Trait("Category", "Integration")]
+public class PptxExportMarkdownToolTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly PptxTools _tools;
-    private readonly List<string> _tempArtifacts = [];
 
     public PptxExportMarkdownToolTests()
     {
-        _tools = new PptxTools(_service);
-    }
-
-    public void Dispose()
-    {
-        foreach (var artifact in _tempArtifacts.OrderByDescending(path => path.Length))
-        {
-            if (File.Exists(artifact))
-                File.Delete(artifact);
-            else if (Directory.Exists(artifact))
-                Directory.Delete(artifact, recursive: true);
-        }
+        _tools = new PptxTools(Service);
     }
 
     [Fact]
     public async Task pptx_export_markdown_ReturnsMarkdownAndWritesFile()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Tool Output",
@@ -56,19 +44,11 @@ public class PptxExportMarkdownToolTests : IDisposable
         Assert.StartsWith("Error:", result);
     }
 
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempArtifacts.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private string CreateOutputPath()
     {
         var directory = Path.Join(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(directory);
-        _tempArtifacts.Add(directory);
+        TrackTempFile(directory);
         return Path.Join(directory, "tool-output.md");
     }
 }

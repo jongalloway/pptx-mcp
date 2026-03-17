@@ -3,6 +3,7 @@ using PptxMcp.Prompts;
 
 namespace PptxMcp.Tests.Prompts;
 
+[Trait("Category", "Integration")]
 public class PptxPromptsTests
 {
     private readonly PptxPrompts _prompts = new();

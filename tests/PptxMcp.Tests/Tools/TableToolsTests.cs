@@ -7,21 +7,14 @@ namespace PptxMcp.Tests.Tools;
 /// Written proactively for Issue #36 — table insert and update tools.
 /// These tests verify JSON output format, error handling, and parameter validation at the MCP tool layer.
 /// </summary>
-public class TableToolsTests : IDisposable
+[Trait("Category", "Integration")]
+public class TableToolsTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly PptxTools _tools;
-    private readonly List<string> _tempFiles = [];
 
     public TableToolsTests()
     {
-        _tools = new PptxTools(_service);
-    }
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
+        _tools = new PptxTools(Service);
     }
 
     // ────────────────────────────────────────────────────────
@@ -31,7 +24,7 @@ public class TableToolsTests : IDisposable
     [Fact]
     public async Task pptx_insert_table_ReturnsStructuredJson()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition { TitleText = "Data Slide" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Data Slide" });
         var headers = new[] { "Region", "Revenue" };
         var rows = new[] { new[] { "NA", "3.2M" }, new[] { "EMEA", "1.4M" } };
 
@@ -48,7 +41,7 @@ public class TableToolsTests : IDisposable
     [Fact]
     public async Task pptx_insert_table_ReturnsTableName_WhenSpecified()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition { TitleText = "Named" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Named" });
         var headers = new[] { "Col1" };
         var rows = new[] { new[] { "Val1" } };
 
@@ -60,34 +53,43 @@ public class TableToolsTests : IDisposable
         Assert.Equal("My Table", insertResult.TableName);
     }
 
-    [Fact]
-    public async Task pptx_insert_table_FileNotFound_ReturnsStructuredFailure()
+    // ────────────────────────────────────────────────────────
+    // File-not-found: both table tools
+    // ────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("pptx_insert_table")]
+    [InlineData("pptx_update_table")]
+    public async Task FileNotFound_ReturnsError(string toolName)
     {
         var fakePath = "C:\\does-not-exist\\file.pptx";
-        var headers = new[] { "A" };
-        var rows = new[] { new[] { "1" } };
-
-        var result = await _tools.pptx_insert_table(fakePath, 1, headers, rows);
-
-        // Should either return JSON with Success=false or Error: prefix
-        var isErrorString = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
-        if (!isErrorString)
+        var result = toolName switch
         {
-            var insertResult = JsonSerializer.Deserialize<TableInsertResult>(result);
-            Assert.NotNull(insertResult);
-            Assert.False(insertResult.Success);
-            Assert.Contains("not found", insertResult.Message, StringComparison.OrdinalIgnoreCase);
+            "pptx_insert_table" => await _tools.pptx_insert_table(fakePath, 1, ["A"], [["1"]]),
+            "pptx_update_table" => await _tools.pptx_update_table(fakePath, 1,
+                tableName: "Missing", updates: [new TableCellUpdate(0, 0, "X")]),
+            _ => throw new ArgumentException($"Unknown tool: {toolName}")
+        };
+
+        var isErrorString = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
+        if (isErrorString)
+        {
+            Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
         }
         else
         {
-            Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
+            using var doc = JsonDocument.Parse(result);
+            Assert.False(doc.RootElement.GetProperty("Success").GetBoolean());
+            Assert.Contains("not found",
+                doc.RootElement.GetProperty("Message").GetString()!,
+                StringComparison.OrdinalIgnoreCase);
         }
     }
 
     [Fact]
     public async Task pptx_insert_table_InvalidSlideNumber_ReturnsError()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition { TitleText = "Single" });
+        var path = CreatePptxWithSlides(new TestSlideDefinition { TitleText = "Single" });
         var headers = new[] { "A" };
         var rows = new[] { new[] { "1" } };
 
@@ -127,29 +129,6 @@ public class TableToolsTests : IDisposable
     }
 
     [Fact]
-    public async Task pptx_update_table_FileNotFound_ReturnsError()
-    {
-        var fakePath = "C:\\does-not-exist\\file.pptx";
-
-        var result = await _tools.pptx_update_table(fakePath, 1,
-            tableName: "Missing",
-            updates: [new TableCellUpdate(0, 0, "X")]);
-
-        var isErrorString = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
-        if (!isErrorString)
-        {
-            var updateResult = JsonSerializer.Deserialize<TableUpdateResult>(result);
-            Assert.NotNull(updateResult);
-            Assert.False(updateResult.Success);
-            Assert.Contains("not found", updateResult.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        else
-        {
-            Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
-    [Fact]
     public async Task pptx_update_table_TableNotFound_ReturnsFailure()
     {
         var path = CreatePptxWithTable("Actual", [["A"], ["1"]]);
@@ -186,8 +165,8 @@ public class TableToolsTests : IDisposable
             ]);
 
         // Verify via service-level read
-        var slideContent = _service.GetSlideContent(path, 0);
-        var tableShape = slideContent.Shapes.First(s => s.ShapeType == "Table");
+        var slideContent = Service.GetSlideContent(path, 0);
+        var tableShape = Assert.Single(slideContent.Shapes, s => s.ShapeType == "Table");
         Assert.Equal("4.8M", tableShape.TableRows![1][1]);
         Assert.Equal("118%", tableShape.TableRows[2][1]);
     }
@@ -196,17 +175,9 @@ public class TableToolsTests : IDisposable
     // Helpers
     // ────────────────────────────────────────────────────────
 
-    private string CreateCustomPptx(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private string CreatePptxWithTable(string tableName, IReadOnlyList<IReadOnlyList<string>> rows)
     {
-        return CreateCustomPptx(new TestSlideDefinition
+        return CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Table Slide",
             Tables =

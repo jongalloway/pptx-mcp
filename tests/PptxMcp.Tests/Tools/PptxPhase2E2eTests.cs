@@ -5,32 +5,20 @@ using DocumentFormat.OpenXml.Validation;
 
 namespace PptxMcp.Tests.Tools;
 
-public class PptxPhase2E2eTests : IDisposable
+[Trait("Category", "E2E")]
+public class PptxPhase2E2eTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly PptxTools _tools;
-    private readonly List<string> _tempArtifacts = [];
 
     public PptxPhase2E2eTests()
     {
-        _tools = new PptxTools(_service);
-    }
-
-    public void Dispose()
-    {
-        foreach (var artifact in _tempArtifacts.OrderByDescending(path => path.Length))
-        {
-            if (File.Exists(artifact))
-                File.Delete(artifact);
-            else if (Directory.Exists(artifact))
-                Directory.Delete(artifact, recursive: true);
-        }
+        _tools = new PptxTools(Service);
     }
 
     [Fact]
     public async Task Phase2Workflow_MultiSourceDeck_ReadsFetchesUpdatesAndVerifiesAcrossMultipleSlides()
     {
-        var path = CreatePresentation(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Q3 Operating Review",
@@ -285,19 +273,11 @@ public class PptxPhase2E2eTests : IDisposable
         return talkingPoints;
     }
 
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempArtifacts.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
     private string CreateOutputPath(string fileName)
     {
         var directory = Path.Join(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(directory);
-        _tempArtifacts.Add(directory);
+        TrackTempFile(directory);
         return Path.Join(directory, fileName);
     }
 
@@ -326,12 +306,12 @@ public class PptxPhase2E2eTests : IDisposable
         Assert.NotNull(slideIds);
         Assert.Equal(expectedSlideCount, slideIds!.Count);
 
-        foreach (var slideId in slideIds)
+        Assert.All(slideIds, slideId =>
         {
             var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
             Assert.NotNull(slidePart.Slide);
             Assert.NotNull(slidePart.Slide.CommonSlideData?.ShapeTree);
-        }
+        });
     }
 
     private static List<string> ValidatePresentation(string path)

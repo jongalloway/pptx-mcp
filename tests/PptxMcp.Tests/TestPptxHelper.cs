@@ -95,8 +95,8 @@ internal static class TestPptxHelper
 
         presentationPart.Presentation = new Presentation(
             slideIdList,
-            new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
-            new NotesSize { Cx = 6858000, Cy = 9144000 });
+            new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5, Type = SlideSizeValues.Screen4x3 },
+            new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
 
         var slideMasterIdList = new SlideMasterIdList(
             new SlideMasterId
@@ -127,50 +127,50 @@ internal static class TestPptxHelper
                 "Title 1",
                 [new TestParagraphDefinition { Text = slideDefinition.TitleText }],
                 PlaceholderValues.CenteredTitle,
-                457200,
-                274320,
-                8229600,
-                685800));
+                Emu.HalfInch,
+                Emu.Inches0_3,
+                Emu.Inches9,
+                Emu.ThreeQuartersInch));
         }
 
-        long currentY = 1371600;
+        long currentY = Emu.Inches1_5;
         foreach (var textShape in slideDefinition.TextShapes)
         {
             var paragraphDefinitions = textShape.ParagraphDefinitions.Count > 0
                 ? textShape.ParagraphDefinitions
                 : textShape.Paragraphs.Select(paragraph => new TestParagraphDefinition { Text = paragraph }).ToList();
 
-            long height = textShape.Height ?? Math.Max(685800, 342900L * Math.Max(1, paragraphDefinitions.Count));
+            long height = textShape.Height ?? Math.Max(Emu.ThreeQuartersInch, Emu.ThreeEighthsInch * Math.Max(1, paragraphDefinitions.Count));
             shapeTree.Append(CreateTextShape(
                 nextShapeId,
                 string.IsNullOrWhiteSpace(textShape.Name) ? $"Text {nextShapeId}" : textShape.Name!,
                 paragraphDefinitions,
                 textShape.PlaceholderType,
-                textShape.X ?? 914400,
+                textShape.X ?? Emu.OneInch,
                 textShape.Y ?? currentY,
-                textShape.Width ?? 7315200,
+                textShape.Width ?? Emu.Inches8,
                 height));
             nextShapeId++;
 
             if (textShape.Y is null)
-                currentY += height + 228600;
+                currentY += height + Emu.QuarterInch;
         }
 
         foreach (var table in slideDefinition.Tables)
         {
-            long height = table.Height ?? 1371600;
+            long height = table.Height ?? Emu.Inches1_5;
             shapeTree.Append(CreateTable(
                 nextShapeId,
                 string.IsNullOrWhiteSpace(table.Name) ? $"Table {nextShapeId}" : table.Name!,
                 table,
-                table.X ?? 914400,
+                table.X ?? Emu.OneInch,
                 table.Y ?? currentY,
-                table.Width ?? 7315200,
+                table.Width ?? Emu.Inches8,
                 height));
             nextShapeId++;
 
             if (table.Y is null)
-                currentY += height + 228600;
+                currentY += height + Emu.QuarterInch;
         }
 
         var slide = new Slide(
@@ -186,10 +186,10 @@ internal static class TestPptxHelper
             shapeTree.Append(CreatePicture(
                 nextShapeId++,
                 slidePart.GetIdOfPart(imagePart),
-                914400,
+                Emu.OneInch,
                 currentY,
-                3657600,
-                2743200));
+                Emu.Inches4,
+                Emu.Inches3));
         }
 
         return slide;
@@ -281,7 +281,7 @@ internal static class TestPptxHelper
             ? new List<List<string>> { new() { string.Empty } }
             : table.Rows.Select(row => row.Count == 0 ? new List<string> { string.Empty } : row.ToList()).ToList();
         var columnCount = rows.Max(row => row.Count);
-        var rowHeight = Math.Max(342900L, height / rows.Count);
+        var rowHeight = Math.Max(Emu.ThreeEighthsInch, height / rows.Count);
         var columnWidth = Math.Max(1L, width / columnCount);
 
         var drawingTable = new A.Table(new A.TableProperties { FirstRow = true, BandRow = true });
@@ -323,10 +323,10 @@ internal static class TestPptxHelper
                 }));
     }
 
-    private static Picture CreatePicture(uint shapeId, string relationshipId, long x, long y, long width, long height) =>
+    internal static Picture CreatePicture(uint shapeId, string relationshipId, long x, long y, long width, long height, string? name = null) =>
         new(
             new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Picture {shapeId}" },
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = name ?? $"Picture {shapeId}" },
                 new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
                 new ApplicationNonVisualDrawingProperties()),
             new P.BlipFill(
@@ -339,7 +339,7 @@ internal static class TestPptxHelper
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
 }
 
-internal sealed class TestSlideDefinition
+public sealed class TestSlideDefinition
 {
     public string? TitleText { get; init; }
 
@@ -352,7 +352,7 @@ internal sealed class TestSlideDefinition
     public bool IncludeImage { get; init; }
 }
 
-internal sealed class TestTextShapeDefinition
+public sealed class TestTextShapeDefinition
 {
     public string? Name { get; init; }
 
@@ -371,7 +371,7 @@ internal sealed class TestTextShapeDefinition
     public long? Height { get; init; }
 }
 
-internal sealed class TestParagraphDefinition
+public sealed class TestParagraphDefinition
 {
     public string? Text { get; init; }
 
@@ -382,7 +382,7 @@ internal sealed class TestParagraphDefinition
     public bool IsNumbered { get; init; }
 }
 
-internal sealed class TestTableDefinition
+public sealed class TestTableDefinition
 {
     public string? Name { get; init; }
 

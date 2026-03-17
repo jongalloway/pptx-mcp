@@ -6,11 +6,10 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Tests.Tools;
 
-public class ImageReplaceToolTests : IDisposable
+[Trait("Category", "Integration")]
+public class ImageReplaceToolTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly PptxTools _tools;
-    private readonly List<string> _tempFiles = [];
 
     private static readonly byte[] PngBytes = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nZxQAAAAASUVORK5CYII=");
@@ -20,25 +19,19 @@ public class ImageReplaceToolTests : IDisposable
 
     public ImageReplaceToolTests()
     {
-        _tools = new PptxTools(_service);
+        _tools = new PptxTools(Service);
     }
 
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
-    private string TrackTempFile(string extension = ".pptx")
+    private string CreateTrackedPath(string extension = ".pptx")
     {
         var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + extension);
-        _tempFiles.Add(path);
+        TrackTempFile(path);
         return path;
     }
 
     private string CreatePptxWithPicture(string pictureName = "Photo")
     {
-        var pptxPath = TrackTempFile();
+        var pptxPath = CreateTrackedPath();
         using var doc = DocumentFormat.OpenXml.Packaging.PresentationDocument.Create(
             pptxPath, DocumentFormat.OpenXml.PresentationDocumentType.Presentation);
 
@@ -88,26 +81,16 @@ public class ImageReplaceToolTests : IDisposable
                 new ApplicationNonVisualDrawingProperties()),
             new GroupShapeProperties(new A.TransformGroup()));
 
-        shapeTree.Append(new Picture(
-            new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties { Id = 2, Name = pictureName },
-                new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
-                new ApplicationNonVisualDrawingProperties()),
-            new P.BlipFill(
-                new A.Blip { Embed = slidePart.GetIdOfPart(imagePart) },
-                new A.Stretch(new A.FillRectangle())),
-            new P.ShapeProperties(
-                new A.Transform2D(
-                    new A.Offset { X = 914400, Y = 914400 },
-                    new A.Extents { Cx = 3657600, Cy = 2743200 }),
-                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
+        shapeTree.Append(TestPptxHelper.CreatePicture(
+            2, slidePart.GetIdOfPart(imagePart),
+            914400, 914400, 3657600, 2743200, pictureName));
 
         slidePart.Slide = new Slide(new CommonSlideData(shapeTree), new ColorMapOverride(new A.MasterColorMapping()));
 
         presentationPart.Presentation = new Presentation(
             new SlideIdList(new SlideId { Id = 256, RelationshipId = presentationPart.GetIdOfPart(slidePart) }),
-            new SlideSize { Cx = 9144000, Cy = 6858000, Type = SlideSizeValues.Screen4x3 },
-            new NotesSize { Cx = 6858000, Cy = 9144000 });
+            new SlideSize { Cx = (int)Emu.Inches10, Cy = (int)Emu.Inches7_5, Type = SlideSizeValues.Screen4x3 },
+            new NotesSize { Cx = (int)Emu.Inches7_5, Cy = (int)Emu.Inches10 });
         presentationPart.Presentation.InsertAt(
             new SlideMasterIdList(new SlideMasterId { Id = 2147483648U, RelationshipId = presentationPart.GetIdOfPart(slideMasterPart) }), 0);
         presentationPart.Presentation.Save();
@@ -117,7 +100,7 @@ public class ImageReplaceToolTests : IDisposable
 
     private string CreateTempImage(byte[] bytes, string extension = ".png")
     {
-        var path = TrackTempFile(extension);
+        var path = CreateTrackedPath(extension);
         File.WriteAllBytes(path, bytes);
         return path;
     }
@@ -162,34 +145,26 @@ public class ImageReplaceToolTests : IDisposable
 
     #region File not found error messages
 
-    [Fact]
-    public async Task pptx_replace_image_PptxNotFound_ReturnsJsonError()
+    [Theory]
+    [InlineData(false, true, "File not found", "nonexistent_file.pptx")]
+    [InlineData(true, false, "Image file not found", "nonexistent_image.png")]
+    public async Task pptx_replace_image_MissingFile_ReturnsJsonError(
+        bool pptxExists, bool imageExists, string expectedMessage, string expectedFileName)
     {
-        var fakePptx = Path.Join(Path.GetTempPath(), "nonexistent_file.pptx");
-        var imagePath = CreateTempImage(PngBytes, ".png");
+        var pptxPath = pptxExists
+            ? CreatePptxWithPicture("Photo")
+            : Path.Join(Path.GetTempPath(), "nonexistent_file.pptx");
+        var imagePath = imageExists
+            ? CreateTempImage(PngBytes, ".png")
+            : Path.Join(Path.GetTempPath(), "nonexistent_image.png");
 
-        var json = await _tools.pptx_replace_image(fakePptx, 1, "Photo", null, imagePath, null);
+        var json = await _tools.pptx_replace_image(pptxPath, 1, "Photo", null, imagePath, null);
 
         var result = JsonSerializer.Deserialize<ImageReplaceResult>(json);
         Assert.NotNull(result);
         Assert.False(result!.Success);
-        Assert.Contains("File not found", result.Message);
-        Assert.Contains("nonexistent_file.pptx", result.Message);
-    }
-
-    [Fact]
-    public async Task pptx_replace_image_ImageNotFound_ReturnsJsonError()
-    {
-        var pptxPath = CreatePptxWithPicture("Photo");
-        var fakeImage = Path.Join(Path.GetTempPath(), "nonexistent_image.png");
-
-        var json = await _tools.pptx_replace_image(pptxPath, 1, "Photo", null, fakeImage, null);
-
-        var result = JsonSerializer.Deserialize<ImageReplaceResult>(json);
-        Assert.NotNull(result);
-        Assert.False(result!.Success);
-        Assert.Contains("Image file not found", result.Message);
-        Assert.Contains("nonexistent_image.png", result.Message);
+        Assert.Contains(expectedMessage, result.Message);
+        Assert.Contains(expectedFileName, result.Message);
     }
 
     #endregion

@@ -4,104 +4,81 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace PptxMcp.Tests.Services;
 
-public class PresentationServiceTests : IDisposable
+[Trait("Category", "Unit")]
+public class PresentationServiceTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
-    private readonly List<string> _tempFiles = new();
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
-    private string CreateTempPptx(string? titleText = "Test Slide")
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreateMinimalPresentation(path, titleText);
-        return path;
-    }
-
-    private string CreateCustomPptx(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
 
     [Fact]
     public void GetSlides_ReturnsCorrectCount()
     {
-        var path = CreateTempPptx();
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx();
+        var slides = Service.GetSlides(path);
         Assert.Single(slides);
     }
 
     [Fact]
     public void GetSlides_ReturnsCorrectTitle()
     {
-        var path = CreateTempPptx("Hello World");
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx("Hello World");
+        var slides = Service.GetSlides(path);
         Assert.Equal("Hello World", slides[0].Title);
     }
 
     [Fact]
     public void GetSlides_SlideHasCorrectIndex()
     {
-        var path = CreateTempPptx();
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx();
+        var slides = Service.GetSlides(path);
         Assert.Equal(0, slides[0].Index);
     }
 
     [Fact]
     public void GetLayouts_ReturnsLayouts()
     {
-        var path = CreateTempPptx();
-        var layouts = _service.GetLayouts(path);
+        var path = CreateMinimalPptx();
+        var layouts = Service.GetLayouts(path);
         Assert.NotEmpty(layouts);
     }
 
     [Fact]
     public void GetLayouts_LayoutHasName()
     {
-        var path = CreateTempPptx();
-        var layouts = _service.GetLayouts(path);
+        var path = CreateMinimalPptx();
+        var layouts = Service.GetLayouts(path);
         Assert.All(layouts, layout => Assert.NotNull(layout.Name));
     }
 
     [Fact]
     public void AddSlide_IncreasesSlideCount()
     {
-        var path = CreateTempPptx();
-        var before = _service.GetSlides(path);
-        _service.AddSlide(path, null);
-        var after = _service.GetSlides(path);
+        var path = CreateMinimalPptx();
+        var before = Service.GetSlides(path);
+        Service.AddSlide(path, null);
+        var after = Service.GetSlides(path);
         Assert.Equal(before.Count + 1, after.Count);
     }
 
     [Fact]
     public void AddSlide_ReturnsNewSlideIndex()
     {
-        var path = CreateTempPptx();
-        var newIndex = _service.AddSlide(path, null);
+        var path = CreateMinimalPptx();
+        var newIndex = Service.AddSlide(path, null);
         Assert.Equal(1, newIndex);
     }
 
     [Fact]
     public void UpdateTextPlaceholder_ChangesTextContent()
     {
-        var path = CreateTempPptx("Original Title");
-        _service.UpdateTextPlaceholder(path, 0, 0, "Updated Title");
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx("Original Title");
+        Service.UpdateTextPlaceholder(path, 0, 0, "Updated Title");
+        var slides = Service.GetSlides(path);
         Assert.Equal("Updated Title", slides[0].Title);
     }
 
     [Fact]
     public void UpdateSlideData_UpdatesShapeByNameAndPreservesParagraphProperties()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Dashboard",
@@ -124,13 +101,13 @@ public class PresentationServiceTests : IDisposable
                 ]
             });
 
-        var result = _service.UpdateSlideData(path, 1, "Revenue Value", null, "18%");
+        var result = Service.UpdateSlideData(path, 1, "Revenue Value", null, "18%");
 
         Assert.True(result.Success);
         Assert.Equal("shapeName", result.MatchedBy);
         Assert.Equal("12%", result.PreviousText);
 
-        var content = _service.GetSlideContent(path, 0);
+        var content = Service.GetSlideContent(path, 0);
         var updatedShape = Assert.Single(content.Shapes, shape => shape.Name == "Revenue Value");
         Assert.Equal("18%", updatedShape.Text);
 
@@ -152,7 +129,7 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void UpdateSlideData_UpdatesShapeByIndexWithUnicodeText()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Dashboard",
@@ -171,13 +148,13 @@ public class PresentationServiceTests : IDisposable
                 ]
             });
 
-        var result = _service.UpdateSlideData(path, 1, null, 2, "Δ 45% — 売上高");
+        var result = Service.UpdateSlideData(path, 1, null, 2, "Δ 45% — 売上高");
 
         Assert.True(result.Success);
         Assert.Equal("placeholderIndex", result.MatchedBy);
         Assert.Equal("Revenue Value", result.ResolvedShapeName);
 
-        var content = _service.GetSlideContent(path, 0);
+        var content = Service.GetSlideContent(path, 0);
         var updatedShape = Assert.Single(content.Shapes, shape => shape.Name == "Revenue Value");
         Assert.Equal("Δ 45% — 売上高", updatedShape.Text);
     }
@@ -185,7 +162,7 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void UpdateSlideData_ReturnsFailureWhenShapeIsMissing()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Dashboard",
@@ -199,7 +176,7 @@ public class PresentationServiceTests : IDisposable
                 ]
             });
 
-        var result = _service.UpdateSlideData(path, 1, "Missing Shape", null, "18%");
+        var result = Service.UpdateSlideData(path, 1, "Missing Shape", null, "18%");
 
         Assert.False(result.Success);
         Assert.Contains("Available shapes", result.Message);
@@ -209,9 +186,9 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void UpdateSlideData_ReturnsFailureWhenSlideNumberIsOutOfRange()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
 
-        var result = _service.UpdateSlideData(path, 2, "Title 1", null, "Updated");
+        var result = Service.UpdateSlideData(path, 2, "Title 1", null, "Updated");
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message);
@@ -220,8 +197,8 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void GetSlideXml_ReturnsXmlString()
     {
-        var path = CreateTempPptx();
-        var xml = _service.GetSlideXml(path, 0);
+        var path = CreateMinimalPptx();
+        var xml = Service.GetSlideXml(path, 0);
         Assert.NotNull(xml);
         Assert.Contains("sld", xml);
     }
@@ -229,24 +206,24 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void GetSlideXml_OutOfRange_ThrowsException()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            _service.GetSlideXml(path, 99));
+            Service.GetSlideXml(path, 99));
     }
 
     [Fact]
     public void GetSlideContent_ReturnsSlideIndex()
     {
-        var path = CreateTempPptx();
-        var content = _service.GetSlideContent(path, 0);
+        var path = CreateMinimalPptx();
+        var content = Service.GetSlideContent(path, 0);
         Assert.Equal(0, content.SlideIndex);
     }
 
     [Fact]
     public void GetSlideContent_ReturnsSlideDimensions()
     {
-        var path = CreateTempPptx();
-        var content = _service.GetSlideContent(path, 0);
+        var path = CreateMinimalPptx();
+        var content = Service.GetSlideContent(path, 0);
         Assert.True(content.SlideWidthEmu > 0);
         Assert.True(content.SlideHeightEmu > 0);
     }
@@ -254,53 +231,50 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void GetSlideContent_ReturnsShapes()
     {
-        var path = CreateTempPptx();
-        var content = _service.GetSlideContent(path, 0);
+        var path = CreateMinimalPptx();
+        var content = Service.GetSlideContent(path, 0);
         Assert.NotEmpty(content.Shapes);
     }
 
     [Fact]
     public void GetSlideContent_TitleShapeHasText()
     {
-        var path = CreateTempPptx("My Title");
-        var content = _service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
-        Assert.NotNull(titleShape);
+        var path = CreateMinimalPptx("My Title");
+        var content = Service.GetSlideContent(path, 0);
+        var titleShape = Assert.Single(content.Shapes, shape => shape.IsPlaceholder);
         Assert.Equal("My Title", titleShape.Text);
     }
 
     [Fact]
     public void GetSlideContent_TitleShapeIsTextType()
     {
-        var path = CreateTempPptx();
-        var content = _service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
-        Assert.NotNull(titleShape);
+        var path = CreateMinimalPptx();
+        var content = Service.GetSlideContent(path, 0);
+        var titleShape = Assert.Single(content.Shapes, shape => shape.IsPlaceholder);
         Assert.Equal("Text", titleShape.ShapeType);
     }
 
     [Fact]
     public void GetSlideContent_TitleShapeHasPlaceholderType()
     {
-        var path = CreateTempPptx();
-        var content = _service.GetSlideContent(path, 0);
-        var titleShape = content.Shapes.FirstOrDefault(shape => shape.IsPlaceholder);
-        Assert.NotNull(titleShape);
+        var path = CreateMinimalPptx();
+        var content = Service.GetSlideContent(path, 0);
+        var titleShape = Assert.Single(content.Shapes, shape => shape.IsPlaceholder);
         Assert.NotNull(titleShape.PlaceholderType);
     }
 
     [Fact]
     public void GetSlideContent_OutOfRange_ThrowsException()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            _service.GetSlideContent(path, 99));
+            Service.GetSlideContent(path, 99));
     }
 
     [Fact]
     public void ExtractTalkingPoints_ReturnsRankedBodyPoints()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Release Overview",
@@ -320,7 +294,7 @@ public class PresentationServiceTests : IDisposable
                 ]
             });
 
-        var talkingPoints = _service.ExtractTalkingPoints(path, 2);
+        var talkingPoints = Service.ExtractTalkingPoints(path, 2);
 
         Assert.Single(talkingPoints);
         Assert.Equal(
@@ -334,7 +308,7 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void ExtractTalkingPoints_FiltersPresenterNotesAndFormattingOnlyText()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TextShapes =
@@ -353,7 +327,7 @@ public class PresentationServiceTests : IDisposable
                 ]
             });
 
-        var talkingPoints = _service.ExtractTalkingPoints(path);
+        var talkingPoints = Service.ExtractTalkingPoints(path);
 
         Assert.Single(talkingPoints[0].Points);
         Assert.Equal("Key metric improved 25%", talkingPoints[0].Points[0]);
@@ -362,13 +336,13 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void ExtractTalkingPoints_ReturnsEmptyForImageOnlySlide()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 IncludeImage = true
             });
 
-        var talkingPoints = _service.ExtractTalkingPoints(path);
+        var talkingPoints = Service.ExtractTalkingPoints(path);
 
         Assert.Empty(talkingPoints[0].Points);
     }
@@ -376,9 +350,9 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void ExtractTalkingPoints_ReturnsEmptyForEmptySlide()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition());
+        var path = CreatePptxWithSlides(new TestSlideDefinition());
 
-        var talkingPoints = _service.ExtractTalkingPoints(path);
+        var talkingPoints = Service.ExtractTalkingPoints(path);
 
         Assert.Empty(talkingPoints[0].Points);
     }
@@ -386,13 +360,13 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void ExtractTalkingPoints_TitleOnlySlideFallsBackToTitle()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Quarterly Update"
             });
 
-        var talkingPoints = _service.ExtractTalkingPoints(path);
+        var talkingPoints = Service.ExtractTalkingPoints(path);
 
         Assert.Single(talkingPoints[0].Points);
         Assert.Equal("Quarterly Update", talkingPoints[0].Points[0]);
@@ -401,15 +375,15 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void ExtractTalkingPoints_InvalidTopN_ThrowsException()
     {
-        var path = CreateTempPptx();
+        var path = CreateMinimalPptx();
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => _service.ExtractTalkingPoints(path, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Service.ExtractTalkingPoints(path, 0));
     }
 
     [Fact]
     public void ExtractTalkingPoints_ProcessesRealisticMultiSlideDeck()
     {
-        var path = CreateCustomPptx(
+        var path = CreatePptxWithSlides(
             new TestSlideDefinition
             {
                 TitleText = "Executive Summary",
@@ -455,7 +429,7 @@ public class PresentationServiceTests : IDisposable
                 IncludeImage = true
             });
 
-        var talkingPoints = _service.ExtractTalkingPoints(path, 2);
+        var talkingPoints = Service.ExtractTalkingPoints(path, 2);
 
         Assert.Equal(3, talkingPoints.Count);
         Assert.Equal(
@@ -476,35 +450,35 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void WriteNotes_CreatesNotesOnSlideWithoutExistingNotes()
     {
-        var path = CreateTempPptx();
-        _service.WriteNotes(path, 0, "Source: https://example.com");
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx();
+        Service.WriteNotes(path, 0, "Source: https://example.com");
+        var slides = Service.GetSlides(path);
         Assert.Equal("Source: https://example.com", slides[0].Notes);
     }
 
     [Fact]
     public void WriteNotes_ReplacesExistingNotes()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Slide",
             SpeakerNotesText = "Old notes"
         });
-        _service.WriteNotes(path, 0, "New notes");
-        var slides = _service.GetSlides(path);
+        Service.WriteNotes(path, 0, "New notes");
+        var slides = Service.GetSlides(path);
         Assert.Equal("New notes", slides[0].Notes);
     }
 
     [Fact]
     public void WriteNotes_AppendToExistingNotes()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Slide",
             SpeakerNotesText = "First"
         });
-        _service.WriteNotes(path, 0, "Second", append: true);
-        var slides = _service.GetSlides(path);
+        Service.WriteNotes(path, 0, "Second", append: true);
+        var slides = Service.GetSlides(path);
         Assert.NotNull(slides[0].Notes);
         Assert.Contains("First", slides[0].Notes);
         Assert.Contains("Second", slides[0].Notes);
@@ -513,9 +487,9 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void WriteNotes_AppendToEmptyNotes_SetsNotesWithoutLeadingNewline()
     {
-        var path = CreateTempPptx();
-        _service.WriteNotes(path, 0, "Only note", append: true);
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx();
+        Service.WriteNotes(path, 0, "Only note", append: true);
+        var slides = Service.GetSlides(path);
         Assert.NotNull(slides[0].Notes);
         Assert.Contains("Only note", slides[0].Notes);
     }
@@ -523,15 +497,15 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void WriteNotes_MultiParagraph_PreservesAllParagraphs()
     {
-        var path = CreateTempPptx();
-        _service.WriteNotes(path, 0, "Line one\nLine two\nLine three");
+        var path = CreateMinimalPptx();
+        Service.WriteNotes(path, 0, "Line one\nLine two\nLine three");
         using var doc = PresentationDocument.Open(path, false);
         var slideIdList = doc.PresentationPart!.Presentation.SlideIdList!;
         var slidePart = (SlidePart)doc.PresentationPart.GetPartById(
             slideIdList.Elements<SlideId>().First().RelationshipId!.Value!);
         var notesSlide = slidePart.NotesSlidePart!.NotesSlide;
-        var bodyShape = notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>()
-            .First(s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?
+        var bodyShape = Assert.Single(notesSlide.CommonSlideData!.ShapeTree!.Elements<Shape>(),
+            s => s.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?
                 .PlaceholderShape?.Type?.Value == PlaceholderValues.Body);
         var paragraphs = bodyShape.TextBody!.Elements<A.Paragraph>().ToList();
         Assert.Equal(3, paragraphs.Count);
@@ -540,8 +514,8 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void WriteNotes_CreatesNotesMasterPartWhenMissing()
     {
-        var path = CreateTempPptx();
-        _service.WriteNotes(path, 0, "Verify master");
+        var path = CreateMinimalPptx();
+        Service.WriteNotes(path, 0, "Verify master");
         using var doc = PresentationDocument.Open(path, false);
         Assert.NotNull(doc.PresentationPart!.NotesMasterPart);
     }
@@ -550,10 +524,10 @@ public class PresentationServiceTests : IDisposable
     public void WriteNotes_AppendToMultiParagraphNotes_PreservesParagraphBoundaries()
     {
         // Existing notes have two paragraphs; append should not collapse them into one blob
-        var path = CreateTempPptx();
-        _service.WriteNotes(path, 0, "Para one\nPara two");
-        _service.WriteNotes(path, 0, "Para three", append: true);
-        var slides = _service.GetSlides(path);
+        var path = CreateMinimalPptx();
+        Service.WriteNotes(path, 0, "Para one\nPara two");
+        Service.WriteNotes(path, 0, "Para three", append: true);
+        var slides = Service.GetSlides(path);
         Assert.NotNull(slides[0].Notes);
         Assert.Contains("Para one", slides[0].Notes);
         Assert.Contains("Para two", slides[0].Notes);
@@ -566,12 +540,12 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void WriteNotes_ExistingNotesSlidePart_LinksNotesMasterPart()
     {
-        var path = CreateCustomPptx(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Slide",
             SpeakerNotesText = "Original"
         });
-        _service.WriteNotes(path, 0, "Updated");
+        Service.WriteNotes(path, 0, "Updated");
         using var doc = PresentationDocument.Open(path, false);
         var slideIdList = doc.PresentationPart!.Presentation.SlideIdList!;
         var slidePart = (SlidePart)doc.PresentationPart.GetPartById(
@@ -582,7 +556,7 @@ public class PresentationServiceTests : IDisposable
     [Fact]
     public void WriteNotes_OutOfRangeSlideIndex_Throws()
     {
-        var path = CreateTempPptx();
-        Assert.Throws<ArgumentOutOfRangeException>(() => _service.WriteNotes(path, 99, "notes"));
+        var path = CreateMinimalPptx();
+        Assert.Throws<ArgumentOutOfRangeException>(() => Service.WriteNotes(path, 99, "notes"));
     }
 }
