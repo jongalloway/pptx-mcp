@@ -19,7 +19,7 @@ public partial class PptxTools
     /// <param name="layoutName">Layout name. Required for AddFromLayout. Optional for Add (defaults to first available layout). Use pptx_list_layouts to discover available values.</param>
     /// <param name="slideNumber">1-based slide number to duplicate. Required for Duplicate action.</param>
     /// <param name="placeholderValues">Optional placeholder text values keyed by semantic type with optional :index suffix (e.g. Title, Body:1, Picture:2). Used by AddFromLayout and Duplicate actions.</param>
-    /// <param name="insertAt">Optional 1-based insertion position. Defaults to end of deck for Add/AddFromLayout, or after the source slide for Duplicate.</param>
+    /// <param name="insertAt">Optional 1-based insertion position. Applies to AddFromLayout and Duplicate only. Defaults to end of deck for AddFromLayout, or after the source slide for Duplicate.</param>
     [McpServerTool(Title = "Manage Slides")]
     [McpMeta("consolidatedTool", true)]
     [McpMeta("actions", JsonValue = """["Add","AddFromLayout","Duplicate"]""")]
