@@ -560,3 +560,118 @@ How dotnet-mcp consolidated 70+ tools into ~10 using enum-based action parameter
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+---
+
+## Tool Consolidation: Slide Creation & Ordering (Issue #69)
+
+**Date:** 2026-03-18  
+**Lead:** McCauley (design), Cheritto (implementation), McCauley (review)  
+**Status:** COMPLETED (PR #76 merged)  
+**Scope:** Two surgical tool merges only
+
+### API Design Summary
+
+Consolidated four tools into two:
+
+1. **pptx_manage_slides** — absorbs:
+   - pptx_add_slide (removed)
+   - pptx_add_slide_from_layout (removed)
+   - pptx_duplicate_slide (removed)
+
+2. **pptx_reorder_slides** (expanded) — absorbs:
+   - pptx_move_slide (removed)
+
+### Key Decisions
+
+- **Action Dispatch:** C# enum-based (required, non-nullable). SDK validates at protocol level.
+- **Parameter Design:** All action-specific parameters nullable with default 
+ull; validated in switch branches.
+- **Backward Compatibility:** Clean break — old tool methods removed entirely. MCP clients refresh on reconnect. No redirect stubs needed (project not announced yet).
+- **Service Layer:** Untouched — PresentationService methods unchanged.
+- **Result Types:** Action-specific records:
+  - AddSlideResult — new, for Add action
+  - SlideOrderResult — new, for Move/Reorder actions
+  - Existing AddSlideFromLayoutResult, DuplicateSlideResult reused as-is
+- **Zero-Based Index Fix:** AddSlideResult returns 1-based slide number (
+ewIndex + 1), fixing inconsistency in old pptx_add_slide.
+- **Tool Metadata:** XML doc <summary> lists all actions; [McpMeta("actions")] provides machine-readable action array.
+
+### Implementation
+
+**New files created:**
+- src/PptxMcp/Models/ManageSlidesAction.cs
+- src/PptxMcp/Models/ReorderSlidesAction.cs
+- src/PptxMcp/Models/AddSlideResult.cs
+- src/PptxMcp/Models/SlideOrderResult.cs
+- src/PptxMcp/Tools/PptxTools.ManageSlides.cs
+- src/PptxMcp/Tools/PptxTools.ReorderSlides.cs
+
+**Modified files:**
+- src/PptxMcp/Tools/PptxTools.cs (removed old methods)
+- src/PptxMcp/Tools/PptxTools.TemplateSlides.cs (removed old methods)
+- Test suite updated
+- README.md updated
+
+**Test Results:** All 377 tests passing.
+
+**Review Verdict:** APPROVED (all 9 checklist items passed).
+
+**Merge Status:** PR #76 squash-merged. Issue #69 auto-closed.
+
+---
+
+## User Directive: Backward Compatibility Scope
+
+**Date:** 2026-03-18 09:22Z  
+**Source:** Jon Galloway (via Copilot)  
+**Decision:** No backward compatibility required for tool consolidation (#69).
+
+**Rationale:**
+- Project not announced publicly yet
+- No external users
+- Clean break acceptable
+
+**Implication:** Old tool method removals (stubs/redirects) unnecessary. MCP clients refresh on reconnect.
+
+---
+
+## DocumentFormat.OpenXml 3.5.0 Upgrade Research
+
+**Date:** 2026-03-17  
+**Author:** Nate (Consulting Dev)  
+**Status:** Recommendation for Squad Review  
+**Recommendation:** ✅ Safe to upgrade (3.4.1 → 3.5.0). No breaking changes. No code changes required.
+
+### Findings
+
+**3.5.0 Release (Mar 13, 2025):**
+- Scope: Minor release, purely schema/namespace additions
+- Additions: Office2016 chart attributes, ExtensionDropMode enum
+- Breaking Changes: None
+
+**3.4.1 Benefits (already in use):**
+- Performance: ~2.4× faster base64 decoding, ~70% less memory allocation
+- Features: MP4 video support (MediaDataPartType.Mp4)
+- Schema: Updated to Q3 2025 Office release
+- Reliability: Fixed XML serialization, better error messages
+
+### Upgrade Path
+
+1. Update src/PptxMcp/PptxMcp.csproj line 26
+2. Run dotnet restore
+3. Run full test suite
+4. Commit
+
+### Risk Assessment
+
+| Category | Level |
+|----------|-------|
+| Breaking Changes | ✅ None |
+| PPTX Compatibility | ✅ Low |
+| Test Coverage | ✅ Low |
+| Performance | ✅ None |
+
+**Timeline:** 15–20 minutes
+
+**Decision Point:** Can approve as Tier 1 polish or defer to later sprint
