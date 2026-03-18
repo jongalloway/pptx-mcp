@@ -89,3 +89,21 @@
 - Private helper `BuildTableRow()` creates rows with full cell structure; reusable for both header and data rows.
 - Tool methods are thin wrappers returning JSON (matching `pptx_update_slide_data` pattern) with structured error results for file-not-found and exceptions.
 - PR #46 created on branch `squad/36-table-tools`.
+
+### Issue #75 — OpenXML upgrade blocked (2026-03-17)
+- Issue requested upgrade of DocumentFormat.OpenXml from 3.4.1 to 3.5.0
+- **Blocked:** Version 3.5.0 does not exist on NuGet; 3.4.1 is the latest published release as of 2026-03-17
+- Verified via `dotnet package search` and NuGet gallery — no pre-release versions available either
+- Commented on issue #75 with findings; no branch/PR created since there's nothing to ship
+- Recommendation: revisit when 3.5.0 is actually published
+
+### Tool consolidation — Issue #69 (2026-03-18)
+- Consolidated `pptx_add_slide`, `pptx_add_slide_from_layout`, `pptx_duplicate_slide` into `pptx_manage_slides` with `ManageSlidesAction` enum (Add, AddFromLayout, Duplicate)
+- Expanded `pptx_reorder_slides` to absorb `pptx_move_slide` via `ReorderSlidesAction` enum (Move, Reorder)
+- All consolidated tool methods are `partial` and use `[McpMeta]` for machine-readable action lists
+- `AddSlide` now returns structured JSON (`AddSlideResult`) instead of plain text; zero-based index from service converted to 1-based in tool layer
+- `pptx_move_slide` and old `pptx_reorder_slides` now return structured `SlideOrderResult` JSON instead of plain text
+- Test assertions updated: "Error:" prefix checks became "File not found" or structured JSON checks for tools that moved to `ExecuteToolStructured`
+- `placeholderOverrides` parameter renamed to `placeholderValues` in the consolidated tool for consistency
+- 6 new files, 1 deleted file (PptxTools.TemplateSlides.cs), 4 modified source files, 3 modified test files
+- 377/377 tests passing, build warnings dropped from ~76 to ~42 (dead code removed)

@@ -92,3 +92,14 @@
 - Orchestration log written to `.squad/orchestration-log/2026-03-17T0607Z-mccauley.md`
 - Session log written to `.squad/log/2026-03-17T0607Z-quality-phase.md`
 - Decisions merged to decisions.md; inbox files deleted
+
+### Tool Consolidation API Design (2026-03-18)
+
+- Designed API for issue #69 targeted tool consolidation (scoped to two surgical merges per Jon's direction)
+- **Consolidation 1 — `pptx_manage_slides`:** Absorbs `pptx_add_slide`, `pptx_add_slide_from_layout`, `pptx_duplicate_slide` behind a `ManageSlidesAction` enum (Add, AddFromLayout, Duplicate)
+- **Consolidation 2 — `pptx_reorder_slides` (expanded):** Absorbs `pptx_move_slide` behind a `ReorderSlidesAction` enum (Move, Reorder)
+- **Pattern follows dotnet-mcp:** C# enums for action params, all action-specific params nullable with per-action validation, `[McpMeta]` for machine-readable action lists
+- **Key decisions:** Required action param (no default), clean break (no stub redirects), per-action result types (not a unified union), structured JSON for all actions
+- **New artifacts:** 4 model files (2 enums, 2 result records), 2 tool partial class files; old tool methods deleted
+- **Risk flags for Cheritto:** Enum deserialization casing, zero-based index conversion for AddSlide, `partial` keyword requirement, test assertion updates (Add action now returns JSON not plain text)
+- Decision document written to `.squad/decisions/inbox/mccauley-tool-consolidation-api.md`

@@ -76,17 +76,6 @@ public sealed partial class PptxTools
     public Task<string> pptx_list_layouts(string filePath) =>
         ExecuteToolJson(filePath, () => _service.GetLayouts(filePath));
 
-    /// <summary>Add a new slide to a PowerPoint presentation.</summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    /// <param name="layoutName">Optional name of the slide layout to use. Defaults to the first available layout.</param>
-    [McpServerTool(Title = "Add Slide")]
-    public Task<string> pptx_add_slide(string filePath, string? layoutName = null) =>
-        ExecuteTool(filePath, () =>
-        {
-            var newIndex = _service.AddSlide(filePath, layoutName);
-            return $"Slide added successfully at index {newIndex}.";
-        });
-
     /// <summary>Update the text of a placeholder on a slide.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideIndex">Zero-based index of the slide to update.</param>
@@ -245,18 +234,6 @@ public sealed partial class PptxTools
     public Task<string> pptx_export_markdown(string filePath, string? outputPath = null) =>
         ExecuteTool(filePath, () => _service.ExportMarkdown(filePath, outputPath).Markdown);
 
-    /// <summary>Move a slide to a different position in the presentation.</summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    /// <param name="slideNumber">1-based number of the slide to move.</param>
-    /// <param name="targetPosition">1-based position to move the slide to.</param>
-    [McpServerTool(Title = "Move Slide")]
-    public Task<string> pptx_move_slide(string filePath, int slideNumber, int targetPosition) =>
-        ExecuteTool(filePath, () =>
-        {
-            _service.MoveSlide(filePath, slideNumber, targetPosition);
-            return $"Slide {slideNumber} moved to position {targetPosition} successfully.";
-        });
-
     /// <summary>Delete a slide from the presentation by its 1-based slide number.</summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="slideNumber">1-based number of the slide to delete.</param>
@@ -266,21 +243,6 @@ public sealed partial class PptxTools
         {
             _service.DeleteSlide(filePath, slideNumber);
             return $"Slide {slideNumber} deleted successfully.";
-        });
-
-    /// <summary>
-    /// Reorder all slides in a presentation by providing the new sequence as a 1-based array.
-    /// Every slide must appear exactly once in the new order.
-    /// For example, to reverse a 3-slide deck, pass [3, 2, 1].
-    /// </summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    /// <param name="newOrder">Array specifying the new slide order using 1-based slide numbers. Must be a permutation of 1..n.</param>
-    [McpServerTool(Title = "Reorder Slides")]
-    public Task<string> pptx_reorder_slides(string filePath, int[] newOrder) =>
-        ExecuteTool(filePath, () =>
-        {
-            _service.ReorderSlides(filePath, newOrder);
-            return $"Slides reordered successfully.";
         });
 
     /// <summary>

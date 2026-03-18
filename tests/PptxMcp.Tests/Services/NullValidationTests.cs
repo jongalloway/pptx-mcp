@@ -235,8 +235,8 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task MoveSlide_NullFilePath_ReturnsError()
     {
-        var result = await _tools.pptx_move_slide(null!, 1, 2);
-        Assert.Contains("Error", result);
+        var result = await _tools.pptx_reorder_slides(null!, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 2);
+        Assert.Contains("File not found", result);
     }
 
     [Fact]
@@ -249,8 +249,8 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task ReorderSlides_NullFilePath_ReturnsError()
     {
-        var result = await _tools.pptx_reorder_slides(null!, [1]);
-        Assert.Contains("Error", result);
+        var result = await _tools.pptx_reorder_slides(null!, ReorderSlidesAction.Reorder, newOrder: [1]);
+        Assert.Contains("File not found", result);
     }
 
     [Fact]
@@ -263,8 +263,8 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task AddSlide_NullFilePath_ReturnsError()
     {
-        var result = await _tools.pptx_add_slide(null!);
-        Assert.Contains("Error", result);
+        var result = await _tools.pptx_manage_slides(null!, ManageSlidesAction.Add);
+        Assert.Contains("File not found", result);
     }
 
     [Fact]
