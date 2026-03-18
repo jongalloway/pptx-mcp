@@ -44,7 +44,7 @@ public sealed class PptxPrompts
     /// <summary>
     /// Generate a step-by-step workflow for adding a new agenda slide that lists the
     /// current slide titles as agenda items.
-    /// Note: <c>pptx_add_slide</c> always appends the new slide at the end of the deck.
+    /// Note: <c>pptx_manage_slides</c> with the Add action appends the new slide at the end of the deck.
     /// </summary>
     /// <param name="filePath">Absolute path to the .pptx file.</param>
     [McpServerPrompt(Name = "create-agenda-slide", Title = "Create Agenda Slide")]
@@ -61,12 +61,12 @@ public sealed class PptxPrompts
                     Please follow these steps:
                     1. Use pptx_list_slides to get all current slide titles.
                     2. Use pptx_list_layouts to find an appropriate layout (prefer "Title and Content" layouts for agenda slides).
-                    3. Use pptx_add_slide with the chosen layout to add the new slide at the end of the deck.
+                    3. Use pptx_manage_slides with action Add and the chosen layout to add the new slide at the end of the deck.
                     4. Use pptx_get_slide_content on the new slide to find the title and body placeholder names.
                     5. Use pptx_update_slide_data to set the title to "Agenda" and the body to a bulleted list of the other slide titles.
                     6. Confirm the agenda slide was created and summarize its content.
 
-                    Note: pptx_add_slide always appends slides at the end of the deck. If a specific position is required, reorder the slides in PowerPoint after the agent completes this workflow.
+                    Note: pptx_manage_slides with the Add action always appends slides at the end of the deck. If a specific position is required, use pptx_reorder_slides with the Move action afterwards.
                     The agenda items should include all slides except the title slide and the new agenda slide itself.
                     """
             }

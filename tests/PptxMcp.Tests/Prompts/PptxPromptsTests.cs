@@ -99,11 +99,11 @@ public class PptxPromptsTests
     }
 
     [Fact]
-    public void CreateAgendaSlide_MentionsAddSlideTool()
+    public void CreateAgendaSlide_MentionsManageSlidesTool()
     {
         var messages = _prompts.CreateAgendaSlide("/deck.pptx").ToList();
         var text = GetMessageText(messages[0]);
-        Assert.Contains("pptx_add_slide", text);
+        Assert.Contains("pptx_manage_slides", text);
     }
 
     [Fact]

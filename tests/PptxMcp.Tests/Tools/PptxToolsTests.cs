@@ -32,9 +32,7 @@ public class PptxToolsTests : PptxTestBase
     [InlineData("pptx_get_slide_content")]
     [InlineData("pptx_extract_talking_points")]
     [InlineData("pptx_write_notes")]
-    [InlineData("pptx_move_slide")]
     [InlineData("pptx_delete_slide")]
-    [InlineData("pptx_reorder_slides")]
     public async Task FileNotFound_ReturnsError(string toolName)
     {
         var fakePath = "C:\\does-not-exist\\file.pptx";
@@ -45,12 +43,28 @@ public class PptxToolsTests : PptxTestBase
             "pptx_get_slide_content" => await _tools.pptx_get_slide_content(fakePath, 0),
             "pptx_extract_talking_points" => await _tools.pptx_extract_talking_points(fakePath),
             "pptx_write_notes" => await _tools.pptx_write_notes(fakePath, 0, "notes"),
-            "pptx_move_slide" => await _tools.pptx_move_slide(fakePath, 1, 2),
             "pptx_delete_slide" => await _tools.pptx_delete_slide(fakePath, 1),
-            "pptx_reorder_slides" => await _tools.pptx_reorder_slides(fakePath, [1, 2]),
             _ => throw new ArgumentException($"Unknown tool: {toolName}")
         };
         Assert.StartsWith("Error:", result);
+    }
+
+    [Theory]
+    [InlineData("Move")]
+    [InlineData("Reorder")]
+    public async Task FileNotFound_ReorderSlides_ReturnsStructuredError(string actionName)
+    {
+        var fakePath = "C:\\does-not-exist\\file.pptx";
+        var result = actionName switch
+        {
+            "Move" => await _tools.pptx_reorder_slides(fakePath, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 2),
+            "Reorder" => await _tools.pptx_reorder_slides(fakePath, ReorderSlidesAction.Reorder, newOrder: [1, 2]),
+            _ => throw new ArgumentException($"Unknown action: {actionName}")
+        };
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("File not found", parsed.Message);
     }
 
     [Fact]
@@ -70,11 +84,16 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_add_slide_ReturnsSuccessMessage()
+    public async Task pptx_manage_slides_Add_ReturnsStructuredJson()
     {
         var path = CreateMinimalPptx();
-        var result = await _tools.pptx_add_slide(path);
-        Assert.Contains("successfully", result);
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Add);
+        var addResult = JsonSerializer.Deserialize<AddSlideResult>(result);
+
+        Assert.NotNull(addResult);
+        Assert.True(addResult.Success);
+        Assert.Equal(2, addResult.SlideNumber);
+        Assert.Contains("Added slide", addResult.Message);
     }
 
     [Fact]
@@ -86,11 +105,11 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_add_slide_from_layout_ReturnsStructuredJson()
+    public async Task pptx_manage_slides_AddFromLayout_ReturnsStructuredJson()
     {
         var path = CreateTemplatePptx();
 
-        var result = await _tools.pptx_add_slide_from_layout(path, TemplateDeckHelper.TitleBodyLayoutName, new Dictionary<string, string>
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.AddFromLayout, layoutName: TemplateDeckHelper.TitleBodyLayoutName, placeholderValues: new Dictionary<string, string>
         {
             ["Title"] = "Agenda",
             ["Body:1"] = "Wins",
@@ -105,11 +124,11 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_add_slide_from_layout_ReturnsStructuredFailureJson()
+    public async Task pptx_manage_slides_AddFromLayout_ReturnsStructuredFailureJson()
     {
         var path = CreateTemplatePptx();
 
-        var result = await _tools.pptx_add_slide_from_layout(path, "Missing Layout");
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.AddFromLayout, layoutName: "Missing Layout");
         var addResult = JsonSerializer.Deserialize<AddSlideFromLayoutResult>(result);
 
         Assert.NotNull(addResult);
@@ -118,11 +137,11 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_duplicate_slide_ReturnsStructuredJson()
+    public async Task pptx_manage_slides_Duplicate_ReturnsStructuredJson()
     {
         var path = CreateTemplatePptx();
 
-        var result = await _tools.pptx_duplicate_slide(path, 1, new Dictionary<string, string>
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Duplicate, slideNumber: 1, placeholderValues: new Dictionary<string, string>
         {
             ["Title"] = "Duplicated Review"
         });
@@ -398,16 +417,19 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_move_slide_ReturnsSuccessMessage()
+    public async Task pptx_reorder_slides_Move_ReturnsStructuredJson()
     {
         var path = CreatePptxWithSlides(
             new TestSlideDefinition { TitleText = "Slide A" },
             new TestSlideDefinition { TitleText = "Slide B" },
             new TestSlideDefinition { TitleText = "Slide C" });
 
-        var result = await _tools.pptx_move_slide(path, 1, 3);
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 3);
 
-        Assert.Contains("successfully", result);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+        Assert.Equal("Move", parsed.Action);
         var slides = Service.GetSlides(path);
         Assert.Equal("Slide B", slides[0].Title);
         Assert.Equal("Slide C", slides[1].Title);
@@ -415,14 +437,16 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_move_slide_InvalidSlideNumber_ReturnsError()
+    public async Task pptx_reorder_slides_Move_InvalidSlideNumber_ReturnsError()
     {
         var path = CreatePptxWithSlides(
             new TestSlideDefinition { TitleText = "Slide A" },
             new TestSlideDefinition { TitleText = "Slide B" });
 
-        var result = await _tools.pptx_move_slide(path, 5, 1);
-        Assert.StartsWith("Error:", result);
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Move, slideNumber: 5, targetPosition: 1);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
     }
 
     [Fact]
@@ -449,16 +473,19 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_reorder_slides_ReturnsSuccessMessage()
+    public async Task pptx_reorder_slides_Reorder_ReturnsStructuredJson()
     {
         var path = CreatePptxWithSlides(
             new TestSlideDefinition { TitleText = "First" },
             new TestSlideDefinition { TitleText = "Second" },
             new TestSlideDefinition { TitleText = "Third" });
 
-        var result = await _tools.pptx_reorder_slides(path, [3, 1, 2]);
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Reorder, newOrder: [3, 1, 2]);
 
-        Assert.Contains("successfully", result);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+        Assert.Equal("Reorder", parsed.Action);
         var slides = Service.GetSlides(path);
         Assert.Equal("Third", slides[0].Title);
         Assert.Equal("First", slides[1].Title);
@@ -466,26 +493,30 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_reorder_slides_InvalidOrder_ReturnsError()
+    public async Task pptx_reorder_slides_Reorder_InvalidOrder_ReturnsError()
     {
         var path = CreatePptxWithSlides(
             new TestSlideDefinition { TitleText = "A" },
             new TestSlideDefinition { TitleText = "B" });
 
-        var result = await _tools.pptx_reorder_slides(path, [1, 1]);
-        Assert.StartsWith("Error:", result);
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Reorder, newOrder: [1, 1]);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
     }
 
     [Fact]
-    public async Task pptx_reorder_slides_WrongLength_ReturnsError()
+    public async Task pptx_reorder_slides_Reorder_WrongLength_ReturnsError()
     {
         var path = CreatePptxWithSlides(
             new TestSlideDefinition { TitleText = "A" },
             new TestSlideDefinition { TitleText = "B" },
             new TestSlideDefinition { TitleText = "C" });
 
-        var result = await _tools.pptx_reorder_slides(path, [1, 2]);
-        Assert.StartsWith("Error:", result);
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Reorder, newOrder: [1, 2]);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
     }
 
     #region pptx_replace_image tool tests
