@@ -12,8 +12,18 @@ Agent Scribe initialized and ready for work.
 
 ## Recent Updates
 
+📌 **2026-03-18 (0930Z):** Tool consolidation workflow completed
+- Orchestration logs created (McCauley design, Cheritto impl, McCauley review)
+- Session log written
+- Decision inbox merged into decisions.md (4 files consolidated, duplicates removed)
+- Git commit: fde7c1a (squad decisions updated)
+- Status: PR #76 merged, Issue #69 closed, 377 tests passing
+
 📌 Team initialized on 2026-03-16
 
 ## Learnings
 
-Initial setup complete.
+- Tool consolidation via enum-based action dispatch is clean and SDK-native
+- Decision merging centralizes team memory without duplication
+- Orchestration logs provide transparent audit trail of agent work
+- Squad log provides executive summary for each workflow
