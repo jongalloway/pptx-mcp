@@ -73,6 +73,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_replace_image` | Replace an image in an existing picture shape — inherits geometry from the layout, no manual coordinates needed |
 | `pptx_insert_table` | Insert a new table onto a slide with headers and data rows |
 | `pptx_update_table` | Update cell values in an existing table — target by name or zero-based index |
+| `pptx_chart_data` | Read or update data in an existing chart (bar, column, line, pie, area, scatter) — preserves all chart formatting |
 | `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
 | `pptx_move_slide` | Move a slide to a different position |
 | `pptx_delete_slide` | Remove a slide by its 1-based slide number |
@@ -93,6 +94,8 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 **When to use `pptx_insert_table`:** Use `pptx_insert_table` to add a new DrawingML table to a slide. Pass column headers and row data as arrays. Position and size are specified in EMUs (914,400 EMUs = 1 inch); defaults place a full-width table 1.5 inches from the top. Assign a name via `tableName` so you can target the table later with `pptx_update_table`.
 
 **When to use `pptx_update_table`:** Use `pptx_update_table` to overwrite cell values in an existing table. Locate the table by its `tableName` (case-insensitive, takes precedence) or by `tableIndex` (zero-based). Each update targets a cell by zero-based `row` and `column` indices. Out-of-range updates are silently skipped and counted in `CellsSkipped`.
+
+**When to use `pptx_chart_data`:** Use `pptx_chart_data` to read or refresh data in an existing chart without touching its styling. Call with `action: Read` to inspect chart type, series names, categories, and values. Call with `action: Update` to replace values — provide an `updates` array where each entry specifies the zero-based `SeriesIndex` and the new `Values`, `Categories`, and/or `SeriesName`. All chart formatting (colors, fonts, line styles) is preserved. Supports Column, Bar, Line, Pie, Area, Scatter, and their 3D/Doughnut variants. Locate the chart by `chartName` or `chartIndex`; if the slide has only one chart, both may be omitted.
 
 ### Resources
 
@@ -125,7 +128,7 @@ pptx-mcp supports argument auto-completion for:
 - **`shapeName`** — autocompletes shape names across all slides in a single file pass (requires `file` or `filePath` context argument)  
 - **`placeholderType`** — suggests standard OpenXML placeholder type names (`title`, `body`, `ctrTitle`, etc.)
 
-**Limitations:** pptx-mcp updates text content, inserts images, and creates tables. It does not create charts or modify slide master/theme styles. Complex layout changes should be done in PowerPoint directly.
+**Limitations:** pptx-mcp updates text content, inserts images, creates tables, and refreshes data in existing charts. It does not create charts from scratch or modify slide master/theme styles. Complex layout changes should be done in PowerPoint directly.
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)
 

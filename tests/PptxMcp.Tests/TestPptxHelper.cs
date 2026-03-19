@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using A = DocumentFormat.OpenXml.Drawing;
+using C = DocumentFormat.OpenXml.Drawing.Charts;
 using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Tests;
@@ -175,7 +176,7 @@ internal static class TestPptxHelper
 
         var slide = new Slide(
             new CommonSlideData(shapeTree),
-            new ColorMapOverride(new A.MasterColorMapping()));
+            new P.ColorMapOverride(new A.MasterColorMapping()));
 
         if (slideDefinition.IncludeImage)
         {
@@ -190,6 +191,27 @@ internal static class TestPptxHelper
                 currentY,
                 Emu.Inches4,
                 Emu.Inches3));
+        }
+
+        // Charts must be added after the Slide is assigned to the SlidePart so
+        // AddNewPart<ChartPart>() can generate a relationship on the right part.
+        foreach (var chart in slideDefinition.Charts)
+        {
+            long chartHeight = chart.Height ?? Emu.Inches3;
+            var chartPart = slidePart.AddNewPart<ChartPart>();
+            chartPart.ChartSpace = BuildChartSpace(chart);
+            chartPart.ChartSpace.Save();
+
+            var relId = slidePart.GetIdOfPart(chartPart);
+            var chartShapeId = nextShapeId++;
+            shapeTree.Append(CreateChartFrame(
+                chartShapeId,
+                string.IsNullOrWhiteSpace(chart.Name) ? $"Chart {chartShapeId}" : chart.Name!,
+                relId,
+                chart.X ?? Emu.OneInch,
+                chart.Y ?? currentY,
+                chart.Width ?? Emu.Inches8,
+                chartHeight));
         }
 
         return slide;
@@ -207,7 +229,7 @@ internal static class TestPptxHelper
                         new ApplicationNonVisualDrawingProperties()),
                     new GroupShapeProperties(new A.TransformGroup()),
                     CreateSpeakerNotesShape(speakerNotesText))),
-            new ColorMapOverride(new A.MasterColorMapping()));
+            new P.ColorMapOverride(new A.MasterColorMapping()));
         notesSlidePart.AddPart(slidePart);
         notesSlidePart.NotesSlide.Save();
     }
@@ -337,6 +359,182 @@ internal static class TestPptxHelper
                     new A.Offset { X = x, Y = y },
                     new A.Extents { Cx = width, Cy = height }),
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
+
+    private static P.GraphicFrame CreateChartFrame(uint shapeId, string name, string relId, long x, long y, long width, long height) =>
+        new(
+            new P.NonVisualGraphicFrameProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = name },
+                new P.NonVisualGraphicFrameDrawingProperties(),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.Transform(
+                new A.Offset { X = x, Y = y },
+                new A.Extents { Cx = width, Cy = height }),
+            new A.Graphic(
+                new A.GraphicData(new C.ChartReference { Id = relId })
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+                }));
+
+    private static C.ChartSpace BuildChartSpace(TestChartDefinition chart)
+    {
+        var plotArea = new C.PlotArea();
+
+        var seriesList = chart.Series.Count == 0
+            ? [new TestSeriesDefinition { Name = "Series 1", Values = [1.0, 2.0, 3.0] }]
+            : chart.Series;
+
+        var categories = chart.Categories.Count > 0
+            ? chart.Categories.ToArray()
+            : seriesList[0].Values.Select((_, i) => $"Category {i + 1}").ToArray();
+
+        switch (chart.ChartType.ToUpperInvariant())
+        {
+            case "LINE":
+                var lineChart = new C.LineChart(
+                    new C.Grouping { Val = C.GroupingValues.Standard });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    lineChart.Append(BuildLineChartSeries((uint)idx, ser, categories));
+                plotArea.Append(lineChart);
+                break;
+
+            case "PIE":
+                var pieChart = new C.PieChart();
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    pieChart.Append(BuildPieChartSeries((uint)idx, ser, categories));
+                plotArea.Append(pieChart);
+                break;
+
+            case "BAR":
+                var barChartH = new C.BarChart(
+                    new C.BarDirection { Val = C.BarDirectionValues.Bar },
+                    new C.BarGrouping { Val = C.BarGroupingValues.Clustered });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    barChartH.Append(BuildBarChartSeries((uint)idx, ser, categories));
+                plotArea.Append(barChartH);
+                break;
+
+            case "AREA":
+                var areaChart = new C.AreaChart(new C.Grouping { Val = C.GroupingValues.Standard });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    areaChart.Append(BuildAreaChartSeries((uint)idx, ser, categories));
+                plotArea.Append(areaChart);
+                break;
+
+            case "DOUGHNUT":
+                var doughnutChart = new C.DoughnutChart();
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    doughnutChart.Append(BuildPieChartSeries((uint)idx, ser, categories));
+                plotArea.Append(doughnutChart);
+                break;
+
+            case "SCATTER":
+                var scatterChart = new C.ScatterChart(new C.ScatterStyle { Val = C.ScatterStyleValues.Line });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    scatterChart.Append(BuildScatterChartSeries((uint)idx, ser));
+                plotArea.Append(scatterChart);
+                break;
+
+            default: // Column
+                var colChart = new C.BarChart(
+                    new C.BarDirection { Val = C.BarDirectionValues.Column },
+                    new C.BarGrouping { Val = C.BarGroupingValues.Clustered });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    colChart.Append(BuildBarChartSeries((uint)idx, ser, categories));
+                plotArea.Append(colChart);
+                break;
+        }
+
+        return new C.ChartSpace(new C.Chart(plotArea));
+    }
+
+    private static C.BarChartSeries BuildBarChartSeries(uint index, TestSeriesDefinition ser, string[] categories) =>
+        new(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            BuildCategoryAxisData(categories),
+            BuildValues(ser.Values));
+
+    private static C.LineChartSeries BuildLineChartSeries(uint index, TestSeriesDefinition ser, string[] categories) =>
+        new(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            BuildCategoryAxisData(categories),
+            BuildValues(ser.Values));
+
+    private static C.PieChartSeries BuildPieChartSeries(uint index, TestSeriesDefinition ser, string[] categories) =>
+        new(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            BuildCategoryAxisData(categories),
+            BuildValues(ser.Values));
+
+    private static C.AreaChartSeries BuildAreaChartSeries(uint index, TestSeriesDefinition ser, string[] categories) =>
+        new(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            BuildCategoryAxisData(categories),
+            BuildValues(ser.Values));
+
+    private static C.ScatterChartSeries BuildScatterChartSeries(uint index, TestSeriesDefinition ser)
+    {
+        // X values are generated as sequential integers (1, 2, 3, …) because the
+        // test helper does not accept explicit X data — use ser.Values for Y.
+        var xCache = new C.NumberingCache(
+            new C.FormatCode("General"),
+            new C.PointCount { Val = (uint)ser.Values.Count });
+        for (uint i = 0; i < ser.Values.Count; i++)
+            xCache.Append(new C.NumericPoint { Index = i, NumericValue = new C.NumericValue((i + 1).ToString()) });
+
+        var yCache = new C.NumberingCache(
+            new C.FormatCode("General"),
+            new C.PointCount { Val = (uint)ser.Values.Count });
+        for (uint i = 0; i < ser.Values.Count; i++)
+            yCache.Append(new C.NumericPoint
+            {
+                Index = i,
+                NumericValue = new C.NumericValue(ser.Values[(int)i].ToString(System.Globalization.CultureInfo.InvariantCulture))
+            });
+
+        return new C.ScatterChartSeries(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            new C.XValues(new C.NumberReference(new C.Formula(string.Empty), xCache)),
+            new C.YValues(new C.NumberReference(new C.Formula(string.Empty), yCache)));
+    }
+
+    private static C.SeriesText BuildSeriesText(string? name) =>
+        new(new C.StringReference(
+            new C.Formula(string.Empty),
+            new C.StringCache(
+                new C.PointCount { Val = 1U },
+                new C.StringPoint { Index = 0U, NumericValue = new C.NumericValue(name ?? string.Empty) })));
+
+    private static C.CategoryAxisData BuildCategoryAxisData(string[] categories)
+    {
+        var cache = new C.StringCache(new C.PointCount { Val = (uint)categories.Length });
+        for (uint i = 0; i < categories.Length; i++)
+            cache.Append(new C.StringPoint { Index = i, NumericValue = new C.NumericValue(categories[i]) });
+        return new C.CategoryAxisData(new C.StringReference(new C.Formula(string.Empty), cache));
+    }
+
+    private static C.Values BuildValues(IReadOnlyList<double> values)
+    {
+        var cache = new C.NumberingCache(
+            new C.FormatCode("General"),
+            new C.PointCount { Val = (uint)values.Count });
+        for (uint i = 0; i < values.Count; i++)
+            cache.Append(new C.NumericPoint
+            {
+                Index = i,
+                NumericValue = new C.NumericValue(values[(int)i].ToString(System.Globalization.CultureInfo.InvariantCulture))
+            });
+        return new C.Values(new C.NumberReference(new C.Formula(string.Empty), cache));
+    }
 }
 
 public sealed class TestSlideDefinition
@@ -348,6 +546,8 @@ public sealed class TestSlideDefinition
     public IReadOnlyList<TestTextShapeDefinition> TextShapes { get; init; } = [];
 
     public IReadOnlyList<TestTableDefinition> Tables { get; init; } = [];
+
+    public IReadOnlyList<TestChartDefinition> Charts { get; init; } = [];
 
     public bool IncludeImage { get; init; }
 }
@@ -395,4 +595,34 @@ public sealed class TestTableDefinition
     public long? Width { get; init; }
 
     public long? Height { get; init; }
+}
+
+public sealed class TestChartDefinition
+{
+    /// <summary>Shape name for the chart GraphicFrame. Defaults to "Chart {id}".</summary>
+    public string? Name { get; init; }
+
+    /// <summary>Chart type: Column (default), Bar, Line, Pie.</summary>
+    public string ChartType { get; init; } = "Column";
+
+    /// <summary>Category labels shared across all series. When empty, generated as "Category 1", "Category 2", …</summary>
+    public IReadOnlyList<string> Categories { get; init; } = [];
+
+    /// <summary>One or more series to include in the chart.</summary>
+    public IReadOnlyList<TestSeriesDefinition> Series { get; init; } = [];
+
+    public long? X { get; init; }
+
+    public long? Y { get; init; }
+
+    public long? Width { get; init; }
+
+    public long? Height { get; init; }
+}
+
+public sealed class TestSeriesDefinition
+{
+    public string? Name { get; init; }
+
+    public IReadOnlyList<double> Values { get; init; } = [1.0, 2.0, 3.0];
 }
