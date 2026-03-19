@@ -29,6 +29,10 @@ public partial class PresentationService
 
         var (chartType, series) = ExtractChartData(chartPart);
 
+        if (chartType == "Unknown")
+            return new ChartDataResult(false, slideNumber, resolvedName, matchedBy, chartType, 0, [],
+                $"Chart '{resolvedName}' on slide {slideNumber} uses an unsupported chart type.");
+
         return new ChartDataResult(
             Success: true,
             SlideNumber: slideNumber,
@@ -62,12 +66,32 @@ public partial class PresentationService
         var (chartPart, resolvedName) = GetChartPart(slidePart, targetFrame);
 
         var (chartType, seriesElements) = GetChartSeriesElements(chartPart);
+
+        if (chartType == "Unknown")
+            return new ChartUpdateResult(false, slideNumber, resolvedName, matchedBy, chartType, 0,
+                $"Chart '{resolvedName}' on slide {slideNumber} uses an unsupported chart type.");
+
         int seriesUpdated = 0;
 
         foreach (var update in updates)
         {
             if (update.SeriesIndex < 0 || update.SeriesIndex >= seriesElements.Count)
                 continue;
+
+            if (update.Categories is not null &&
+                update.Values is not null &&
+                update.Categories.Length != update.Values.Length)
+            {
+                return new ChartUpdateResult(
+                    Success: false,
+                    SlideNumber: slideNumber,
+                    ChartName: resolvedName,
+                    MatchedBy: matchedBy,
+                    ChartType: chartType,
+                    SeriesUpdated: seriesUpdated,
+                    Message: $"Series {update.SeriesIndex} has {update.Categories.Length} categories but {update.Values.Length} values. " +
+                             "When both are provided, Categories and Values must have the same length.");
+            }
 
             var seriesElement = seriesElements[update.SeriesIndex];
             ApplySeriesUpdate(seriesElement, update);
@@ -131,8 +155,12 @@ public partial class PresentationService
             return (chartFrames[chartIndex.Value], "chartIndex");
         }
 
-        // Multiple charts, no selector — default to first
-        return (chartFrames[0], "chartIndex");
+        // Multiple charts, no selector — throw with list of available charts
+        var availableCharts = string.Join(", ",
+            chartFrames.Select((gf, i) =>
+                $"{i}:{gf.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Name?.Value ?? "(unnamed)"}"));
+        throw new InvalidOperationException(
+            $"Slide {slideNumber} has {chartFrames.Count} charts. Specify chartName or chartIndex. Available charts: {availableCharts}");
     }
 
     private static (ChartPart ChartPart, string? ResolvedName) GetChartPart(SlidePart slidePart, P.GraphicFrame frame)
@@ -213,6 +241,15 @@ public partial class PresentationService
     private static ChartSeriesData ExtractSeriesData(OpenXmlCompositeElement seriesElement, int index)
     {
         var seriesName = GetSeriesNameFromElement(seriesElement);
+
+        // Scatter series uses XValues/YValues instead of CategoryAxisData/Values
+        if (seriesElement is C.ScatterChartSeries)
+        {
+            var xValues = GetScatterXValues(seriesElement);
+            var yValues = GetScatterYValues(seriesElement);
+            return new ChartSeriesData(index, seriesName, xValues, yValues);
+        }
+
         var categories = GetStringCacheValues(seriesElement.GetFirstChild<C.CategoryAxisData>());
         var values = GetNumericCacheValues(seriesElement.GetFirstChild<C.Values>());
         return new ChartSeriesData(index, seriesName, categories, values);
@@ -267,11 +304,11 @@ public partial class PresentationService
         var numCache = valuesElement.GetFirstChild<C.NumberReference>()?.GetFirstChild<C.NumberingCache>();
         if (numCache is null) return [];
 
-        return numCache.Elements<C.NumericPoint>()
+        var rawValues = numCache.Elements<C.NumericPoint>()
             .OrderBy(pt => pt.Index?.Value ?? 0)
-            .Select(pt => double.TryParse(pt.NumericValue?.InnerText, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0.0)
+            .Select(pt => pt.NumericValue?.InnerText ?? string.Empty)
             .ToArray();
+        return ParseDoubles(rawValues);
     }
 
     private static void ApplySeriesUpdate(OpenXmlCompositeElement seriesElement, ChartSeriesUpdate update)
@@ -279,11 +316,21 @@ public partial class PresentationService
         if (update.SeriesName is not null)
             UpdateSeriesName(seriesElement, update.SeriesName);
 
-        if (update.Categories is not null)
-            UpdateCategoryCache(seriesElement, update.Categories);
-
-        if (update.Values is not null)
-            UpdateValueCache(seriesElement, update.Values);
+        // Scatter series uses XValues/YValues instead of CategoryAxisData/Values
+        if (seriesElement is C.ScatterChartSeries)
+        {
+            if (update.Categories is not null)
+                UpdateScatterXValues(seriesElement, update.Categories);
+            if (update.Values is not null)
+                UpdateScatterYValues(seriesElement, update.Values);
+        }
+        else
+        {
+            if (update.Categories is not null)
+                UpdateCategoryCache(seriesElement, update.Categories);
+            if (update.Values is not null)
+                UpdateValueCache(seriesElement, update.Values);
+        }
     }
 
     private static void UpdateSeriesName(OpenXmlCompositeElement seriesElement, string newName)
@@ -367,6 +414,55 @@ public partial class PresentationService
 
         RebuildNumberingCache(numCache, values);
     }
+
+    private static string[] GetScatterXValues(OpenXmlCompositeElement seriesElement)
+    {
+        var numCache = seriesElement.GetFirstChild<C.XValues>()
+            ?.GetFirstChild<C.NumberReference>()
+            ?.GetFirstChild<C.NumberingCache>();
+        if (numCache is null) return [];
+        return numCache.Elements<C.NumericPoint>()
+            .OrderBy(pt => pt.Index?.Value ?? 0)
+            .Select(pt => pt.NumericValue?.InnerText ?? string.Empty)
+            .ToArray();
+    }
+
+    private static double[] GetScatterYValues(OpenXmlCompositeElement seriesElement)
+    {
+        var numCache = seriesElement.GetFirstChild<C.YValues>()
+            ?.GetFirstChild<C.NumberReference>()
+            ?.GetFirstChild<C.NumberingCache>();
+        if (numCache is null) return [];
+        var rawValues = numCache.Elements<C.NumericPoint>()
+            .OrderBy(pt => pt.Index?.Value ?? 0)
+            .Select(pt => pt.NumericValue?.InnerText ?? string.Empty)
+            .ToArray();
+        return ParseDoubles(rawValues);
+    }
+
+    private static void UpdateScatterXValues(OpenXmlCompositeElement seriesElement, string[] xValues)
+    {
+        var xValsElement = seriesElement.GetFirstChild<C.XValues>();
+        if (xValsElement is null) return;
+        var numRef = xValsElement.GetFirstChild<C.NumberReference>();
+        if (numRef is null) return;
+        var numCache = numRef.GetFirstChild<C.NumberingCache>() ?? numRef.AppendChild(new C.NumberingCache());
+        RebuildNumberingCache(numCache, ParseDoubles(xValues));
+    }
+
+    private static void UpdateScatterYValues(OpenXmlCompositeElement seriesElement, double[] yValues)
+    {
+        var yValsElement = seriesElement.GetFirstChild<C.YValues>();
+        if (yValsElement is null) return;
+        var numRef = yValsElement.GetFirstChild<C.NumberReference>();
+        if (numRef is null) return;
+        var numCache = numRef.GetFirstChild<C.NumberingCache>() ?? numRef.AppendChild(new C.NumberingCache());
+        RebuildNumberingCache(numCache, yValues);
+    }
+
+    private static double[] ParseDoubles(string[] values) =>
+        values.Select(v => double.TryParse(v, System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0.0).ToArray();
 
     private static void RebuildStringCache(C.StringCache strCache, string[] values)
     {

@@ -490,4 +490,239 @@ public class ChartOperationTests : PptxTestBase
         // Series 1 should be updated
         Assert.Equal([30.0, 40.0], readBack.Series[1].Values);
     }
+
+    // ── Additional chart types ────────────────────────────────────────────────────
+
+    [Fact]
+    public void GetChartData_AreaChart_ReturnsAreaChartType()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Area",
+                    Categories = ["Jan", "Feb", "Mar"],
+                    Series = [new TestSeriesDefinition { Name = "Sales", Values = [10.0, 20.0, 15.0] }]
+                }
+            ]
+        });
+
+        var result = Service.GetChartData(path, slideNumber: 1);
+
+        Assert.True(result.Success);
+        Assert.Equal("Area", result.ChartType);
+        Assert.Equal("Sales", result.Series[0].SeriesName);
+        Assert.Equal(["Jan", "Feb", "Mar"], result.Series[0].Categories);
+        Assert.Equal([10.0, 20.0, 15.0], result.Series[0].Values);
+    }
+
+    [Fact]
+    public void UpdateChartData_AreaChart_UpdatesValues()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Area",
+                    Categories = ["A", "B", "C"],
+                    Series = [new TestSeriesDefinition { Name = "S1", Values = [1.0, 2.0, 3.0] }]
+                }
+            ]
+        });
+
+        Service.UpdateChartData(path, slideNumber: 1, [
+            new ChartSeriesUpdate(SeriesIndex: 0, SeriesName: null, Categories: null, Values: [7.0, 8.0, 9.0])
+        ]);
+
+        var readBack = Service.GetChartData(path, slideNumber: 1);
+        Assert.Equal("Area", readBack.ChartType);
+        Assert.Equal([7.0, 8.0, 9.0], readBack.Series[0].Values);
+    }
+
+    [Fact]
+    public void GetChartData_DoughnutChart_ReturnsDoughnutChartType()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Doughnut",
+                    Categories = ["Slice A", "Slice B"],
+                    Series = [new TestSeriesDefinition { Name = "Share", Values = [60.0, 40.0] }]
+                }
+            ]
+        });
+
+        var result = Service.GetChartData(path, slideNumber: 1);
+
+        Assert.True(result.Success);
+        Assert.Equal("Doughnut", result.ChartType);
+        Assert.Equal([60.0, 40.0], result.Series[0].Values);
+    }
+
+    [Fact]
+    public void UpdateChartData_DoughnutChart_UpdatesValues()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Doughnut",
+                    Categories = ["A", "B"],
+                    Series = [new TestSeriesDefinition { Name = "S", Values = [50.0, 50.0] }]
+                }
+            ]
+        });
+
+        Service.UpdateChartData(path, slideNumber: 1, [
+            new ChartSeriesUpdate(SeriesIndex: 0, SeriesName: null, Categories: null, Values: [70.0, 30.0])
+        ]);
+
+        var readBack = Service.GetChartData(path, slideNumber: 1);
+        Assert.Equal("Doughnut", readBack.ChartType);
+        Assert.Equal([70.0, 30.0], readBack.Series[0].Values);
+    }
+
+    [Fact]
+    public void GetChartData_ScatterChart_ReturnsScatterChartType()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Scatter",
+                    Series = [new TestSeriesDefinition { Name = "Dataset", Values = [10.0, 20.0, 30.0] }]
+                }
+            ]
+        });
+
+        var result = Service.GetChartData(path, slideNumber: 1);
+
+        Assert.True(result.Success);
+        Assert.Equal("Scatter", result.ChartType);
+        // Scatter returns X values as categories and Y values as values
+        Assert.Equal(3, result.Series[0].Values.Length);
+        Assert.Equal([10.0, 20.0, 30.0], result.Series[0].Values);
+    }
+
+    [Fact]
+    public void UpdateChartData_ScatterChart_UpdatesYValues()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Scatter",
+                    Series = [new TestSeriesDefinition { Name = "Dataset", Values = [5.0, 10.0, 15.0] }]
+                }
+            ]
+        });
+
+        Service.UpdateChartData(path, slideNumber: 1, [
+            new ChartSeriesUpdate(SeriesIndex: 0, SeriesName: null, Categories: null, Values: [50.0, 100.0, 75.0])
+        ]);
+
+        var readBack = Service.GetChartData(path, slideNumber: 1);
+        Assert.Equal("Scatter", readBack.ChartType);
+        Assert.Equal([50.0, 100.0, 75.0], readBack.Series[0].Values);
+    }
+
+    // ── Selector validation ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void GetChartData_MultipleChartsNoSelector_Throws()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition { Name = "Chart A", ChartType = "Column", Series = [new TestSeriesDefinition { Values = [1.0] }] },
+                new TestChartDefinition { Name = "Chart B", ChartType = "Bar", Series = [new TestSeriesDefinition { Values = [2.0] }] }
+            ]
+        });
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            Service.GetChartData(path, slideNumber: 1));
+        Assert.Contains("Specify chartName or chartIndex", ex.Message);
+    }
+
+    [Fact]
+    public void UpdateChartData_MultipleChartsNoSelector_Throws()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition { Name = "Chart A", ChartType = "Column", Series = [new TestSeriesDefinition { Values = [1.0] }] },
+                new TestChartDefinition { Name = "Chart B", ChartType = "Bar", Series = [new TestSeriesDefinition { Values = [2.0] }] }
+            ]
+        });
+
+        Assert.Throws<InvalidOperationException>(() =>
+            Service.UpdateChartData(path, slideNumber: 1, [
+                new ChartSeriesUpdate(SeriesIndex: 0, SeriesName: null, Categories: null, Values: [9.0])
+            ]));
+    }
+
+    // ── Length mismatch validation ────────────────────────────────────────────────
+
+    [Fact]
+    public void UpdateChartData_MismatchedCategoriesAndValues_ReturnsFailure()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Column",
+                    Categories = ["A", "B"],
+                    Series = [new TestSeriesDefinition { Name = "S", Values = [1.0, 2.0] }]
+                }
+            ]
+        });
+
+        var result = Service.UpdateChartData(path, slideNumber: 1, [
+            new ChartSeriesUpdate(SeriesIndex: 0, SeriesName: null, Categories: ["X", "Y", "Z"], Values: [1.0, 2.0])
+        ]);
+
+        Assert.False(result.Success);
+        Assert.Contains("same length", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void UpdateChartData_CategoriesOnlyNoMismatch_Succeeds()
+    {
+        // Providing only Categories (no Values) should not trigger length validation
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            Charts =
+            [
+                new TestChartDefinition
+                {
+                    ChartType = "Column",
+                    Categories = ["A", "B"],
+                    Series = [new TestSeriesDefinition { Name = "S", Values = [1.0, 2.0] }]
+                }
+            ]
+        });
+
+        var result = Service.UpdateChartData(path, slideNumber: 1, [
+            new ChartSeriesUpdate(SeriesIndex: 0, SeriesName: null, Categories: ["X", "Y", "Z"], Values: null)
+        ]);
+
+        Assert.True(result.Success);
+    }
 }

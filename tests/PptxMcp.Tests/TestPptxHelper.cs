@@ -203,9 +203,10 @@ internal static class TestPptxHelper
             chartPart.ChartSpace.Save();
 
             var relId = slidePart.GetIdOfPart(chartPart);
+            var chartShapeId = nextShapeId++;
             shapeTree.Append(CreateChartFrame(
-                nextShapeId++,
-                string.IsNullOrWhiteSpace(chart.Name) ? $"Chart {nextShapeId}" : chart.Name!,
+                chartShapeId,
+                string.IsNullOrWhiteSpace(chart.Name) ? $"Chart {chartShapeId}" : chart.Name!,
                 relId,
                 chart.X ?? Emu.OneInch,
                 chart.Y ?? currentY,
@@ -412,6 +413,27 @@ internal static class TestPptxHelper
                 plotArea.Append(barChartH);
                 break;
 
+            case "AREA":
+                var areaChart = new C.AreaChart(new C.Grouping { Val = C.GroupingValues.Standard });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    areaChart.Append(BuildAreaChartSeries((uint)idx, ser, categories));
+                plotArea.Append(areaChart);
+                break;
+
+            case "DOUGHNUT":
+                var doughnutChart = new C.DoughnutChart();
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    doughnutChart.Append(BuildPieChartSeries((uint)idx, ser, categories));
+                plotArea.Append(doughnutChart);
+                break;
+
+            case "SCATTER":
+                var scatterChart = new C.ScatterChart(new C.ScatterStyle { Val = C.ScatterStyleValues.Line });
+                foreach (var (ser, idx) in seriesList.Select((s, i) => (s, i)))
+                    scatterChart.Append(BuildScatterChartSeries((uint)idx, ser));
+                plotArea.Append(scatterChart);
+                break;
+
             default: // Column
                 var colChart = new C.BarChart(
                     new C.BarDirection { Val = C.BarDirectionValues.Column },
@@ -448,6 +470,42 @@ internal static class TestPptxHelper
             BuildSeriesText(ser.Name),
             BuildCategoryAxisData(categories),
             BuildValues(ser.Values));
+
+    private static C.AreaChartSeries BuildAreaChartSeries(uint index, TestSeriesDefinition ser, string[] categories) =>
+        new(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            BuildCategoryAxisData(categories),
+            BuildValues(ser.Values));
+
+    private static C.ScatterChartSeries BuildScatterChartSeries(uint index, TestSeriesDefinition ser)
+    {
+        // X values are generated as sequential integers (1, 2, 3, …) because the
+        // test helper does not accept explicit X data — use ser.Values for Y.
+        var xCache = new C.NumberingCache(
+            new C.FormatCode("General"),
+            new C.PointCount { Val = (uint)ser.Values.Count });
+        for (uint i = 0; i < ser.Values.Count; i++)
+            xCache.Append(new C.NumericPoint { Index = i, NumericValue = new C.NumericValue((i + 1).ToString()) });
+
+        var yCache = new C.NumberingCache(
+            new C.FormatCode("General"),
+            new C.PointCount { Val = (uint)ser.Values.Count });
+        for (uint i = 0; i < ser.Values.Count; i++)
+            yCache.Append(new C.NumericPoint
+            {
+                Index = i,
+                NumericValue = new C.NumericValue(ser.Values[(int)i].ToString(System.Globalization.CultureInfo.InvariantCulture))
+            });
+
+        return new C.ScatterChartSeries(
+            new C.Index { Val = index },
+            new C.Order { Val = index },
+            BuildSeriesText(ser.Name),
+            new C.XValues(new C.NumberReference(new C.Formula(string.Empty), xCache)),
+            new C.YValues(new C.NumberReference(new C.Formula(string.Empty), yCache)));
+    }
 
     private static C.SeriesText BuildSeriesText(string? name) =>
         new(new C.StringReference(
