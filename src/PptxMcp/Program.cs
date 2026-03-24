@@ -82,15 +82,15 @@ static async Task<int> RunCliAsync(string[] args)
     // Real commands
     rootCommand.Add(AnalyzeCommand.Create(service));
     rootCommand.Add(ExportCommand.Create(service));
+    rootCommand.Add(InspectCommand.Create(service));
+    rootCommand.Add(MediaCommand.Create(service));
+    rootCommand.Add(SlidesCommand.Create(service));
 
     // Stubs for unimplemented commands
     (string name, string desc, int issue)[] stubs =
     [
         ("optimize", "Optimize presentation file size", 100),
-        ("inspect", "Inspect slide details and metadata", 101),
         ("edit", "Edit presentation content", 103),
-        ("media", "Manage media assets", 104),
-        ("slides", "Manage slides", 105),
     ];
 
     foreach (var (name, desc, issue) in stubs)
