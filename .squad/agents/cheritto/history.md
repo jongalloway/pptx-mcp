@@ -107,3 +107,15 @@
 - `placeholderOverrides` parameter renamed to `placeholderValues` in the consolidated tool for consistency
 - 6 new files, 1 deleted file (PptxTools.TemplateSlides.cs), 4 modified source files, 3 modified test files
 - 377/377 tests passing, build warnings dropped from ~76 to ~42 (dead code removed)
+
+### Phase 4 Scoping Complete (2026-03-24)
+- **Status:** Tier 1 analysis tools unblocked and ready for implementation
+- **Leads:** McCauley (scoping), Nate (OpenXML research)
+- **Scope:** 7 GitHub issues (#80–#86) across 3 tiers; 32–38 hour estimate (2–3 weeks part-time)
+- **Tier 1 (Read-Only Analysis):** #80 (file size breakdown), #81 (media analysis), #82 (unused layouts) — independent, low-risk, foundation for Tier 2
+- **Tier 2 (Write Operations):** #83 (remove layouts), #84 (deduplicate media), #85 (compress images) — depend on Tier 1, require validation
+- **Tier 3 (Deferred):** #86 (video analysis) — post-Phase-4 spike
+- **Key ADRs:** Read-only analysis first; SkiaSharp for image compression; OpenXML validation + PowerPoint round-trip for Tier 2; SHA256 media dedup
+- **Team:** Cheritto (implementation lead), Shiherlis (E2E validation), Nate (code review available)
+- **OpenXML Research:** All issues highly feasible; reference patterns established in SKILL.md
+- **Next Action:** Cheritto to begin Tier 1 tools (can implement in any order)
