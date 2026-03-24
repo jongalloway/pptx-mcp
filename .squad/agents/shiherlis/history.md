@@ -90,3 +90,14 @@
   - `SlideOrganizationTests` uses `CreateNamedSlides(params string[])` wrapper around `CreatePptxWithSlides`
   - `PptxCompletionHandlerTests` wraps both `CreateMinimalPptx()` and `CreatePptxWithSlides()` in a single `CreateTempPptx(params TestSlideDefinition[])` for backward compatibility
   - `PptxPromptsTests` has no disposable pattern — correctly excluded from base class
+
+### Issue #80 File Size Analysis Test Suite (2026-03-18)
+- **Scope:** 23 new tests in `tests/PptxMcp.Tests/Services/FileSizeAnalysisTests.cs` for `AnalyzeFileSize` service method
+- **Written proactively** while Cheritto implements `PresentationService.Optimization.cs` — aligned tests to WIP model/service signatures
+- **Categories tested:** happy path (minimal/multi-slide), image categorization, masters/layouts separation, empty categories (0 not null), arithmetic invariants (subtotals sum to grand total), metadata quality (non-empty paths/content types/non-negative sizes), error handling (file not found), complex fixture (tables + charts + images combined)
+- **Key findings:**
+  - OpenXML chart definitions may add extra parts under `/ppt/slides/` — use `>= N` assertions for slide count in complex fixtures, not exact equality
+  - TestPptxHelper with `IncludeImage = true` adds PNG `ImagePart` per slide — each becomes a separate part in the "images" category
+  - `CategorizePart` logic excludes `.rels` files from content categories — they fall to "other"
+  - `FileSizeAnalysisResult` has both `TotalFileSize` (disk) and `TotalPartSize` (uncompressed sum) — distinct values
+- **Test count:** 441/441 passing (up from 418)
