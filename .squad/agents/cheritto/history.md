@@ -154,3 +154,15 @@
 - **Files:** PresentationService.Deduplication.cs (new partial), PptxTools.Deduplication.cs, DeduplicateMediaResult.cs, DeduplicateMediaTests.cs
 - **Build:** 0 errors; 542/542 tests passing (10 new tests)
 - **PR:** on branch squad/84-deduplicate-media
+
+### Issue #85 — pptx_optimize_images (2026-03-26)
+- **Implementation:** Phase 4 Tier 2 write operation — compresses/optimizes images by downscaling, format conversion, and recompression
+- **Dependency:** Magick.NET-Q8-AnyCPU v14.2.0 (cross-platform ImageMagick wrapper, Apache 2.0 license per Nate's research)
+- **Key logic:** Read image dimensions with MagickImageInfo → find Picture shape via Blip.Embed → extract display dimensions from Transform2D.Extents → calculate target dimensions based on targetDpi (EMU → pixels: emu / 914400 * dpi) → downscale if pixel dimensions exceed display dimensions → convert BMP/TIFF to PNG/JPEG → recompress JPEG at specified quality → only replace if optimized size < original
+- **Type challenges:** MagickImageInfo returns uint for Width/Height; MagickImage.Resize() requires uint; MagickImage.Width/Height properties are uint; model uses int — required explicit casts throughout
+- **Namespace aliasing:** Used `P = DocumentFormat.OpenXml.Presentation` and `A = DocumentFormat.OpenXml.Drawing` to resolve ambiguous Picture/BlipFill references
+- **Models:** ImageOptimizationResult with OptimizedImageInfo; reuses ValidationStatus from RemoveLayoutsResult.cs
+- **Files:** PresentationService.ImageOptimization.cs (new partial), PptxTools.Optimization.cs (added tool method), ImageOptimizationResult.cs
+- **Build:** 0 errors; 542/542 tests passing (no new tests yet — Shiherlis owns test creation)
+- **PR:** #93 on branch squad/85-optimize-images
+

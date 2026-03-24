@@ -85,6 +85,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_find_unused_layouts` | Find unused slide masters and layouts with estimated space savings |
 | `pptx_remove_unused_layouts` | Remove unused slide layouts and orphaned masters with before/after validation |
 | `pptx_deduplicate_media` | Deduplicate identical media by hash, redirect references, remove orphaned copies |
+| `pptx_optimize_images` | Compress/optimize images by downscaling, format conversion, and recompression |
 
 **When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
 

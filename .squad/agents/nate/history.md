@@ -250,3 +250,33 @@
 **Deliverable:** `.squad/decisions/inbox/nate-phase4-openxml-research.md` — 40 KB comprehensive research with code sketches, gotchas, validation strategies for all 7 issues.
 
 **Impact:** Unblocks Phase 4 implementation planning. Team can now scope work with confidence: #80–#82 are quick wins; #83–#84 require diligent testing; #85 is optional enhancement; #86 safely deferred.
+
+### 2026-03-26: Magick.NET Feasibility Research — Issue #85 (Image Compression)
+
+**Research Scope:** Jon directive to investigate Magick.NET (instead of SkiaSharp) for issue #85 image compression/optimization tool. Evaluate feasibility, cross-platform support, bundle size, API surface, and integration with PresentationService.
+
+**Key Findings:**
+- **Verdict: GO** ✅ — Magick.NET is fully viable for #85. Covers all requirements (resize, re-encode JPEG quality 85%, convert BMP/TIFF→PNG/JPEG, read dimensions, stream-based I/O)
+- **Licensing:** Apache-2.0 (permissive, commercial-friendly, OSI-approved)
+- **Cross-Platform:** Full Linux support on ubuntu-latest; bundles static-linked native binaries (no separate ImageMagick install needed)
+- **Recommended Package:** `Magick.NET-Q8-x64` v14.11.0+ (Q8=8-bit component, x64=platform-specific, reduces bundle size)
+- **Bundle Size Impact:** ~15-18 MB added to published binary (AnyCPU variant would be ~27-35 MB). Acceptable for open-source MCP server.
+- **API Strength:** Clean Magick.NET surface for all operations:
+  - Dimensions: `MagickImageInfo.Width`, `MagickImageInfo.Height`
+  - Resize: `image.Resize(width, height)` with aspect ratio control
+  - JPEG Quality: `image.Quality = 85` before `image.Write()`
+  - Format Conversion: `image.Format = MagickFormat.Jpeg` / `MagickFormat.Png`
+  - I/O: Stream-based (`new MagickImage(stream)`, `image.Write(outputStream)`)
+- **Integration Pattern:** Create `PresentationService.ImageOptimization.cs` with public `OptimizeImages()` tool method; thin wrapper around Magick.NET with in-place image replacement via `imagePart.FeedData(stream)`
+- **Magick.NET vs. SkiaSharp:** Magick.NET slower for simple resize (SkiaSharp 2-4x faster) but superior for image compression workflow: richer format support (100+ formats), JPEG quality control, BMP/TIFF handling. Bundle size tradeoff acceptable; performance not a bottleneck for one-time optimization.
+- **Risks:** Native library compatibility on Linux (mitigated by .csproj properties for binary bundling), aspect ratio preservation (use `Resize(width, 0)` for auto-height), JPEG quality trade-offs (document as expected for compression)
+- **Implementation Estimate:** 6-8 hours (dependency setup, tool method, E2E test, README update)
+
+**Deliverable:** `.squad/decisions/inbox/nate-magick-net-research.md` — 10 KB feasibility report with API sketches, integration pattern, bundle size breakdown, comparison table vs. SkiaSharp, gotchas, and handoff recommendations for Cheritto.
+
+**Impact:** Unblocks #85 decision. Go/no-go clear; Jon's Magick.NET preference validated. Ready for development phase with high confidence in approach.
+
+**File Paths:**
+- `src/PptxMcp/Services/PresentationService.Media.cs` (lines 104–145) — current image traversal pattern (Foundation for new ImageOptimization.cs)
+- NuGet: https://www.nuget.org/packages/Magick.NET-Q8-x64/
+- Magick.NET GitHub: https://github.com/dlemstra/Magick.NET (reference for API/cross-platform docs)
