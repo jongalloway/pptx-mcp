@@ -55,7 +55,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 
 ## What You Can Do
 
-### Tools
+### Tools (21)
 
 | Tool | What it does |
 |---|---|
@@ -63,10 +63,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_list_layouts` | List available slide layouts |
 | `pptx_get_slide_content` | Extract structured content from a slide (shapes, text, tables) |
 | `pptx_get_slide_xml` | Get the raw XML for a slide (power users) |
-| `pptx_add_slide` | Add a new slide using a named layout |
-| `pptx_add_slide_from_layout` | Create a slide from a named layout and populate placeholders by semantic key |
-| `pptx_duplicate_slide` | Clone a slide, including related parts, with optional placeholder overrides |
-| `pptx_update_text` | Update text in a placeholder on a slide by index |
+| `pptx_manage_slides` | Create slides: Add (blank), AddFromLayout (template + placeholders), or Duplicate (clone + overrides) |
 | `pptx_update_slide_data` | Update a named or indexed shape while preserving formatting — preferred for single data-driven updates |
 | `pptx_batch_update` | Apply multiple named text updates across a deck in one open/save cycle |
 | `pptx_insert_image` | Embed an image (PNG, JPG, GIF) on a slide |
@@ -75,23 +72,16 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_update_table` | Update cell values in an existing table — target by name or zero-based index |
 | `pptx_chart_data` | Read or update data in an existing chart (bar, column, line, pie, area, scatter) — preserves all chart formatting |
 | `pptx_write_notes` | Set or replace speaker notes on a slide (supports append and multi-paragraph) |
-| `pptx_move_slide` | Move a slide to a different position |
+| `pptx_reorder_slides` | Move a single slide or batch reorder all slides |
 | `pptx_delete_slide` | Remove a slide by its 1-based slide number |
-| `pptx_reorder_slides` | Batch reorder all slides by providing the new sequence |
 | `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 | `pptx_analyze_file_size` | Analyze file size breakdown by category (slides, images, video/audio, masters, layouts) |
-| `pptx_analyze_media` | List and analyze all media assets (images, video, audio) with duplicate detection |
-| `pptx_find_unused_layouts` | Find unused slide masters and layouts with estimated space savings |
-| `pptx_remove_unused_layouts` | Remove unused slide layouts and orphaned masters with before/after validation |
-| `pptx_deduplicate_media` | Deduplicate identical media by hash, redirect references, remove orphaned copies |
+| `pptx_manage_media` | Analyze media assets or deduplicate identical media by hash |
+| `pptx_manage_layouts` | Find unused layouts/masters or remove them with before/after validation |
 | `pptx_optimize_images` | Compress/optimize images by downscaling, format conversion, and recompression |
 
-**When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
-
-**When to use `pptx_add_slide_from_layout`:** Use `pptx_add_slide_from_layout` when you want PowerPoint to respect an existing template layout while you fill placeholders in one call. Placeholder keys use semantic names like `Title`, `Body:1`, or `Picture:2`.
-
-**When to use `pptx_duplicate_slide`:** Use `pptx_duplicate_slide` when you already have a styled slide you want to reuse. It deep-clones the slide and related parts, then applies optional placeholder overrides to the duplicate only.
+**When to use `pptx_manage_slides`:** Use `AddFromLayout` when you want PowerPoint to respect an existing template layout while you fill placeholders in one call. Placeholder keys use semantic names like `Title`, `Body:1`, or `Picture:2`. Use `Duplicate` when you already have a styled slide you want to reuse — it deep-clones the slide and related parts, then applies optional placeholder overrides to the duplicate only.
 
 **When to use `pptx_replace_image`:** Use `pptx_replace_image` to swap the image in an existing picture shape (by name or index). The shape's position and size are preserved from the layout, so no EMU coordinates are needed. Supports PNG, JPEG, and SVG. Use the optional `altText` parameter for accessibility.
 

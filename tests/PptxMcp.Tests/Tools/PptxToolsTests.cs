@@ -97,14 +97,6 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
-    public async Task pptx_update_text_ReturnsSuccessMessage()
-    {
-        var path = CreateMinimalPptx();
-        var result = await _tools.pptx_update_text(path, 0, 0, "New Text");
-        Assert.Contains("successfully", result);
-    }
-
-    [Fact]
     public async Task pptx_manage_slides_AddFromLayout_ReturnsStructuredJson()
     {
         var path = CreateTemplatePptx();
