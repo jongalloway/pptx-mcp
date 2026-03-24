@@ -1,3 +1,4 @@
+using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,30 +8,88 @@ using PptxMcp.Resources;
 using PptxMcp.Services;
 using PptxMcp.Tools;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.AddConsole(options =>
+var mode = DetermineMode(args);
+if (mode == "mcp")
 {
-    options.LogToStandardErrorThreshold = LogLevel.Trace;
-});
-
-builder.Services.AddSingleton<PresentationService>();
-
-builder.Services.AddMcpServer(options =>
+    await RunMcpServerAsync(args);
+    return 0;
+}
+else
 {
-    options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+    return await RunCliAsync(args);
+}
+
+static string DetermineMode(string[] args)
+{
+    if (args.Contains("--stdio"))
+        return "mcp";
+
+    if (args.Length == 0)
+        return "cli";
+
+    var first = args[0].ToLowerInvariant();
+    if (first is "-h" or "--help" or "-v" or "--version")
+        return "cli";
+
+    string[] knownCommands = ["analyze", "optimize", "inspect", "export", "edit", "media", "slides"];
+    if (knownCommands.Contains(first))
+        return "cli";
+
+    return "cli";
+}
+
+static async Task RunMcpServerAsync(string[] args)
+{
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.Logging.AddConsole(options =>
     {
-        Name = "pptx-mcp",
-        Version = "1.0.0",
-        Title = "PowerPoint MCP Server",
-        Description = "MCP server for reading and modifying PowerPoint (.pptx) files using OpenXML SDK",
-        WebsiteUrl = "https://github.com/jongalloway/pptx-mcp"
-    };
-})
-.WithStdioServerTransport()
-.WithTools<PptxTools>()
-.WithResources<PptxResources>()
-.WithPrompts<PptxPrompts>()
-.WithCompleteHandler(PptxCompletionHandler.HandleAsync);
+        options.LogToStandardErrorThreshold = LogLevel.Trace;
+    });
 
-await builder.Build().RunAsync();
+    builder.Services.AddSingleton<PresentationService>();
+
+    builder.Services.AddMcpServer(options =>
+    {
+        options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+        {
+            Name = "pptx-mcp",
+            Version = "1.0.0",
+            Title = "PowerPoint MCP Server",
+            Description = "MCP server for reading and modifying PowerPoint (.pptx) files using OpenXML SDK",
+            WebsiteUrl = "https://github.com/jongalloway/pptx-mcp"
+        };
+    })
+    .WithStdioServerTransport()
+    .WithTools<PptxTools>()
+    .WithResources<PptxResources>()
+    .WithPrompts<PptxPrompts>()
+    .WithCompleteHandler(PptxCompletionHandler.HandleAsync);
+
+    await builder.Build().RunAsync();
+}
+
+static async Task<int> RunCliAsync(string[] args)
+{
+    var rootCommand = new RootCommand("PowerPoint MCP - Analyze, optimize, and edit PowerPoint files");
+
+    (string name, string desc, int issue)[] stubs =
+    [
+        ("analyze", "Analyze presentation structure and content", 99),
+        ("optimize", "Optimize presentation file size", 100),
+        ("inspect", "Inspect slide details and metadata", 101),
+        ("export", "Export presentation content", 102),
+        ("edit", "Edit presentation content", 103),
+        ("media", "Manage media assets", 104),
+        ("slides", "Manage slides", 105),
+    ];
+
+    foreach (var (name, desc, issue) in stubs)
+    {
+        var cmd = new Command(name, desc);
+        cmd.SetAction(_ => Console.WriteLine($"Coming soon — see issue #{issue}"));
+        rootCommand.Add(cmd);
+    }
+
+    return await rootCommand.Parse(args).InvokeAsync();
+}
