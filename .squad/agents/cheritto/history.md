@@ -135,3 +135,22 @@
 - Categorization uses URI patterns first (/ppt/slides/, /ppt/slideMasters/, /ppt/slideLayouts/) then content type fallback (image/*, video/*, audio/*) for media
 - 160 lines across 3 new files; 418/418 existing tests still passing
 - No tests included (Shiherlis owns test creation per team charter)
+
+### Issue #83 — pptx_remove_unused_layouts (2026-03-24)
+- **Implementation:** First Phase 4 Tier 2 write operation — removes unused slide layouts and orphaned masters from PPTX files
+- **Approach:** Two-phase: read-only analysis via FindUnusedLayouts(), then writable open for targeted deletion with OpenXmlValidator before/after
+- **Safety:** Intersects caller-specified URIs with actually-unused set; never removes a layout referenced by any slide; removes masters only when zero layouts remain
+- **Key helpers:** RemoveLayoutIdFromMaster() and RemoveMasterIdFromPresentation() clean up SlideLayoutIdList and SlideMasterIdList entries before deleting parts
+- **Model:** RemoveLayoutsResult with RemovedItemInfo and ValidationStatus records — captures before/after validation error counts
+- **Tests:** 733-line RemoveLayoutsTests.cs included (auto-detect, targeted, no-op, error cases)
+- **Build:** 0 errors, 0 warnings; 532/532 tests passing
+- **PR:** #90 on branch squad/83-remove-unused-layouts
+
+### Issue #84 — pptx_deduplicate_media (2026-03-24)
+- **Implementation:** Phase 4 Tier 2 write operation — deduplicates identical media by SHA256 hash, redirects references, removes orphaned copies
+- **Approach:** Hash all ImageParts across slides/layouts/masters → group by hash → pick canonical (alphabetically first URI) → redirect Blip.Embed references via CreateRelationshipToPart → DeletePart orphaned duplicates
+- **Key detail:** Relationship redirect requires collecting all (owner, oldRelId) pairs BEFORE modifying anything, then updating Blip.Embed in each owner, then deleting old relationships — order matters for package integrity
+- **Model:** DeduplicateMediaResult with DeduplicatedGroupInfo; reuses ValidationStatus from RemoveLayoutsResult.cs
+- **Files:** PresentationService.Deduplication.cs (new partial), PptxTools.Deduplication.cs, DeduplicateMediaResult.cs, DeduplicateMediaTests.cs
+- **Build:** 0 errors; 542/542 tests passing (10 new tests)
+- **PR:** on branch squad/84-deduplicate-media

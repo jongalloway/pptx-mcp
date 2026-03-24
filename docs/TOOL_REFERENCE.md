@@ -17,6 +17,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_extract_talking_points](#pptx_extract_talking_points)
 - [pptx_find_unused_layouts](#pptx_find_unused_layouts)
 - [pptx_remove_unused_layouts](#pptx_remove_unused_layouts)
+- [pptx_deduplicate_media](#pptx_deduplicate_media)
 - [pptx_get_slide_content](#pptx_get_slide_content)
 - [pptx_get_slide_xml](#pptx_get_slide_xml)
 - [pptx_insert_image](#pptx_insert_image)
@@ -701,6 +702,61 @@ On error, returns the same structure with `Success: false` and empty lists.
       "/ppt/slideLayouts/slideLayout4.xml",
       "/ppt/slideLayouts/slideLayout7.xml"
     ]
+  }
+}
+```
+
+---
+
+## pptx_deduplicate_media
+
+**Description:** Deduplicate identical media in a PowerPoint presentation. Finds media parts with the same content (SHA256 hash match), redirects all references to a single canonical copy, and removes orphaned duplicates. Validates the package with OpenXmlValidator before and after modification. Returns structured JSON with deduplication statistics and space saved.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file to modify. |
+
+### Returns
+
+Structured JSON with deduplication results and validation status:
+
+```json
+{
+  "Success": true,
+  "FilePath": "/presentations/quarterly-review.pptx",
+  "DuplicateGroupsFound": 1,
+  "PartsRemoved": 1,
+  "BytesSaved": 45200,
+  "Groups": [
+    {
+      "Hash": "A1B2C3D4...",
+      "ContentType": "image/png",
+      "CanonicalPartUri": "/ppt/media/image1.png",
+      "RemovedPartUris": ["/ppt/media/image3.png"],
+      "SizePerCopy": 45200,
+      "ReferencesUpdated": 1
+    }
+  ],
+  "Validation": {
+    "ErrorsBefore": 0,
+    "ErrorsAfter": 0,
+    "IsValid": true
+  },
+  "Message": "Deduplicated 1 group(s), removed 1 part(s). Saved approximately 45,200 bytes."
+}
+```
+
+On error, returns the same structure with `Success: false` and empty lists.
+
+### Example
+
+```json
+{
+  "name": "pptx_deduplicate_media",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx"
   }
 }
 ```
