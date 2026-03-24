@@ -2,6 +2,7 @@ using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PptxMcp.Commands;
 using PptxMcp.Completions;
 using PptxMcp.Prompts;
 using PptxMcp.Resources;
@@ -71,14 +72,22 @@ static async Task RunMcpServerAsync(string[] args)
 
 static async Task<int> RunCliAsync(string[] args)
 {
+    var services = new ServiceCollection();
+    services.AddSingleton<PresentationService>();
+    var sp = services.BuildServiceProvider();
+    var service = sp.GetRequiredService<PresentationService>();
+
     var rootCommand = new RootCommand("PowerPoint MCP - Analyze, optimize, and edit PowerPoint files");
 
+    // Real commands
+    rootCommand.Add(AnalyzeCommand.Create(service));
+    rootCommand.Add(ExportCommand.Create(service));
+
+    // Stubs for unimplemented commands
     (string name, string desc, int issue)[] stubs =
     [
-        ("analyze", "Analyze presentation structure and content", 99),
         ("optimize", "Optimize presentation file size", 100),
         ("inspect", "Inspect slide details and metadata", 101),
-        ("export", "Export presentation content", 102),
         ("edit", "Edit presentation content", 103),
         ("media", "Manage media assets", 104),
         ("slides", "Manage slides", 105),
