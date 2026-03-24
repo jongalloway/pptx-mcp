@@ -77,7 +77,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
 | `pptx_analyze_file_size` | Analyze file size breakdown by category (slides, images, video/audio, masters, layouts) |
-| `pptx_manage_media` | Analyze media assets or deduplicate identical media by hash |
+| `pptx_manage_media` | Analyze media assets, deduplicate identical media by hash, or extract video/audio metadata (codec, resolution, duration, bitrate) |
 | `pptx_manage_layouts` | Find unused layouts/masters or remove them with before/after validation |
 | `pptx_optimize_images` | Compress/optimize images by downscaling, format conversion, and recompression |
 
