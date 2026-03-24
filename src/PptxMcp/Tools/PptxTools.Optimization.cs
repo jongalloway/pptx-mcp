@@ -79,4 +79,34 @@ public partial class PptxTools
                 BytesSaved: 0,
                 Validation: new ValidationStatus(0, 0, false),
                 Message: error));
+
+    /// <summary>
+    /// Optimize images in a PowerPoint presentation by downscaling, converting formats, and recompressing.
+    /// Scans all images across slides, layouts, and masters. Downscales images that are larger than their
+    /// display dimensions warrant based on target DPI. Converts BMP/TIFF to PNG/JPEG. Recompresses JPEG images
+    /// at the specified quality level. Only replaces images when optimization results in smaller file size.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file to modify.</param>
+    /// <param name="targetDpi">Target DPI for screen display (default 150; use 300 for print).</param>
+    /// <param name="jpegQuality">JPEG compression quality 1-100 (default 85; higher = larger file).</param>
+    /// <param name="convertFormats">Convert BMP/TIFF to PNG/JPEG (default true).</param>
+    [McpServerTool(Title = "Optimize Images")]
+    public partial Task<string> pptx_optimize_images(
+        string filePath,
+        int targetDpi = 150,
+        int jpegQuality = 85,
+        bool convertFormats = true) =>
+        ExecuteToolStructured(filePath,
+            () => _service.OptimizeImages(filePath, targetDpi, jpegQuality, convertFormats),
+            error => new ImageOptimizationResult(
+                Success: false,
+                FilePath: filePath,
+                ImagesProcessed: 0,
+                ImagesSkipped: 0,
+                TotalBytesBefore: 0,
+                TotalBytesAfter: 0,
+                TotalBytesSaved: 0,
+                OptimizedImages: [],
+                Validation: new ValidationStatus(0, 0, false),
+                Message: error));
 }
