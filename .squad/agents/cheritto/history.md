@@ -166,3 +166,13 @@
 - **Build:** 0 errors; 542/542 tests passing (no new tests yet — Shiherlis owns test creation)
 - **PR:** #93 on branch squad/85-optimize-images
 
+### Tool Consolidation — Issue #96 (2026-03-26)
+- **Implementation:** Reduced tool count from 24 → 21 in a single PR (#97)
+- **Consolidated tools:** `pptx_manage_layouts` (Find | Remove), `pptx_manage_media` (Analyze | Deduplicate)
+- **Deprecated:** `pptx_update_text` — `pptx_update_slide_data` is a strict superset
+- **Pattern:** All consolidated tools follow established pattern: C# enum, `[McpMeta]` attributes, `partial` method, switch expression dispatch
+- **Files:** 11 changed (+183/-140); 2 deleted (PptxTools.Media.cs, PptxTools.Deduplication.cs), 3 new (ManageMedia.cs, 2 enums)
+- **Service layer:** Completely untouched — only tool entry points rewired
+- **Tests:** 552/552 passing, service-layer tests unmodified, tool tests updated for new names
+- **Key insight:** Consolidation pattern is fully mechanical once the enum + switch expression shape is established; total implementation ~1 hour
+
