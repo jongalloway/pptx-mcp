@@ -1,6 +1,8 @@
 using System.IO.Packaging;
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Validation;
 using PptxMcp.Models;
+using P = DocumentFormat.OpenXml.Presentation;
 
 namespace PptxMcp.Services;
 
@@ -250,5 +252,151 @@ public partial class PresentationService
         }
 
         return size;
+    }
+
+    /// <summary>
+    /// Remove unused slide layouts (and their orphaned masters) from a PPTX file.
+    /// When <paramref name="layoutUris"/> is null or empty, auto-detects unused layouts via FindUnusedLayouts.
+    /// When specific URIs are provided, only those layouts are removed (if unused).
+    /// Validates the package with OpenXmlValidator before and after modification.
+    /// </summary>
+    public RemoveLayoutsResult RemoveUnusedLayouts(string filePath, IReadOnlyList<string>? layoutUris = null)
+    {
+        // Phase 1: Identify targets via read-only analysis.
+        var analysis = FindUnusedLayouts(filePath);
+
+        var unusedLayoutUris = new HashSet<string>(
+            analysis.Layouts.Where(l => !l.IsUsed).Select(l => l.Uri));
+
+        // Determine which layouts to remove.
+        HashSet<string> targetLayoutUris;
+        if (layoutUris is { Count: > 0 })
+        {
+            // Caller specified explicit targets — only remove those that are actually unused.
+            targetLayoutUris = new HashSet<string>(layoutUris);
+            targetLayoutUris.IntersectWith(unusedLayoutUris);
+        }
+        else
+        {
+            targetLayoutUris = unusedLayoutUris;
+        }
+
+        if (targetLayoutUris.Count == 0)
+        {
+            return new RemoveLayoutsResult(
+                Success: true,
+                FilePath: filePath,
+                RemovedItems: [],
+                LayoutsRemoved: 0,
+                MastersRemoved: 0,
+                BytesSaved: 0,
+                Validation: new ValidationStatus(0, 0, true),
+                Message: "No unused layouts to remove.");
+        }
+
+        // Phase 2: Open writable and validate before modification.
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart
+            ?? throw new InvalidOperationException("Presentation part is missing.");
+
+        var validator = new OpenXmlValidator();
+        int errorsBefore = validator.Validate(doc).Count();
+
+        var removedItems = new List<RemovedItemInfo>();
+        long totalBytesSaved = 0;
+
+        // Phase 3: Remove targeted layouts from their parent masters.
+        foreach (var masterPart in presentationPart.SlideMasterParts.ToList())
+        {
+            var layoutsToRemove = masterPart.SlideLayoutParts
+                .Where(lp => targetLayoutUris.Contains(lp.Uri.ToString()))
+                .ToList();
+
+            foreach (var layoutPart in layoutsToRemove)
+            {
+                var layoutUri = layoutPart.Uri.ToString();
+                var layoutName = layoutPart.SlideLayout?.CommonSlideData?.Name?.Value ?? "Unnamed Layout";
+                long layoutSize = EstimatePartSize(layoutPart);
+
+                // Remove the layout ID entry from the master's SlideLayoutIdList.
+                RemoveLayoutIdFromMaster(masterPart, layoutPart);
+
+                // Delete the layout part from the master.
+                masterPart.DeletePart(layoutPart);
+
+                removedItems.Add(new RemovedItemInfo(layoutName, layoutUri, "layout", layoutSize));
+                totalBytesSaved += layoutSize;
+            }
+        }
+
+        // Phase 4: Remove masters that now have zero remaining layouts.
+        int mastersRemoved = 0;
+        foreach (var masterPart in presentationPart.SlideMasterParts.ToList())
+        {
+            if (masterPart.SlideLayoutParts.Any())
+                continue;
+
+            var masterUri = masterPart.Uri.ToString();
+            var masterName = masterPart.SlideMaster?.CommonSlideData?.Name?.Value ?? "Unnamed Master";
+            long masterSize = EstimatePartSize(masterPart);
+
+            // Remove the master ID entry from the presentation's SlideMasterIdList.
+            RemoveMasterIdFromPresentation(presentationPart, masterPart);
+
+            presentationPart.DeletePart(masterPart);
+
+            removedItems.Add(new RemovedItemInfo(masterName, masterUri, "master", masterSize));
+            totalBytesSaved += masterSize;
+            mastersRemoved++;
+        }
+
+        // Phase 5: Save and validate after modification.
+        presentationPart.Presentation.Save();
+
+        int errorsAfter = validator.Validate(doc).Count();
+
+        int layoutsRemoved = removedItems.Count(r => r.Type == "layout");
+        string message = $"Removed {layoutsRemoved} layout(s) and {mastersRemoved} master(s). " +
+                         $"Saved approximately {totalBytesSaved:N0} bytes.";
+
+        return new RemoveLayoutsResult(
+            Success: true,
+            FilePath: filePath,
+            RemovedItems: removedItems,
+            LayoutsRemoved: layoutsRemoved,
+            MastersRemoved: mastersRemoved,
+            BytesSaved: totalBytesSaved,
+            Validation: new ValidationStatus(errorsBefore, errorsAfter, errorsAfter == 0),
+            Message: message);
+    }
+
+    /// <summary>
+    /// Remove the SlideLayoutId entry that references <paramref name="layoutPart"/>
+    /// from the parent master's SlideLayoutIdList.
+    /// </summary>
+    private static void RemoveLayoutIdFromMaster(SlideMasterPart masterPart, SlideLayoutPart layoutPart)
+    {
+        var layoutIdList = masterPart.SlideMaster?.SlideLayoutIdList;
+        if (layoutIdList is null) return;
+
+        var relId = masterPart.GetIdOfPart(layoutPart);
+        var entry = layoutIdList.Elements<P.SlideLayoutId>()
+            .FirstOrDefault(e => e.RelationshipId?.Value == relId);
+        entry?.Remove();
+    }
+
+    /// <summary>
+    /// Remove the SlideMasterId entry that references <paramref name="masterPart"/>
+    /// from the presentation's SlideMasterIdList.
+    /// </summary>
+    private static void RemoveMasterIdFromPresentation(PresentationPart presentationPart, SlideMasterPart masterPart)
+    {
+        var masterIdList = presentationPart.Presentation.SlideMasterIdList;
+        if (masterIdList is null) return;
+
+        var relId = presentationPart.GetIdOfPart(masterPart);
+        var entry = masterIdList.Elements<P.SlideMasterId>()
+            .FirstOrDefault(e => e.RelationshipId?.Value == relId);
+        entry?.Remove();
     }
 }

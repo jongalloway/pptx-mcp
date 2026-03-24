@@ -57,4 +57,26 @@ public partial class PptxTools
                 Layouts: [],
                 Warnings: [],
                 Message: error));
+
+    /// <summary>
+    /// Remove unused slide layouts and orphaned slide masters from a PowerPoint presentation.
+    /// When layoutUris is omitted, auto-detects and removes all unused layouts.
+    /// When specific URIs are provided, removes only those (if they are unused).
+    /// Validates the package with OpenXmlValidator before and after removal.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file to modify.</param>
+    /// <param name="layoutUris">Optional array of layout URIs to remove. Omit to auto-detect all unused layouts.</param>
+    [McpServerTool(Title = "Remove Unused Layouts")]
+    public partial Task<string> pptx_remove_unused_layouts(string filePath, string[]? layoutUris = null) =>
+        ExecuteToolStructured(filePath,
+            () => _service.RemoveUnusedLayouts(filePath, layoutUris),
+            error => new RemoveLayoutsResult(
+                Success: false,
+                FilePath: filePath,
+                RemovedItems: [],
+                LayoutsRemoved: 0,
+                MastersRemoved: 0,
+                BytesSaved: 0,
+                Validation: new ValidationStatus(0, 0, false),
+                Message: error));
 }

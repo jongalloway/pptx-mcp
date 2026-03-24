@@ -16,6 +16,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_export_markdown](#pptx_export_markdown)
 - [pptx_extract_talking_points](#pptx_extract_talking_points)
 - [pptx_find_unused_layouts](#pptx_find_unused_layouts)
+- [pptx_remove_unused_layouts](#pptx_remove_unused_layouts)
 - [pptx_get_slide_content](#pptx_get_slide_content)
 - [pptx_get_slide_xml](#pptx_get_slide_xml)
 - [pptx_insert_image](#pptx_insert_image)
@@ -631,9 +632,84 @@ On error, returns the same structure with `Success: false` and empty lists.
 
 ---
 
+## pptx_remove_unused_layouts
+
+**Description:** Remove unused slide layouts and orphaned slide masters from a PowerPoint presentation. When `layoutUris` is omitted, auto-detects and removes all unused layouts. When specific URIs are provided, removes only those (if they are unused). Validates the package with OpenXmlValidator before and after removal.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file to modify. |
+| `layoutUris` | string[] | Optional | Array of layout URIs to remove. Omit to auto-detect all unused layouts. |
+
+### Returns
+
+Structured JSON with removal results and validation status:
+
+```json
+{
+  "Success": true,
+  "FilePath": "/presentations/quarterly-review.pptx",
+  "RemovedItems": [
+    {
+      "Name": "Two Content",
+      "Uri": "/ppt/slideLayouts/slideLayout4.xml",
+      "Type": "layout",
+      "SizeBytes": 3800
+    },
+    {
+      "Name": "Unused Master",
+      "Uri": "/ppt/slideMasters/slideMaster2.xml",
+      "Type": "master",
+      "SizeBytes": 12500
+    }
+  ],
+  "LayoutsRemoved": 1,
+  "MastersRemoved": 1,
+  "BytesSaved": 16300,
+  "Validation": {
+    "ErrorsBefore": 0,
+    "ErrorsAfter": 0,
+    "IsValid": true
+  },
+  "Message": "Removed 1 layout(s) and 1 master(s). Saved approximately 16,300 bytes."
+}
+```
+
+On error, returns the same structure with `Success: false` and empty lists.
+
+### Example
+
+**Auto-detect and remove all unused layouts:**
+```json
+{
+  "name": "pptx_remove_unused_layouts",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx"
+  }
+}
+```
+
+**Targeted removal of specific layouts:**
+```json
+{
+  "name": "pptx_remove_unused_layouts",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx",
+    "layoutUris": [
+      "/ppt/slideLayouts/slideLayout4.xml",
+      "/ppt/slideLayouts/slideLayout7.xml"
+    ]
+  }
+}
+```
+
+---
+
 ## pptx_get_slide_content
 
-**Description:** Get structured content from a slide: all shapes with their type, position, size, and text. Returns a JSON object with slide dimensions and a shapes array. Prefer this over `pptx_get_slide_xml` when you need to read or reason about slide content.
+**Description:** Get structured content from a slide: all shapes with their type, position, size, and text.Returns a JSON object with slide dimensions and a shapes array. Prefer this over `pptx_get_slide_xml` when you need to read or reason about slide content.
 
 ### Parameters
 
