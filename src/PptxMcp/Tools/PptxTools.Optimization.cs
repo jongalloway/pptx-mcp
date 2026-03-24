@@ -22,6 +22,16 @@ public partial class PptxTools
                 FilePath: filePath,
                 TotalFileSize: 0,
                 TotalPartSize: 0,
-                Categories: [],
+                Categories: EmptyFileSizeCategories,
                 Message: error));
+
+    private static readonly IReadOnlyList<FileSizeCategory> EmptyFileSizeCategories =
+    [
+        new("slides", 0, 0, []),
+        new("images", 0, 0, []),
+        new("video_audio", 0, 0, []),
+        new("masters", 0, 0, []),
+        new("layouts", 0, 0, []),
+        new("other", 0, 0, []),
+    ];
 }

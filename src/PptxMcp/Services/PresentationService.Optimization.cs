@@ -16,11 +16,13 @@ public partial class PresentationService
 
         using var package = Package.Open(filePath, FileMode.Open, FileAccess.Read);
 
+        // Uses OPC Package.GetParts() which enumerates logical parts (not raw ZIP entries).
+        // This is correct for categorization; raw ZIP sizes would require ZipArchive separately.
         var categoryParts = new Dictionary<string, List<FileSizePart>>
         {
             ["slides"] = [],
             ["images"] = [],
-            ["videoAudio"] = [],
+            ["video_audio"] = [],
             ["masters"] = [],
             ["layouts"] = [],
             ["other"] = [],
@@ -82,14 +84,14 @@ public partial class PresentationService
         // Media — video/audio
         if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ||
             contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
-            return "videoAudio";
+            return "video_audio";
 
         // Media folder fallback (catches media with unusual content types)
         if (lowerUri.StartsWith("/ppt/media/"))
         {
             if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
                 return "images";
-            return "videoAudio";
+            return "video_audio";
         }
 
         return "other";

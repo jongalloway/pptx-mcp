@@ -9,7 +9,7 @@ namespace PptxMcp.Tests.Services;
 public class FileSizeAnalysisTests : PptxTestBase
 {
     private static readonly string[] ExpectedCategoryNames =
-        ["slides", "images", "videoAudio", "masters", "layouts", "other"];
+        ["slides", "images", "video_audio", "masters", "layouts", "other"];
 
     // ────────────────────────────────────────────────────────
     // Happy path: minimal single-slide PPTX
@@ -169,7 +169,7 @@ public class FileSizeAnalysisTests : PptxTestBase
         var result = Service.AnalyzeFileSize(path);
 
         // A minimal PPTX has no video/audio
-        var videoAudio = Assert.Single(result.Categories, c => c.Name == "videoAudio");
+        var videoAudio = Assert.Single(result.Categories, c => c.Name == "video_audio");
         Assert.Equal(0, videoAudio.TotalSize);
         Assert.Equal(0, videoAudio.PartCount);
         Assert.NotNull(videoAudio.Parts);

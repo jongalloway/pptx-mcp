@@ -16,7 +16,7 @@ public record FileSizeAnalysisResult(
     string Message);
 
 /// <summary>A single category in the file size breakdown.</summary>
-/// <param name="Name">Category name (slides, images, videoAudio, masters, layouts, other).</param>
+/// <param name="Name">Category name (slides, images, video_audio, masters, layouts, other).</param>
 /// <param name="TotalSize">Sum of uncompressed sizes for all parts in this category.</param>
 /// <param name="PartCount">Number of parts in this category.</param>
 /// <param name="Parts">Individual parts with path, content type, and size.</param>
