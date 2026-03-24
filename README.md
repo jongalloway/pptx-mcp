@@ -83,6 +83,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_analyze_file_size` | Analyze file size breakdown by category (slides, images, video/audio, masters, layouts) |
 | `pptx_analyze_media` | List and analyze all media assets (images, video, audio) with duplicate detection |
 | `pptx_find_unused_layouts` | Find unused slide masters and layouts with estimated space savings |
+| `pptx_remove_unused_layouts` | Remove unused slide layouts and orphaned masters with before/after validation |
 
 **When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
 
