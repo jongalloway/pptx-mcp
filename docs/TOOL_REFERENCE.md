@@ -9,6 +9,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_add_slide](#pptx_add_slide)
 - [pptx_add_slide_from_layout](#pptx_add_slide_from_layout)
 - [pptx_analyze_file_size](#pptx_analyze_file_size)
+- [pptx_analyze_media](#pptx_analyze_media)
 - [pptx_batch_update](#pptx_batch_update)
 - [pptx_delete_slide](#pptx_delete_slide)
 - [pptx_duplicate_slide](#pptx_duplicate_slide)
@@ -195,6 +196,66 @@ On error, returns the same structure with `Success: false` and all categories pr
 ```json
 {
   "name": "pptx_analyze_file_size",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx"
+  }
+}
+```
+
+---
+
+## pptx_analyze_media
+
+**Description:** List and analyze all media assets (images, video, audio) in a PowerPoint presentation. For each media part: reports name, content type, size, SHA256 hash, and which slides reference it. Detects duplicate media (same content hash) and groups them for deduplication analysis.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+
+### Returns
+
+Structured JSON with media analysis:
+
+```json
+{
+  "Success": true,
+  "FilePath": "/presentations/quarterly-review.pptx",
+  "TotalMediaCount": 5,
+  "TotalMediaSize": 2890000,
+  "DuplicateGroupCount": 1,
+  "DuplicateSavingsBytes": 450000,
+  "MediaParts": [
+    {
+      "Path": "/ppt/media/image1.png",
+      "ContentType": "image/png",
+      "SizeBytes": 450000,
+      "Hash": "A1B2C3...",
+      "ReferencedBySlides": [1, 3]
+    }
+  ],
+  "DuplicateGroups": [
+    {
+      "Hash": "A1B2C3...",
+      "ContentType": "image/png",
+      "SizeBytes": 450000,
+      "Parts": ["/ppt/media/image1.png", "/ppt/media/image3.png"],
+      "ReferencedBySlides": [1, 3]
+    }
+  ],
+  "Message": "Found 5 media assets (1 duplicate group, 450000 bytes recoverable)."
+}
+```
+
+On error, returns the same structure with `Success: false` and empty lists.
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_analyze_media",
   "arguments": {
     "filePath": "/presentations/quarterly-review.pptx"
   }
