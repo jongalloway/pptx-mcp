@@ -12,6 +12,13 @@
 
 ## Learnings
 
+### Phase 4 Wave Decomposition & Sequencing (2026-03-24)
+- **3-Tier Wave Strategy:** Wave 1 (Core analysis: #80, #81, #82), Wave 2 (Enhancement & consolidation), Wave 3 (Polish & documentation)
+- **Squad Reassignments:** Cheritto → 3-tool implementation sprint (wave 1), Shiherlis → 92-test parallel validation, Nate → OpenXML research/skill capture, Coordinator → PR review & docs
+- **Risk Assessment:** Identified PAT permissions bottleneck for automated PR creation/label updates; contingency: manual intervention workflow
+- **Execution:** Wave 1 complete with all deliverables on branch/PR (0 blockers on implementation, all items ready for integration)
+- **Pattern Success:** Wave-based sequencing with parallel implementation/testing streams scales well for tooling work; allows PAT issues to surface early without blocking squad
+
 ### PRD Structure & Scope (2026-03-15)
 - Created PRD at `docs/PRD.md` based on PR #1 bootstrap and Jon's vision
 - Phase 1 (Content Reading) focuses on two high-value tools: extract talking points + export markdown

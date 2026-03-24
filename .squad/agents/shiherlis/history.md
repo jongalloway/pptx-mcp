@@ -30,6 +30,14 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Phase 4 Wave 1 Testing (2026-03-24)
+- **#80 Tests:** 23 tests passing, covers file size analysis edge cases, compressed/uncompressed files, single/multi-part breakdown
+- **#81 Tests:** 29 tests — discovered & fixed stream disposal bug in media analysis loop (resource leak), tests pushed to branch
+- **#82 Tests:** 40 tests passing, validates layout detection, unused masters/layouts, relationship integrity
+- **Total Test Coverage:** 92 new tests, all passing, Wave 1 tooling fully validated
+- **Pattern:** Analysis tool testing emphasizes edge cases (empty presentations, corrupted packages, large media counts) + real-file round-trip validation
+- **Quality:** Stream bug discovery demonstrates value of comprehensive test coverage; PR-ready with zero regressions
+
 ### Phase 2 Completion (2026-03-16)
 - **Issues #17 & #15:** Completed and merged (PR #32 & #31)
 - **Testing scope:** Issue #17 (tool testing) + Issue #15 (E2E scenario)

@@ -31,6 +31,13 @@
 
 ## Learnings
 
+### Phase 4 OpenXML Optimization Research (2026-03-24)
+- **7-Issue Feasibility Analysis:** Reviewed all proposed Wave 1–3 tools for OpenXML implementation challenges, complexity, and risk
+- **Code Sketches Delivered:** Provided implementation outlines for pptx_analyze_file_size, pptx_analyze_media, pptx_find_unused_layouts + future tools
+- **Skill File Capture:** Documented key OpenXML patterns (OPC structure, media/relationship traversal, layout hierarchy) for team reference
+- **Impact:** Research unblocked Cheritto on all three Wave 1 tools; high confidence in feasibility; no showstoppers identified
+- **Pattern:** Early research phase on OpenXML patterns prevents mid-implementation surprises; skill file becomes living reference
+
 ### 2026-03-16: Phase 2 Code Review (pptx_update_slide_data)
 
 **Review Scope:** Phase 2 implementation — `pptx_update_slide_data` tool, `UpdateSlideData` service method, `SlideDataUpdateResult` model, MULTI_SOURCE_COMPOSITION.md, E2E and unit tests.
