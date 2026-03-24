@@ -210,3 +210,25 @@
 - `src/PptxMcp/Services/PresentationService.cs` (partial class pattern, OpenXML traversal)
 - `src/PptxMcp/PptxMcp.csproj` (dependencies: DocumentFormat.OpenXml 3.5.1, ModelContextProtocol 1.1.0; add SkiaSharp for P4-6)
 - `tests/PptxMcp.Tests/` (377 tests baseline, xUnit v3 on MTP runner)
+
+### Tool Consolidation Analysis (2026-03-25)
+
+**Lead:** McCauley
+**Issue:** #92
+**Status:** Analysis complete, PR created
+
+**Summary:** Conducted formal consolidation analysis of all 24 MCP tools post-Phase 4.
+
+**Key Findings:**
+1. **Tier 1 (Easy wins, -2 tools):** Layout tools (find+remove → `pptx_manage_layouts`) and media tools (analyze+dedup → `pptx_manage_media`). Both follow the proven action-enum pattern with high parameter overlap and natural analyze→act workflows.
+2. **Tier 2 (Stretch, -2 more tools):** Deprecate redundant `pptx_update_text` (superseded by `update_slide_data`); consolidate slide inspection tools (xml+content → `pptx_get_slide` with format param, debatable clarity gain).
+3. **Tier 3 (Rejected):** Analysis mega-tool (`pptx_analyze` with target) — conflicts with stronger domain pairings. Image tools and table tools — parameter divergence too high.
+4. **Tool count projection:** 24 → 22 (Tier 1) → 20 (Tier 2). -17% reduction.
+5. **Migration path:** Clean break per consolidation, single PR, no deprecation period (same pattern as manage_slides/reorder_slides).
+
+**Side Finding:** TOOL_REFERENCE.md is stale — still lists pre-consolidation tool names from the manage_slides/reorder_slides work.
+
+**Pattern Insight:** Domain-specific pairings (analyze→act) beat cross-cutting groupings (all-analysis mega-tool). The action enum pattern works when actions share ≥80% of parameters and represent a natural workflow progression. It fails when parameter surfaces diverge significantly.
+
+**Decision Document:** `.squad/decisions/inbox/mccauley-tool-consolidation.md`
+**Analysis Document:** `docs/TOOL_CONSOLIDATION_ANALYSIS.md`
