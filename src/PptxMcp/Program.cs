@@ -81,24 +81,12 @@ static async Task<int> RunCliAsync(string[] args)
 
     // Real commands
     rootCommand.Add(AnalyzeCommand.Create(service));
+    rootCommand.Add(EditCommand.Create(service));
     rootCommand.Add(ExportCommand.Create(service));
     rootCommand.Add(InspectCommand.Create(service));
     rootCommand.Add(MediaCommand.Create(service));
     rootCommand.Add(OptimizeCommand.Create(service));
     rootCommand.Add(SlidesCommand.Create(service));
-
-    // Stubs for unimplemented commands
-    (string name, string desc, int issue)[] stubs =
-    [
-        ("edit", "Edit presentation content", 103),
-    ];
-
-    foreach (var (name, desc, issue) in stubs)
-    {
-        var cmd = new Command(name, desc);
-        cmd.SetAction(_ => Console.WriteLine($"Coming soon — see issue #{issue}"));
-        rootCommand.Add(cmd);
-    }
 
     return await rootCommand.Parse(args).InvokeAsync();
 }
