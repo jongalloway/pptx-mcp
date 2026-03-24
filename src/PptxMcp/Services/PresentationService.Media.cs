@@ -123,7 +123,9 @@ public partial class PresentationService
     {
         if (!mediaMap.TryGetValue(uri, out var builder))
         {
-            using var stream = getStream();
+            using var raw = getStream();
+            using var stream = new MemoryStream();
+            raw.CopyTo(stream);
             var size = stream.Length;
             stream.Position = 0;
             var hash = Convert.ToHexString(SHA256.HashData(stream));
