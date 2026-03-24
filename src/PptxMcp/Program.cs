@@ -84,12 +84,12 @@ static async Task<int> RunCliAsync(string[] args)
     rootCommand.Add(ExportCommand.Create(service));
     rootCommand.Add(InspectCommand.Create(service));
     rootCommand.Add(MediaCommand.Create(service));
+    rootCommand.Add(OptimizeCommand.Create(service));
     rootCommand.Add(SlidesCommand.Create(service));
 
     // Stubs for unimplemented commands
     (string name, string desc, int issue)[] stubs =
     [
-        ("optimize", "Optimize presentation file size", 100),
         ("edit", "Edit presentation content", 103),
     ];
 
