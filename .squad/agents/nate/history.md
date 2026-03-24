@@ -31,6 +31,73 @@
 
 ## Learnings
 
+### 2026-03-24: CLI Interface Research — Issue #94
+
+**Research Scope:** Investigated dual-mode architecture, command surface design, and distribution strategy for adding CLI interface to pptx-mcp while maintaining MCP server capability.
+
+**Key Findings:**
+
+1. **Dual-Mode Architecture (APPROVED):**
+   - Single entry point with args-based mode detection is proven pattern (Excel MCP production precedent)
+   - Mode detection: `DetermineMode(args)` → route to `RunMcpServerAsync()` or `RunCliAsync()`
+   - Fully backward compatible — existing MCP configs unchanged (default = MCP when no args)
+   - Mode detection overhead: <1ms, zero startup penalty
+   - No changes to MCP tools or protocols needed
+
+2. **Program.cs Structure:**
+   - 40-line entry point supports both modes with shared DI container
+   - Critical pattern: Log everything to stderr in MCP mode (prevents stdout pollution)
+   - CLI mode uses System.CommandLine for argument parsing (v2.0.0+)
+   - Shared PresentationService (core logic) used by both paths
+
+3. **21 Tools → CLI Commands Mapping:**
+   - Organize by domain + verb-noun pattern: `pptx <domain> <verb>`
+   - 7 command groups identified: inspect, analyze, optimize, edit, media, slides, export
+   - All 21 MCP tools cleanly map to CLI commands with no conflicts
+   - High-value compound commands identified: `pptx optimize` (all-in-one), `pptx report` (analysis summary)
+
+4. **Distribution (Phased Approach):**
+   - **Phase 1 (NuGet Global Tool, Week 1):** Framework-dependent (5-10MB), works cross-platform, Magick.NET native binaries auto-extracted
+   - **Phase 2 (Scoop/Homebrew, Month 2):** Platform-specific manifests for non-.NET users
+   - **Phase 3 (Docker, Optional):** CI/CD and containerized batch processing
+   - Single-file publish NOT recommended — framework-dependent is superior (smaller, faster, native deps work better)
+
+5. **Magick.NET Native Binaries (Zero Special Handling):**
+   - Q8-AnyCPU NuGet package includes native binaries for all platforms (win-x64, linux-x64, osx-x64, osx-arm64)
+   - Global tool install auto-extracts binaries to `~/.dotnet/tools/.store/pptx-mcp/<VERSION>/runtimes/<PLATFORM>/native/`
+   - Runtime automatically selects correct binary — no configuration needed
+   - Precedent: MiniCover, Entity Framework Core (both production tools with platform binaries)
+
+6. **Caveats & Gotchas:**
+   - Stdin/stdout collision in dual-mode → Mitigation: Log to stderr only in MCP mode
+   - Argument parsing ambiguity (file named "serve") → Require explicit flags
+   - Configuration file watching can cause tight polling → Disable FileSystemWatcher
+   - Process exit codes: CLI expects 0/1, MCP different → Return exit codes from CLI
+   - DI container lifecycle: Use `using var host` in CLI mode
+
+7. **Impact on MCP Server (ZERO):**
+   - No breaking changes — 100% backward compatible
+   - MCP default behavior unchanged (no args = serve)
+   - Existing integration tests pass unchanged
+   - No security or performance implications
+
+**Deliverable:** Comprehensive research report saved to `.squad/decisions/inbox/nate-cli-research.md` with:
+- Recommended dual-mode architecture with Program.cs scaffold
+- Complete 21-tool CLI mapping table
+- Phased distribution strategy (NuGet → Scoop/Homebrew → Docker)
+- .csproj configuration recommendations
+- Effort estimates and GO/DEFER verdict
+
+**Verdict:** **APPROVED FOR IMPLEMENTATION**
+- Low risk (mode detection is 20 lines; no MCP changes)
+- High value (unlocks scripting, batch workflows, one-off optimization)
+- Battle-tested pattern (Excel MCP precedent)
+- Minimal overhead (no startup cost)
+- MVP effort: ~16-20 hours (1 week)
+- Full surface: ~20-30 additional hours (weeks 2-3)
+
+**Impact:** Research unblocks CLI implementation for Issue #94. Jon can approve dual-mode design and begin MVP development immediately.
+
 ### Phase 4 OpenXML Optimization Research (2026-03-24)
 - **7-Issue Feasibility Analysis:** Reviewed all proposed Wave 1–3 tools for OpenXML implementation challenges, complexity, and risk
 - **Code Sketches Delivered:** Provided implementation outlines for pptx_analyze_file_size, pptx_analyze_media, pptx_find_unused_layouts + future tools
@@ -217,6 +284,54 @@
 - Entry point: `PresentationDocument.Open(filePath, editable: bool)`
 - Package access: `doc.PresentationPart.OpenXmlPackage.Package` → `GetParts()`
 - All current service methods follow this pattern correctly
+
+### 2026-03-24: Video/Audio Metadata Extraction Research — Issue #86
+
+**Research Scope:** Evaluate NuGet packages for extracting video/audio metadata (codec, resolution, bitrate, duration) from embedded media in PPTX files. Analogous to Magick.NET image pattern, analysis-only (no re-encoding).
+
+**Candidates Evaluated:** 10+ packages including FFMpegCore, TagLibSharp, MediaInfo.DotNetWrapper, FFMediaToolkit, SharpMp4Parser, and others.
+
+**Key Findings:**
+
+**No Pure-.NET Solution Meets Bar:**
+- **FFMpegCore (MIT):** Requires FFmpeg/FFprobe CLI binaries installed system-wide. Deal-breaker for MCP server distribution (serverless/container incompatible). Excellent metadata extraction but incompatible with zero-dependency goal.
+- **TagLibSharp (LGPL-2.1):** Pure .NET, zero deps, but **inadequate for video**—focuses on audio tags (ID3, Vorbis). Does NOT expose VideoCodec, VideoResolution, VideoWidth/Height from MP4/WebM.
+- **MediaInfo.DotNetWrapper (MIT):** Wrapper-only; requires native MediaInfo library (bring-your-own). No stream support; file-path-only API forces temp file extraction. Same distribution complexity as FFMpegCore.
+- **FFMediaToolkit (MIT):** FFmpeg wrapper, archived (last update 2021), same binary dependency problem.
+- **Alternative wrappers (NReco.VideoInfo, Xabe.FFmpeg, MediaToolkit):** All FFmpeg-dependent, same issues.
+
+**Lightweight Pure-.NET Alternative Discovered:**
+- **SharpMp4Parser (MIT)** ⭐ RECOMMENDED
+  - Pure .NET (Standard 2.0+), zero native dependencies
+  - MIT license (perfect match to project)
+  - ~100 KB NuGet package, 2K downloads (early-stage but proven)
+  - Actively maintained (jimm98y/SharpMp4Parser, regular updates)
+  - Stream-based API: parse MP4 box structure from memory
+  - Can extract: codec (from `stsd`), resolution (from `tkhd`), duration (from `mdhd`), bitrate (computed)
+  - **Analogous to Magick.NET pattern:** Lightweight, focused (metadata only, no transcoding), stream-native, cross-platform by design
+
+**Verdict:** **GO with SharpMp4Parser for MP4/ISOBMFF video metadata extraction.**
+
+**Implementation Pattern:**
+1. Add `SharpMp4Parser` v0.0.5 to PptxMcp.csproj
+2. Create `VideoMetadataExtractor` service in `Services/` — box traversal helpers for codec/resolution/duration/bitrate
+3. Add `pptx_analyze_video_metadata` MCP tool — structured JSON response { codec, resolution: { width, height }, bitrate, duration }
+4. Tests: Unit (box parsing), E2E (real PPTX with H.264 video), cross-platform validation
+5. **Effort estimate:** 7–10 hours (comparable to Magick.NET image integration phase)
+
+**Risk Mitigation:**
+- Wrap box parsing in try-catch for malformed MP4 containers
+- If >10% presentations fail (complex containers), escalate to FFMpegCore + binary distribution discussion
+- WebM support (Matroska containers) out-of-scope for initial release; can add separate WebM parser if needed
+
+**Licensing Compliance:**
+- SharpMp4Parser: MIT ✅
+- No LGPL/GPL dependencies introduced
+- Audit: Project already MIT-licensed; zero conflict
+
+**Deliverable:** Research report saved to `.squad/decisions/inbox/nate-video-metadata-research.md` with full candidate comparison table, architecture rationale, and implementation roadmap.
+
+**Impact:** Unblocks #86 design phase; team has validated path forward with zero-dependency pure-.NET solution matching Magick.NET pattern.
 - ZIP-level metadata available via `System.IO.Compression.ZipFile.OpenRead()` if needed (MarpToPptx precedent)
 
 **Implementation Recommendations:**

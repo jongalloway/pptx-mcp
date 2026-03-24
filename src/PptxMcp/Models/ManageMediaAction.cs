@@ -7,5 +7,8 @@ public enum ManageMediaAction
     Analyze,
 
     /// <summary>Deduplicate identical media, redirecting references and removing orphans.</summary>
-    Deduplicate
+    Deduplicate,
+
+    /// <summary>Extract video/audio metadata (codec, resolution, duration, bitrate) from embedded media.</summary>
+    AnalyzeVideo
 }

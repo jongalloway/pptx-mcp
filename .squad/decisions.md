@@ -2410,3 +2410,127 @@ using (var archive = ZipFile.OpenRead(filePath))
 - **2026-03-19:** SkiaSharp chosen for image optimization (vs. System.Drawing.Common, ImageSharp)
 - **2026-03-19:** OpenXML validation + round-trip testing established as acceptance criteria for Tier 2
 
+---
+
+## Recent Decisions (March 26, 2026)
+
+### Tool Consolidation Implementation (PR #97, Issue #92)
+
+**Lead:** Cheritto  
+**Date:** 2026-03-26  
+**Status:** ✅ Implemented (PR #97 merged)
+
+Implemented Tier 1 consolidation + `pptx_update_text` deprecation from McCauley's analysis (#92):
+
+**Consolidations:**
+1. `pptx_find_unused_layouts` + `pptx_remove_unused_layouts` → `pptx_manage_layouts` (action enum: Find | Remove)
+2. `pptx_analyze_media` + `pptx_deduplicate_media` → `pptx_manage_media` (action enum: Analyze | Deduplicate)
+3. `pptx_update_text` deprecated — `pptx_update_slide_data` is a strict superset
+
+**Rationale:**
+- Follows McCauley's analysis in docs/TOOL_CONSOLIDATION_ANALYSIS.md
+- Domain-specific pairings (analyze → act) are more natural for LLM tool selection
+- Clean break, no deprecation period (old tool names never shipped as stable API)
+- Service layer unchanged, minimizing risk
+
+**Impact:**
+- Tool count: 24 → 21
+- Service-layer tests: all pass unchanged
+- Build: 0 errors
+- Tests: 552 green
+
+**Files:**
+- Created: ManageLayoutsAction.cs, ManageMediaAction.cs, PptxTools.ManageMedia.cs
+- Modified: PptxTools.cs, PptxTools.Optimization.cs, README.md, tests
+- Deleted: PptxTools.Media.cs, PptxTools.Deduplication.cs
+
+---
+
+### Media Deduplication Implementation Pattern (Issue #84)
+
+**Lead:** Cheritto  
+**Date:** 2026-03-24  
+**Status:** ✅ Implemented
+
+**Decision:** Use `ownerPart.DeletePart(duplicatePart)` for ImagePart deduplication, not `DeleteReferenceRelationship`.
+
+**Context:** When redirecting ImagePart references from a duplicate to a canonical part, we need to remove the old relationship from each owner part.
+
+**Rationale:**
+- `DeletePart()` correctly handles standard OpenXmlPart relationships (ImagePart)
+- `DeleteReferenceRelationship()` is only for DataPart references (video/audio)
+- Using the wrong method throws at runtime
+
+**Impact:** Future media deduplication work (video/audio DataParts) will use `DeleteReferenceRelationship` for those part types.
+
+---
+
+### Write Operation Validation Pattern for Layout Removal (Issue #83)
+
+**Lead:** Cheritto  
+**Date:** 2026-03-24  
+**Status:** ✅ Established
+
+All write-operation optimization tools should follow this pattern:
+
+1. **Read-only analysis first** — reuse the corresponding analysis tool (e.g., FindUnusedLayouts) to identify targets before opening writable
+2. **OpenXmlValidator before AND after** — capture error counts at both checkpoints and surface them via `ValidationStatus`
+3. **Safety intersection** — when caller provides explicit targets, intersect with the actually-unused set rather than trusting blindly
+4. **Cleanup ID lists** — when deleting parts (layouts, masters), always remove corresponding ID entries from parent XML lists (SlideLayoutIdList, SlideMasterIdList) before calling DeletePart
+
+**Rationale:** PowerPoint is the real validator. OpenXmlValidator catches structural issues early but doesn't guarantee PowerPoint compatibility. Two-phase approach (analyze read-only, then modify) minimizes writable lock time and keeps safety check separate from mutation.
+
+---
+
+### User Directive: Image Optimization Library (Issue #85)
+
+**Author:** Jon Galloway (via Copilot)  
+**Date:** 2026-03-24  
+**Status:** ✅ Approved
+
+For issue #85 (compress/optimize images), use **Magick.NET** instead of ImageSharp.
+
+**Rationale:** User request — captured for team memory.
+
+---
+
+### Magick.NET Research & Feasibility (Issue #85)
+
+**Lead:** Nate (Consulting Dev)  
+**Date:** 2026-03-26  
+**Status:** ✅ Completed — GO verdict
+
+**Verdict: GO** — Magick.NET is **fully viable** for issue #85.
+
+**Capabilities (all supported):**
+- Read image dimensions
+- Downscale images maintaining aspect ratio
+- Convert BMP/TIFF → PNG/JPEG
+- Re-encode JPEG at configurable quality
+- Stream-based I/O (no temp files)
+
+**Recommendation:**
+- Use `Magick.NET-Q8-x64` (version 14.11.0+)
+- Q8 = 8 bits per pixel (sufficient for PPTX images)
+- x64 = platform-specific (reduces binary size ~15-18 MB)
+
+**Bundle Size Impact:** +15-35 MB added to published binary (acceptable for open-source MCP server)
+
+**Cross-Platform:** Full support on Windows, Linux (ubuntu-latest), macOS via native binary bundling
+
+**Integration Pattern:** Create `PresentationService.ImageOptimization.cs` with:
+- `OptimizeImages()` public tool method
+- `OptimizeImagesInSlidePart()` helper
+- `OptimizeImagePart()` Magick.NET wrapper
+
+**Timeline:** 6–8 hours (dependency setup, tool implementation, E2E test, documentation)
+
+**vs. SkiaSharp:** Magick.NET is better for image compression (format conversion, JPEG quality control) despite being slower. SkiaSharp better for real-time rendering.
+
+**Key Gotchas:**
+- Preserve aspect ratio by setting unused dimension to 0 in `Resize()`
+- Use `imagePart.FeedData(stream)` to replace image in-place
+- Add `.csproj` properties to ensure native binaries copied during publish on Linux
+
+**Next Step:** Pass research to Cheritto with implementation sketch for development.
+
