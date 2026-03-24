@@ -3,7 +3,7 @@
 **Issue:** #92 — Q4: Tool consolidation analysis
 **Author:** McCauley (Lead)
 **Date:** 2026-03-25
-**Status:** Proposed
+**Status:** Implemented (Tier 1 + update_text deprecation — PR for #96)
 
 ## Executive Summary
 
@@ -240,8 +240,42 @@ Unique parameter surface (`targetDpi`, `jpegQuality`, `convertFormats`). No natu
 |-------|-----------|--------|
 | Current | 24 | — |
 | After Tier 1 (layouts + media) | **22** | -2 |
-| After Tier 2 (slide inspection + deprecate update_text) | **20** | -2 |
-| **Final (all tiers)** | **20** | **-17%** |
+| After deprecate update_text | **21** | -1 |
+| **Implemented (PR #96)** | **21** | **-12.5%** |
+| After Tier 2 (slide inspection, if desired) | **20** | -1 |
+
+---
+
+## Implementation Notes
+
+**Implemented 2026-03-26 by Cheritto (PR for issue #96):**
+
+### What shipped
+1. **`pptx_manage_layouts`** (Find | Remove) — replaced `pptx_find_unused_layouts` + `pptx_remove_unused_layouts`
+2. **`pptx_manage_media`** (Analyze | Deduplicate) — replaced `pptx_analyze_media` + `pptx_deduplicate_media`
+3. **Deprecated `pptx_update_text`** — `pptx_update_slide_data` is a strict functional superset
+
+### Pattern followed
+All consolidated tools use the same pattern as `pptx_manage_slides`, `pptx_reorder_slides`, and `pptx_chart_data`:
+- C# enum for action parameter
+- `[McpMeta]` attributes for machine-readable metadata
+- `partial` method, switch expression dispatch
+- Service layer unchanged
+
+### Test impact
+- 552/552 tests passing (unchanged count)
+- Service-layer tests (UnusedLayoutsTests, RemoveLayoutsTests, MediaAnalysisTests, DeduplicateMediaTests, ImageOptimizationTests) all pass unchanged
+- Tool-level test for `pptx_update_text` removed; null validation test replaced with `pptx_manage_layouts` and `pptx_manage_media` coverage
+
+### Files changed
+- `PptxTools.Optimization.cs` — consolidated layout tools into `pptx_manage_layouts`
+- `PptxTools.ManageMedia.cs` — new file, consolidated media tools into `pptx_manage_media`
+- `PptxTools.Media.cs` — deleted (absorbed into ManageMedia)
+- `PptxTools.Deduplication.cs` — deleted (absorbed into ManageMedia)
+- `PptxTools.cs` — removed `pptx_update_text` method
+- `ManageLayoutsAction.cs`, `ManageMediaAction.cs` — new enum files
+- `PptxToolsTests.cs`, `NullValidationTests.cs` — updated for new tool names
+- `README.md` — tool list updated (24 → 21)
 
 ---
 

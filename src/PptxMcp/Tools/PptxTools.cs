@@ -76,19 +76,6 @@ public sealed partial class PptxTools
     public Task<string> pptx_list_layouts(string filePath) =>
         ExecuteToolJson(filePath, () => _service.GetLayouts(filePath));
 
-    /// <summary>Update the text of a placeholder on a slide.</summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    /// <param name="slideIndex">Zero-based index of the slide to update.</param>
-    /// <param name="placeholderIndex">Zero-based index of the placeholder on the slide.</param>
-    /// <param name="text">New text content for the placeholder.</param>
-    [McpServerTool(Title = "Update Text")]
-    public Task<string> pptx_update_text(string filePath, int slideIndex, int placeholderIndex, string text) =>
-        ExecuteTool(filePath, () =>
-        {
-            _service.UpdateTextPlaceholder(filePath, slideIndex, placeholderIndex, text);
-            return $"Placeholder {placeholderIndex} on slide {slideIndex} updated successfully.";
-        });
-
     /// <summary>
     /// Update a named slide shape with replacement text while preserving the shape's existing formatting.
     /// Prefer shapeName from pptx_get_slide_content; placeholderIndex is a zero-based fallback across text-capable shapes on the slide.

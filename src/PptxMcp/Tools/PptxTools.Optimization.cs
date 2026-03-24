@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PptxMcp.Models;
 
@@ -36,49 +38,57 @@ public partial class PptxTools
     ];
 
     /// <summary>
-    /// Find unused slide masters and layouts in a PowerPoint presentation.
-    /// Enumerates all masters and layouts, cross-references against actual slide usage,
-    /// and identifies which could be safely removed with estimated space savings.
+    /// Manage unused slide layouts and masters in a PowerPoint presentation.
+    /// Available actions:
+    /// - Find: Identify unused layouts and masters with estimated space savings (read-only).
+    /// - Remove: Remove unused layouts and orphaned masters, with OpenXML validation before and after.
+    /// Natural workflow: Find (diagnostic) → Remove (action).
     /// </summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    [McpServerTool(Title = "Find Unused Layouts", ReadOnly = true, Idempotent = true)]
-    public partial Task<string> pptx_find_unused_layouts(string filePath) =>
-        ExecuteToolStructured(filePath,
-            () => _service.FindUnusedLayouts(filePath),
-            error => new UnusedLayoutsResult(
-                Success: false,
-                FilePath: filePath,
-                TotalMasters: 0,
-                TotalLayouts: 0,
-                UnusedMasterCount: 0,
-                UnusedLayoutCount: 0,
-                EstimatedSavingsBytes: 0,
-                Masters: [],
-                Layouts: [],
-                Warnings: [],
-                Message: error));
+    /// <param name="action">The layout management operation to perform: Find or Remove.</param>
+    /// <param name="layoutUris">Optional array of layout URIs to remove. Only used with Remove action. Omit to auto-detect all unused layouts.</param>
+    [McpServerTool(Title = "Manage Layouts")]
+    [McpMeta("consolidatedTool", true)]
+    [McpMeta("actions", JsonValue = """["Find","Remove"]""")]
+    public partial Task<string> pptx_manage_layouts(
+        string filePath,
+        ManageLayoutsAction action,
+        string[]? layoutUris = null)
+    {
+        return action switch
+        {
+            ManageLayoutsAction.Find => ExecuteToolStructured(filePath,
+                () => _service.FindUnusedLayouts(filePath),
+                error => new UnusedLayoutsResult(
+                    Success: false,
+                    FilePath: filePath,
+                    TotalMasters: 0,
+                    TotalLayouts: 0,
+                    UnusedMasterCount: 0,
+                    UnusedLayoutCount: 0,
+                    EstimatedSavingsBytes: 0,
+                    Masters: [],
+                    Layouts: [],
+                    Warnings: [],
+                    Message: error)),
 
-    /// <summary>
-    /// Remove unused slide layouts and orphaned slide masters from a PowerPoint presentation.
-    /// When layoutUris is omitted, auto-detects and removes all unused layouts.
-    /// When specific URIs are provided, removes only those (if they are unused).
-    /// Validates the package with OpenXmlValidator before and after removal.
-    /// </summary>
-    /// <param name="filePath">Absolute or relative path to the .pptx file to modify.</param>
-    /// <param name="layoutUris">Optional array of layout URIs to remove. Omit to auto-detect all unused layouts.</param>
-    [McpServerTool(Title = "Remove Unused Layouts")]
-    public partial Task<string> pptx_remove_unused_layouts(string filePath, string[]? layoutUris = null) =>
-        ExecuteToolStructured(filePath,
-            () => _service.RemoveUnusedLayouts(filePath, layoutUris),
-            error => new RemoveLayoutsResult(
-                Success: false,
-                FilePath: filePath,
-                RemovedItems: [],
-                LayoutsRemoved: 0,
-                MastersRemoved: 0,
-                BytesSaved: 0,
-                Validation: new ValidationStatus(0, 0, false),
-                Message: error));
+            ManageLayoutsAction.Remove => ExecuteToolStructured(filePath,
+                () => _service.RemoveUnusedLayouts(filePath, layoutUris),
+                error => new RemoveLayoutsResult(
+                    Success: false,
+                    FilePath: filePath,
+                    RemovedItems: [],
+                    LayoutsRemoved: 0,
+                    MastersRemoved: 0,
+                    BytesSaved: 0,
+                    Validation: new ValidationStatus(0, 0, false),
+                    Message: error)),
+
+            _ => Task.FromResult(JsonSerializer.Serialize(
+                new { Success = false, Message = $"Unknown action: {action}. Valid actions: Find, Remove." },
+                IndentedJson))
+        };
+    }
 
     /// <summary>
     /// Optimize images in a PowerPoint presentation by downscaling, converting formats, and recompressing.

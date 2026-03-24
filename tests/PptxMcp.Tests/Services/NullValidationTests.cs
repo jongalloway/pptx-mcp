@@ -268,10 +268,17 @@ public class NullValidationTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateText_NullFilePath_ReturnsError()
+    public async Task ManageLayouts_NullFilePath_ReturnsError()
     {
-        var result = await _tools.pptx_update_text(null!, 0, 0, "text");
-        Assert.Contains("Error", result);
+        var result = await _tools.pptx_manage_layouts(null!, ManageLayoutsAction.Find);
+        Assert.Contains("File not found", result);
+    }
+
+    [Fact]
+    public async Task ManageMedia_NullFilePath_ReturnsError()
+    {
+        var result = await _tools.pptx_manage_media(null!, ManageMediaAction.Analyze);
+        Assert.Contains("File not found", result);
     }
 
     // ────────────────────────────────────────────────────────────────────────
