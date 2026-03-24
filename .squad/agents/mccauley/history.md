@@ -232,3 +232,46 @@
 
 **Decision Document:** `.squad/decisions/inbox/mccauley-tool-consolidation.md`
 **Analysis Document:** `docs/TOOL_CONSOLIDATION_ANALYSIS.md`
+
+### CLI Interface Decomposition (2026-03-24)
+
+**Lead:** McCauley  
+**Status:** Decomposition complete — 7 GitHub issues created  
+
+**Summary:** Decomposed GitHub issue #94 (Research: CLI interface) into 7 implementation sub-issues based on Nate's CLI research report and approved dual-mode architecture design.
+
+**Key Design Decisions (from Nate's research):**
+1. **Dual-mode architecture:** Single binary serves as MCP server (--stdio flag) or CLI tool (args). No separate project needed.
+2. **Mode detection:** <20 lines of code. Command detection in Program.cs routes to RunMcpServerAsync() or RunCliAsync().
+3. **Shared DI container:** Both modes use same PresentationService — no code duplication.
+4. **Distribution:** NuGet global tool (`dotnet tool install --global pptx-mcp`). Scoop/Homebrew deferred to Phase 2.
+5. **Command grouping:** 21 MCP tools organized into 7 CLI groups (analyze, optimize, inspect, export, edit, media, slides).
+
+**GitHub Issues Created (Milestone #6 "CLI Phase 1"):**
+1. **#98 (BLOCKER):** Dual-mode entry point — Add System.CommandLine, DetermineMode() logic, RunCliAsync() stub. All other issues depend on this.
+2. **#99:** analyze command group — file-size, talking-points
+3. **#100:** optimize command (all-in-one killer workflow) — analyze + optimize images + dedup media + remove layouts + report
+4. **#101:** inspect command group — slides, content, xml, layouts
+5. **#102:** export command — markdown export
+6. **#103:** edit command group (complex mutations) — slide data, batch update, tables, images, notes, chart data
+7. **#104:** media/slides command groups — list, dedup, delete, reorder, organize
+8. **#105:** NuGet global tool packaging — csproj updates, publish setup
+
+**Dependency Chain:**
+- #98 blocks all others (#99–#105)
+- #99–#104 can be done in parallel after #98
+- #105 can start in parallel with #98; final packaging waits on all commands
+
+**Key Patterns:**
+- **Killer use case:** pptx optimize — one command to shrink file by optimizing images, deduplicating media, removing unused layouts. Strong differentiator vs. other PPTX CLIs.
+- **Compound commands:** optimize, refresh (batch), report — orchestrate multiple MCP tools in sequence with reporting
+- **JSON input for mutations:** edit group commands accept JSON for complex updates (batch_update pattern)
+- **Error handling:** File validation, slide index bounds, invalid mutations — all validated per-command
+
+**Success Criteria:**
+- All 7 issues implement without regression to existing MCP server tests
+- CLI commands format output appropriately (not JSON-only)
+- Global tool installation works end-to-end
+- 400+ tests passing post-CLI implementation
+
+**Decision Document:** `.squad/decisions/inbox/mccauley-cli-decomposition.md`

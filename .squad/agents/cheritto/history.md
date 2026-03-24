@@ -176,3 +176,14 @@
 - **Tests:** 552/552 passing, service-layer tests unmodified, tool tests updated for new names
 - **Key insight:** Consolidation pattern is fully mechanical once the enum + switch expression shape is established; total implementation ~1 hour
 
+### Issue #86 — Video/Audio Metadata Extraction (2026-03-27)
+- **Implementation:** Added `AnalyzeVideo` action to `pptx_manage_media` consolidated tool
+- **Dependency:** SharpMP4 v0.2.2 (MIT, pure .NET, zero native deps) — Nate's research recommended SharpMp4Parser but it's obsolete; SharpMP4 is the replacement by same author (jimm98y)
+- **API surface:** SharpMP4 uses SharpISOBMFF.Container for ISOBMFF box parsing; IsoStream wraps System.IO.Stream; VideoReader not needed for metadata-only extraction — direct box traversal is cleaner
+- **Box traversal:** moov → trak → tkhd (width/height), mdia → mdhd (timescale/duration), hdlr (handler type), minf → stbl → stsd (codec FourCC via VisualSampleEntry/AudioSampleEntry)
+- **FourCC handling:** TrackHeaderBox Width/Height are 16.16 fixed-point (>> 16 for pixels); HandlerBox.HandlerType is uint FourCC requiring BigEndian→ASCII decode
+- **Audio sample rate:** AudioSampleEntry.Samplerate is stored as 16.16 fixed-point, need >> 16 to get actual Hz value
+- **Files:** 4 new (model, service partial, tests, enum update), 2 modified (tool dispatch, README)
+- **Tests:** 23 new tests including hand-crafted minimal MP4/M4A byte sequences with full ISOBMFF box structure
+- **Build:** 0 errors; 575/575 tests passing
+- **PR:** on branch squad/86-video-metadata
