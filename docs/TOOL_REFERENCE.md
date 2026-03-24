@@ -8,6 +8,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 
 - [pptx_add_slide](#pptx_add_slide)
 - [pptx_add_slide_from_layout](#pptx_add_slide_from_layout)
+- [pptx_analyze_file_size](#pptx_analyze_file_size)
 - [pptx_batch_update](#pptx_batch_update)
 - [pptx_delete_slide](#pptx_delete_slide)
 - [pptx_duplicate_slide](#pptx_duplicate_slide)
@@ -140,6 +141,62 @@ A JSON result describing the created slide.
       "Title": "Agenda",
       "Body:1": "Wins\nRisks\nNext steps"
     }
+  }
+}
+```
+
+---
+
+## pptx_analyze_file_size
+
+**Description:** Analyze the file size breakdown of a PowerPoint presentation by category. Scans all parts in the PPTX package and reports sizes broken down into slides, images, video/audio, slide masters, slide layouts, and other parts. Each category includes a subtotal and per-part detail.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+
+### Returns
+
+Structured JSON with file size breakdown:
+
+```json
+{
+  "Success": true,
+  "FilePath": "/presentations/quarterly-review.pptx",
+  "TotalFileSize": 2458624,
+  "TotalPartSize": 3145728,
+  "Categories": [
+    {
+      "Name": "slides",
+      "TotalSize": 45320,
+      "PartCount": 3,
+      "Parts": [
+        { "Path": "/ppt/slides/slide1.xml", "ContentType": "application/vnd.openxmlformats-officedocument.presentationml.slide+xml", "Size": 15107 }
+      ]
+    },
+    {
+      "Name": "images",
+      "TotalSize": 2890000,
+      "PartCount": 5,
+      "Parts": []
+    }
+  ],
+  "Message": "Analyzed 42 parts across 6 categories."
+}
+```
+
+On error, returns the same structure with `Success: false` and all categories present with zero totals.
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_analyze_file_size",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx"
   }
 }
 ```

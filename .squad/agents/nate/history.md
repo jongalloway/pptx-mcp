@@ -186,3 +186,60 @@
 - `.csproj` reference: `src/PptxMcp/PptxMcp.csproj` line 26
 - Issue: https://github.com/jongalloway/pptx-mcp/issues/75
 - Reference: Open-XML-SDK releases (https://github.com/dotnet/Open-XML-SDK/releases)
+
+### 2026-03-24: Phase 4 OpenXML Patterns Research
+
+**Research Scope:** Feasibility analysis for Phase 4 issues (#80–#86) — file size breakdown, media analysis, layout deduplication, image optimization.
+
+**Key Findings:**
+
+**Highly Feasible (High Confidence):**
+- **#80 (File size breakdown):** `System.IO.Compression.ZipArchive` or `PackagePart` enumeration via `doc.PresentationPart.OpenXmlPackage.Package.GetParts()`. Categorize by URI pattern (slides, media, themes, layouts). Zero dependencies.
+- **#81 (Media analysis):** MarpToPptx pattern established — enumerate `Picture` shapes, resolve `Blip.Embed` relationships, extract `ImagePart` stream metadata. SHA256 hashing for duplicates. Zero dependencies.
+- **#82 (Unused layout detection):** Cross-reference `SlideMasterParts.SlideLayoutParts` against actual slide usage via `slidePart.SlideLayoutPart`. Straightforward relationship traversal. Zero dependencies.
+
+**Medium Feasibility (Medium Confidence, requires testing):**
+- **#83 (Remove unused layouts):** Safe deletion via `presentationPart.DeletePart(layoutPart)`. SDK handles relationship/content-type cleanup. **Risk:** PowerPoint round-trip validation essential (potential "missing template" warnings). No dependencies, but test coverage critical.
+- **#84 (Deduplicate media):** Hash all images → redirect relationships → delete orphans. Tricky relationship redirection (manual: delete old, create new, update Blip.Embed). **Risk:** Atomic operation; partial failure = corruption. Zero dependencies but high test burden.
+
+**Conditional Feasibility:**
+- **#85 (Image compression):** Optional `SixLabors.ImageSharp` dependency. JPEG quality 85 achieves ~30% savings. PNG savings minimal (~10–20%). **Risk:** Lossy encoding; metadata loss (EXIF); format conversion risky. Recommend preset abstraction (Light/Medium/Aggressive).
+- **#86 (Video analysis):** Marked `go:no` (correct). Analysis-only is low-value; requires external CLI (MediaInfo/FFProbe ~50 MB). **Recommendation:** Defer to Phase 5 if optimization needed.
+
+**Current pptx-mcp Access Pattern:**
+- Entry point: `PresentationDocument.Open(filePath, editable: bool)`
+- Package access: `doc.PresentationPart.OpenXmlPackage.Package` → `GetParts()`
+- All current service methods follow this pattern correctly
+- ZIP-level metadata available via `System.IO.Compression.ZipFile.OpenRead()` if needed (MarpToPptx precedent)
+
+**Implementation Recommendations:**
+
+1. **#80–#82:** Start here (pure analysis, zero risk, high confidence)
+   - Add to `PresentationService` (or new `PresentationService.Optimization.cs` partial)
+   - Follow existing patterns: `GetSlidePart()`, `GetSlideIds()` helpers
+   - Return structured objects (JSON models), not strings
+   - XML doc comments for MCP SDK Description generation
+
+2. **#83–#84:** Medium priority (require PowerPoint round-trip testing)
+   - Implement mutations with atomic backup pattern
+   - Shiherlis to design test harness (PowerPoint validation)
+   - Document relationship cleanup edge cases
+
+3. **#85 (if prioritized):** Conditional dependency
+   - Recommend `SixLabors.ImageSharp` over System.Drawing (cross-platform, maintained)
+   - Feature flag for compression features
+   - Document lossy encoding trade-offs
+
+4. **#86:** Defer (Phase 5 candidate)
+   - Reason: Low-value analysis-only; external CLI overhead
+   - If future optimization needed: MediaInfo/FFProbe integration
+
+**Prior Art References:**
+- MarpToPptx: `OpenXmlPptxRenderer.cs` (PackagePart enumeration, ZipArchive usage, NormalizePackage)
+- MarpToPptx: `PptxMarkdownExporter.Media.cs` (image enumeration, SHA256 hashing, deduplication patterns)
+- pptx-mcp: `PresentationService.cs` lines 96–111 (layout enumeration)
+- pptx-mcp: `PresentationService.Charts.cs` (structured result pattern)
+
+**Deliverable:** `.squad/decisions/inbox/nate-phase4-openxml-research.md` — 40 KB comprehensive research with code sketches, gotchas, validation strategies for all 7 issues.
+
+**Impact:** Unblocks Phase 4 implementation planning. Team can now scope work with confidence: #80–#82 are quick wins; #83–#84 require diligent testing; #85 is optional enhancement; #86 safely deferred.

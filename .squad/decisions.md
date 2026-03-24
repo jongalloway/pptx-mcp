@@ -675,3 +675,1738 @@ ewIndex + 1), fixing inconsistency in old pptx_add_slide.
 **Timeline:** 15–20 minutes
 
 **Decision Point:** Can approve as Tier 1 polish or defer to later sprint
+
+
+### Phase 4: Presentation Optimization & Media Analysis (2026-03-23 McCauley)
+
+**Lead:** McCauley  
+**Status:** Ready for Implementation
+
+#### Summary
+
+Phase 4 ("Presentation Optimization") is a natural follow-on to Phase 3 (Deck Authoring & Media). It addresses a core user need: reducing file size by identifying and removing bloat (unused masters/layouts, duplicate media, oversized images).
+
+#### Phase 4 Scoping: Presentation Optimization & Media Analysis
+
+**Lead:** McCauley  
+**Date:** 2026-03-23  
+**Status:** Ready for Implementation  
+
+---
+
+## Executive Summary
+
+Phase 4 ("Presentation Optimization") is a natural follow-on to Phase 3 (Deck Authoring & Media). It addresses a core user need: reducing file size by identifying and removing bloat (unused masters/layouts, duplicate media, oversized images). 
+
+**Scope:** 7 GitHub issues (#80–#86) across 3 tiers:
+- **Tier 1** (Read-Only, Low Risk): 3 analysis tools — foundation for everything else
+- **Tier 2** (Write Operations, Moderate Risk): 3 optimization tools — depends on Tier 1, requires PowerPoint validation
+- **Tier 3** (Deferred): 1 analysis tool (video metadata only; re-encoding deferred)
+
+**Effort Estimate:** 32–38 hours (Tier 1+2), ~2–3 weeks part-time, single developer
+**Risk Level:** Moderate (write operations require strict validation; PowerPoint compatibility is the success criterion)
+**Start Condition:** Tier 1 issues must clear `go:needs-research`
+
+---
+
+## Issue Breakdown
+
+### Tier 1: Read-Only Analysis (Independent, Implement First)
+
+These are **low-risk, high-value diagnostic tools**. All independently scoped; no internal dependencies. Together they provide the data foundation for Tier 2 optimizations.
+
+#### **#80 — P4-1: Analyze presentation file size breakdown**
+- **Goal:** Scan PPTX ZIP structure and report sizes by category (slides, images, video/audio, masters, layouts, other)
+- **Scope:** ZIP enumeration via `System.IO.Compression`, OpenXML categorization, structured JSON output
+- **Key Pattern:** Will be reused by Tier 2 tools to confirm space savings
+- **Size Estimate:** 3–4 hours
+- **Risk:** Low (read-only, no mutation)
+- **PowerPoint Compat Risk:** None
+
+#### **#81 — P4-2: List and analyze media assets**
+- **Goal:** Enumerate all media (images, video, audio), compute SHA256 hash per part, detect duplicates, cross-ref to slides
+- **Scope:** ImagePart, VideoFromFile, AudioFromFile traversal; hash-based dedup analysis
+- **Key Pattern:** SHA256 content hash is reused in #84; media enumeration is reused in #85
+- **Size Estimate:** 3–4 hours
+- **Risk:** Low (read-only, no mutation)
+- **PowerPoint Compat Risk:** None
+
+#### **#82 — P4-3: Find unused slide masters and layouts**
+- **Goal:** Enumerate SlideMasterParts and SlideLayoutParts; cross-ref against actual slide usage; report unused items
+- **Scope:** Master/layout traversal via OpenXML; usage cross-ref; size calculation
+- **Key Pattern:** Forms foundation for #83 (removal logic)
+- **Size Estimate:** 3–4 hours
+- **Risk:** Low (read-only, no mutation)
+- **PowerPoint Compat Risk:** None
+- **Critical Note:** Warn if removing a master would orphan layouts (relationships matter)
+
+---
+
+### Tier 2: Write Operations (Depend on Tier 1)
+
+These **mutate the PPTX package** and carry higher risk. All require `OpenXmlValidator` before/after validation and **PowerPoint round-trip testing** (save, open in PowerPoint, verify no corruption).
+
+#### **#83 — P4-4: Remove unused slide masters and layouts**
+- **Goal:** Delete unused master/layout parts while preserving relationship integrity
+- **Depends On:** P4-3 analysis (identifies unused items); P4-1 patterns (size confirmation)
+- **Scope:** Target removal, orphan prevention, relationship cleanup, OpenXmlValidator
+- **Key Implementation Detail:** Cannot remove a master if it has layouts that are in use. Must validate before attempting removal.
+- **Size Estimate:** 5–6 hours
+- **Risk:** **MODERATE** — removing parts can break relationships if not careful. OpenXmlValidator is necessary but insufficient (files pass validator but fail in PowerPoint).
+- **PowerPoint Compat Risk:** **CRITICAL** — E2E test mandatory: remove masters, save, open in PowerPoint, verify no visual corruption or errors
+- **Recommended Testing:** Test with presentations of varying complexity (minimal masters, complex themes with many layouts)
+
+#### **#84 — P4-5: Deduplicate identical media**
+- **Goal:** Find identical media by hash, consolidate to single canonical copy, update all references, remove orphans
+- **Depends On:** P4-2 media analysis (hash, dedup detection)
+- **Scope:** Relationship update, orphan cleanup, OpenXmlValidator
+- **Key Implementation Detail:** When replacing references, must ensure all relationship IDs point to canonical. Every image/video/audio reference across all slides must be updated.
+- **Size Estimate:** 5–6 hours
+- **Risk:** **MODERATE** — relationship management is error-prone. One missed reference breaks slide rendering.
+- **PowerPoint Compat Risk:** **CRITICAL** — E2E test mandatory: dedup a presentation with duplicated images, open in PowerPoint, verify all images display correctly and identically
+- **Recommended Testing:** Create test presentations with known duplicate images in different slides; verify post-dedup that all references resolve
+
+#### **#85 — P4-6: Compress/optimize images**
+- **Goal:** Downscale images larger than needed for display, optionally convert formats (BMP/TIFF→PNG/JPEG), re-encode with compression
+- **Scope:** Image part enumeration, pixel vs. display size analysis, downscaling/re-encoding, format conversion, OpenXmlValidator
+- **Key Architectural Decision:** Use **SkiaSharp** (cross-platform, high quality, modern) instead of System.Drawing.Common (legacy) or ImageSharp (slower)
+  - **Pro:** Works on Windows/Linux/macOS; better quality than System.Drawing.Common; faster than ImageSharp
+  - **Con:** New NuGet dependency (add to .csproj)
+- **Key Implementation Detail:** Display size is measured in EMU (English Metric Units); must convert to pixels to determine optimal DPI
+- **Size Estimate:** 6–8 hours (includes dependency research + image processing implementation)
+- **Risk:** **MODERATE** — image quality is subjective; aggressive compression may degrade visual fidelity
+- **PowerPoint Compat Risk:** **CRITICAL** — E2E test mandatory: compress a presentation with mixed image types/sizes, open in PowerPoint, verify visual quality acceptable and file size reduced
+- **Recommended Testing:** Create test presentations with large images, oversized photos, mixed formats; verify post-compression that images display at correct size with acceptable quality
+- **Quality Tuning:** Document JPEG quality trade-offs (recommend 85% as starting point)
+
+---
+
+### Tier 3: Deferred (Future Spike)
+
+#### **#86 — P4-7: Optimize embedded video (Analysis Only)**
+- **Goal:** Detect video metadata (codec, resolution, bitrate, duration) and suggest compression; **no transformation**
+- **Status:** Marked `go:no` — parking lot for future spike
+- **Rationale:** Video re-encoding requires external tool (ffmpeg, external API) and is complex. Analysis-only is quick (2–3 hours) but low immediate value without re-encoding. Better to deliver Tier 1+2 first, then circle back if users demand video optimization.
+- **Future Work:** If brought back, would likely require ffmpeg integration or external video optimization service API
+
+---
+
+## Implementation Sequence & Dependencies
+
+### Critical Path (Blocking Order)
+
+```
+Tier 1 (All Parallel):
+  [#80] —┐
+  [#81] —├→ All Tier 1 independent
+  [#82] —┘
+
+Tier 2 (Sequential, with dependencies):
+  [#82 complete] → [#83] (Remove masters depends on #82 analysis)
+  [#81 complete] → [#84] (Dedup media depends on #81 analysis)
+  [No dependency] → [#85] (Image compression independent, pairs well with #81 but doesn't block)
+```
+
+### Recommended Sequence for Single Developer
+
+**Week 1 (Tier 1 Analysis — 10–12 hours):**
+1. **#80** (P4-1) — File size breakdown: 3–4 hours
+   - Establish ZIP enumeration + OpenXML categorization patterns
+   - Used by all downstream tools for verification
+2. **#81** (P4-2) — Media enumeration + dedup: 3–4 hours
+   - Establishes hash-based media analysis pattern
+   - Required by #84 and #85
+3. **#82** (P4-3) — Master/layout finder: 3–4 hours
+   - Establishes master/layout traversal patterns
+   - Required by #83
+
+**Week 2 (Tier 2 Optimization — 16–20 hours):**
+1. **#83** (P4-4) — Remove masters/layouts: 5–6 hours
+   - Build on #82 analysis logic
+   - Highest risk; needs rigorous testing (PowerPoint round-trip)
+2. **#84** (P4-5) — Dedup media: 5–6 hours
+   - Build on #81 hash analysis
+   - Also high risk; relationship management critical
+3. **#85** (P4-6) — Image compression: 6–8 hours
+   - Independent implementation; add SkiaSharp dependency
+   - Can start in parallel with #84 if testing allows
+
+**Tier 3 (Parked for future):**
+- #86 deferred; not starting Phase 4
+
+---
+
+## Research Requirements (Before `go:needs-research` → `go:ready`)
+
+### For Nate (OpenXML Patterns & Prior Art)
+
+1. **Master/Layout Relationship Semantics**
+   - How do OpenXML relationships between masters and layouts work? Confirm that a layout can have only one parent master, and removing the master orphans the layout.
+   - Reference: MarpToPptx and dotnet-mcp precedent — did these repos handle master removal? What gotchas did they encounter?
+   - **Deliverable:** Short research note on master/layout removal safety (what to validate, what can break)
+
+2. **Media Reference Management in Slides**
+   - How do image relationships work when multiple slides reference the same media? When consolidating duplicates, which relationship structure is canonical?
+   - **Deliverable:** Guidance on how to safely update image references without orphaning parts
+
+3. **SkiaSharp vs. System.Drawing.Common Trade-offs**
+   - Document cross-platform support, performance, and PowerPoint compatibility for each option
+   - **Deliverable:** Recommendation on which library to use for P4-6 (image compression)
+
+4. **PowerPoint Validation & Round-Trip Testing**
+   - OpenXmlValidator passes but files still fail in PowerPoint — known gotchas?
+   - What's the safest way to test after removing parts or updating relationships?
+   - **Deliverable:** Test strategy guidance for Tier 2 operations
+
+### For Cheritto (Implementation Guidance)
+
+1. **Tier 1 tools are straightforward** — focus on clean JSON output and reusable patterns (will be referenced by Tier 2)
+2. **Tier 2 tools require:**
+   - Comprehensive error handling (removal failures, orphan prevention)
+   - Detailed logging (before/after sizes, what was removed, validation results)
+   - Unit tests + E2E tests (at minimum, E2E must include PowerPoint round-trip on real files)
+3. **SkiaSharp Integration** (P4-6 specific)
+   - Add to `.csproj` early
+   - Research DPI calculation (EMU → pixels → DPI)
+   - Decide on JPEG quality tuning (85% recommended start)
+
+### For Shiherlis (Testing Strategy)
+
+1. **Tier 1 tests (straightforward):**
+   - Unit tests for categorization logic (mock ZIP entries, verify counts)
+   - Edge cases: empty presentations, presentations with no media, minimal masters
+   - Test with 3+ real presentations (small, medium, complex)
+
+2. **Tier 2 tests (rigorous required):**
+   - **#83 (Removal):**
+     - Prevent orphan removal (mock scenarios where removing master would break layouts)
+     - Validate before/after with OpenXmlValidator
+     - E2E: Create presentation with unused masters, remove, open in PowerPoint
+   - **#84 (Dedup):**
+     - Hash collision tests (confirm same content hashes correctly)
+     - Reference integrity (all image references point to canonical after dedup)
+     - E2E: Create presentation with 3+ duplicate images across slides, dedup, open in PowerPoint, verify visual correctness
+   - **#85 (Image Compression):**
+     - Downscaling logic (images larger than display bounds are downscaled, small images untouched)
+     - Format conversion (BMP→PNG, etc.)
+     - Quality trade-offs (verify JPEG quality setting produces acceptable results)
+     - E2E: Compress presentation with large/mixed-format images, open in PowerPoint, verify size reduction + acceptable quality
+
+3. **Cross-tool baseline:**
+   - After each tool, re-run Phase 1–3 regression tests (ensure no breakage in existing functionality)
+   - All Phase 4 tools must have 3+ unit test cases + comprehensive E2E validation
+
+---
+
+## Codebase Readiness Assessment
+
+### Current State
+- **Build Health:** Passing, 80 build warnings (acceptable)
+- **Test Baseline:** 377 tests passing, 0 failures
+- **Existing Patterns We'll Leverage:**
+  - `PresentationService` (partial classes for organized tool methods) ✅
+  - OpenXML traversal (slide/layout/master enumeration already done) ✅
+  - MCP tool patterns (`[McpServerToolType]`, `[McpServerTool]`, XML doc comments) ✅
+  - Error handling + structured JSON responses ✅
+
+### New Capabilities Needed for Phase 4
+1. **ZIP enumeration** (System.IO.Compression) — new
+2. **SHA256 hashing** (System.Security.Cryptography) — new
+3. **Image processing** (SkiaSharp) — new dependency
+4. **Relationship mutation** (removing parts, updating references) — new, requires careful testing
+5. **OpenXmlValidator** usage — likely already available but needs integration
+
+### No Blocker Issues Identified
+- Existing architecture supports both analysis and mutation tools
+- Dependencies are lightweight and standard
+- Test infrastructure (xUnit v3 on MTP) is ready
+
+---
+
+## Squad Assignments & Handoff
+
+### Current State (GitHub Issues)
+- All 7 issues currently assigned to `squad:shiherlis`
+- Some also tagged `squad:copilot` (for documentation)
+
+### Recommended Reassignment (Proper Squad Fit)
+
+| Issue | Type | Current Owner | Recommended Owner | Reason |
+|-------|------|---------------|-------------------|--------|
+| #80 (P4-1) | Analysis/Tool | Shiherlis | **Cheritto** | Backend dev → tool implementation |
+| #81 (P4-2) | Analysis/Tool | Shiherlis | **Cheritto** | Backend dev → tool implementation |
+| #82 (P4-3) | Analysis/Tool | Shiherlis | **Cheritto** | Backend dev → tool implementation |
+| #83 (P4-4) | Optimization/Tool | Shiherlis | **Cheritto** | Backend dev → tool implementation (high risk; needs testing support) |
+| #84 (P4-5) | Optimization/Tool | Shiherlis | **Cheritto** | Backend dev → tool implementation (high risk; needs testing support) |
+| #85 (P4-6) | Optimization/Tool | Shiherlis | **Cheritto** | Backend dev → tool implementation + SkiaSharp research |
+| #86 (P4-7) | Analysis/Deferred | Shiherlis | **Parked** | Mark `go:no`, reassign to backlog epic (future spike) |
+
+### Testing Assignments
+- Create separate testing issues for each Tier:
+  - **T1-Test** (Shiherlis): Unit + E2E for #80, #81, #82 (2–3 hours)
+  - **T2-Test** (Shiherlis): Unit + E2E + PowerPoint round-trip for #83, #84, #85 (6–8 hours)
+  - These testing issues should have hard dependencies on corresponding tool issues
+
+### Documentation Assignments
+- Create **Phase 4 Documentation** issue (@copilot):
+  - Add 3 new tools to TOOL_REFERENCE.md (#80, #81, #82 analysis tools)
+  - Add 3 new tools to TOOL_REFERENCE.md (#83, #84, #85 optimization tools)
+  - Add example workflow: "How to compress a PowerPoint file" (combining multiple tools)
+  - Note: Video optimization tool (#86) not documented (parked)
+
+---
+
+## Risk Assessment
+
+### Technical Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|-----------|
+| Relationship breakage (removing parts orphans refs) | **MEDIUM** | **HIGH** (file corruption) | Comprehensive validation before/after; E2E PowerPoint round-trip mandatory |
+| Image quality degradation (compression too aggressive) | **MEDIUM** | **MEDIUM** (user complaint) | Document quality settings; E2E visual inspection; default to conservative (85% JPEG) |
+| SkiaSharp cross-platform issues | **LOW** | **MEDIUM** (blocks builds on some platforms) | Dependency research required (Nate); documented in README |
+| OpenXmlValidator insufficiency | **MEDIUM** | **MEDIUM** (files pass validator but fail in PowerPoint) | Always test round-trip: save→open in PowerPoint; don't trust validator alone |
+| ZIP enumeration missing parts | **LOW** | **LOW** (incorrect size reporting) | Unit tests with mock ZIP; comprehensive test presentations |
+
+### Schedule Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|-----------|
+| Tier 2 PowerPoint testing takes longer | **MEDIUM** | **MEDIUM** (schedule slip) | Allocate extra time; test early and often; have test presentations ready |
+| SkiaSharp dependency complication | **LOW** | **MEDIUM** (blocks P4-6) | Research early (Nate task); decide library early |
+| Regression in Phase 1–3 functionality | **LOW** | **HIGH** (discovery during Phase 4 testing) | Run full baseline test suite before starting each tier |
+
+### PowerPoint Compatibility Risks
+
+**Critical Assumption:** OpenXML compliance ≠ PowerPoint compatibility.
+
+- **Files passing OpenXmlValidator can still fail to open in PowerPoint** if:
+  - Relationship structure is corrupted (dangling references, cycles)
+  - Required parts are missing (orphaned layouts, images)
+  - Metadata is inconsistent (slide IDs, part IDs)
+
+**Mitigation:**
+- All Tier 2 operations must include E2E PowerPoint round-trip tests
+- Test on Windows PowerPoint (primary) + consider Mac/Office Online (if resources allow)
+- Have a set of known-good test presentations; verify no regression
+
+---
+
+## Success Criteria
+
+### Tier 1 (Analysis Tools) — Clear `go:needs-research`
+- [x] All 3 issues (#80, #81, #82) have clear acceptance criteria
+- [x] No blocking technical unknowns
+- [ ] Nate completes OpenXML pattern research (master/layout, media refs, validation strategy)
+- [x] Unit tests scoped: 3+ cases per tool
+- [x] E2E tests scoped: run on 3+ real presentations
+
+### Tier 2 (Optimization Tools) — Ready for Implementation
+- [x] All 3 issues (#83, #84, #85) have clear acceptance criteria + dependencies
+- [ ] Nate completes relationship semantics + SkiaSharp trade-off research
+- [ ] Cheritto starts with P4-3 analysis logic, then moves to P4-4 removal
+- [x] Testing strategy includes PowerPoint round-trip for each tool
+- [x] Risk mitigation documented (validation, error handling, logging)
+
+### Overall Phase 4 Success
+- All Tier 1 + Tier 2 issues closed
+- 400+ tests passing (no regression from Phase 1–3 baseline of 377)
+- All Tier 2 E2E tests include successful PowerPoint round-trip
+- Documentation updated (README + TOOL_REFERENCE.md)
+- No Phase 1–3 functionality broken
+
+---
+
+## Known Unknowns & Future Work
+
+1. **Video optimization** (#86) — parked for future spike; may require ffmpeg or external API
+2. **Cross-platform testing** — Phase 4 assumes Windows PowerPoint (primary); Mac/Office Online untested
+3. **Performance tuning** — If presentations are very large (1GB+), ZIP enumeration and hashing may be slow; could optimize later
+4. **Presentation-level size reduction** — Future phase might include removing unused slide themes, consolidating color schemes, etc. (out of scope for Phase 4)
+
+---
+
+## Next Steps
+
+1. **Nate:** Research OpenXML patterns (master/layout semantics, media reference structure, SkiaSharp trade-offs, validation strategy) — 2–3 hours, due before Cheritto starts
+2. **Cheritto:** Implement Tier 1 tools (#80, #81, #82) in sequence; aim for mid-week completion
+3. **Shiherlis:** Prepare test scenarios (real presentations, edge cases); stand up testing infrastructure for E2E PowerPoint validation
+4. **@Copilot:** Draft Phase 4 documentation issue; add placeholders for new tools (fill in once implementations complete)
+5. **McCauley:** Clear `go:needs-research` on Tier 1 issues once Nate research complete; approve issue reassignments; monitor PowerPoint compatibility risk
+
+---
+
+## Appendix: Tier Definitions
+
+**Tier 1 — Read-Only Analysis:**
+- No PPTX mutations
+- Low implementation complexity
+- No PowerPoint compatibility risk
+- Provides data foundation for cleanup
+
+**Tier 2 — Write Operations:**
+- Mutates PPTX package (removes/updates parts)
+- Requires strict validation (OpenXmlValidator + PowerPoint round-trip)
+- Higher implementation complexity
+- Moderate schedule risk (testing is time-intensive)
+
+**Tier 3 — Deferred/Future:**
+- Low priority; valuable later
+- Parking lot for future spike or community request
+- Not starting Phase 4
+
+---
+
+**Prepared by:** McCauley (Lead)  
+**For approval by:** Jon Galloway  
+**Status:** Ready for Squad Handoff
+
+
+---
+
+### Phase 4: OpenXML Patterns Research (2026-03-24 Nate)
+
+**Researcher:** Nate (Consulting Dev)  
+**Status:** Complete  
+
+#### Summary
+
+Completed feasibility analysis for Phase 4 issues—all 7 are highly viable. Established OpenXML API patterns and dependency recommendations.
+
+#### Phase 4: OpenXML Patterns Research for Presentation Optimization & Media Analysis
+
+**Research Date:** 2026-03-24  
+**Researcher:** Nate (Consulting Dev)  
+**Task:** Feasibility analysis for Phase 4 issues (#80–#86) — file size breakdown, media analysis, layout deduplication, optimization patterns.
+
+**Research Scope:** Examined MarpToPptx (prior art for media/extraction), dotnet-mcp (MCP patterns), current pptx-mcp PresentationService, and OpenXML SDK v3.3.0 capabilities.
+
+---
+
+## Executive Summary
+
+**✅ Highly Feasible (High Confidence):**
+- **#80 — File size breakdown:** Direct ZIP access available; PackagePart enumeration mature
+- **#81 — Media asset analysis:** Prior art in MarpToPptx extraction; ImagePart/MediaDataPart APIs proven
+- **#82 — Unused layout detection:** Relationship traversal patterns established; straightforward cross-reference logic
+
+**⚠️ Medium Feasibility (Medium Confidence):**
+- **#83 — Remove unused layouts:** Safe if relationship cleanup done carefully; no PowerPoint round-trip risk
+- **#84 — Deduplicate media:** Hash-based comparison works; relationship redirection is standard OPC, but needs edge-case testing
+
+**🤔 Specialized Feasibility:**
+- **#85 — Image compression:** No built-in SDK support; requires external image library or shell integration (e.g., ImageSharp, System.Drawing)
+- **#86 — Video optimization (analysis-only):** Viable for metadata extraction, but codec detection may need external library (e.g., MediaInfo CLI)
+
+---
+
+## Phase 4 Issues: Detailed Feasibility Analysis
+
+### Issue #80: Analyze File Size Breakdown
+
+**Problem:** Enumerate ZIP parts in a PPTX, categorize by content type (slides, images, themes, etc.), measure sizes.
+
+**Feasibility:** ✅ **HIGH (High Confidence)**
+
+**Prior Art:**
+- MarpToPptx: `System.IO.Compression.ZipArchive` used directly in `OpenXmlPptxRenderer.cs`
+- No external dependencies; standard .NET API
+
+**OpenXML API Surface:**
+```csharp
+// Two approaches:
+
+// 1. Via PresentationDocument + PackagePart enumeration (RECOMMENDED)
+using var doc = PresentationDocument.Open(filePath, false);
+var presentationPart = doc.PresentationPart;
+
+// Access underlying Package (OPC container)
+var package = presentationPart.OpenXmlPackage.Package;
+
+// Enumerate all parts by type
+foreach (var part in package.GetParts())
+{
+    var partUri = part.Uri;           // e.g., /ppt/slides/slide1.xml
+    var contentType = part.ContentType; // e.g., application/vnd.openxmlformats-officedocument.presentationml.slide+xml
+    var size = part.GetStream().Length; // Byte size
+}
+
+// 2. Via direct ZipArchive (RAW ZIP access, if needed for compression metadata)
+using var zip = ZipFile.OpenRead(filePath);
+foreach (var entry in zip.Entries)
+{
+    var path = entry.FullName;
+    var compressedSize = entry.CompressedLength;
+    var uncompressedSize = entry.Length;
+    var compressionRatio = (double)entry.CompressedLength / entry.Length;
+}
+```
+
+**Categorization Logic:**
+```
+Slides:       /ppt/slides/slide*.xml
+Media:        /ppt/media/* (images, audio, video)
+Themes:       /ppt/theme/* 
+Layouts:      /ppt/slideLayouts/*
+Masters:      /ppt/slideMasters/*
+Relationships:/ppt/slides/_rels/slide*.xml.rels
+Other:        /docProps/*, /ppt/_rels/*, [Content_Types].xml
+```
+
+**Gotchas:**
+- `PackagePart` and `ZipArchive` give different compression info; ZipArchive shows actual disk savings, PackagePart shows logical size
+- Some PKG parts may be excluded from ZIP (edge case; rare in PPTX)
+- Relationship files count separately but are often highly compressible
+
+**Dependencies:** None (standard .NET 10 APIs)
+
+**Code Sketch:**
+```csharp
+public class FileSizeBreakdown
+{
+    public long SlideSize { get; set; }
+    public long MediaSize { get; set; }
+    public long ThemeSize { get; set; }
+    public long LayoutSize { get; set; }
+    public long MasterSize { get; set; }
+    public long RelationshipSize { get; set; }
+    public long OtherSize { get; set; }
+}
+
+public FileSizeBreakdown AnalyzePptxSize(string filePath)
+{
+    using var doc = PresentationDocument.Open(filePath, false);
+    var package = doc.PresentationPart.OpenXmlPackage.Package;
+    var breakdown = new FileSizeBreakdown();
+
+    foreach (var part in package.GetParts())
+    {
+        var uri = part.Uri.ToString().ToLower();
+        var size = part.GetStream().Length;
+
+        if (uri.Contains("/slides/slide")) breakdown.SlideSize += size;
+        else if (uri.Contains("/media/")) breakdown.MediaSize += size;
+        else if (uri.Contains("/theme/")) breakdown.ThemeSize += size;
+        else if (uri.Contains("/slideLayouts/")) breakdown.LayoutSize += size;
+        else if (uri.Contains("/slideMasters/")) breakdown.MasterSize += size;
+        else if (uri.EndsWith(".rels")) breakdown.RelationshipSize += size;
+        else breakdown.OtherSize += size;
+    }
+
+    return breakdown;
+}
+```
+
+**Validation:** Returns accurate JSON report; PowerPoint file remains unchanged (read-only access)
+
+---
+
+### Issue #81: List and Analyze Media Assets
+
+**Problem:** Find all images, audio, video in PPTX. Report: type, dimensions (images), format, compression info.
+
+**Feasibility:** ✅ **HIGH (High Confidence)**
+
+**Prior Art:**
+- MarpToPptx: `PptxMarkdownExporter.Media.cs` — extracts images using `ImagePart`, `MediaDataPart`; computes SHA256 hashes for deduplication
+- Pattern: Enumerate `Picture` shapes → resolve `Blip.Embed` relationship → get `ImagePart` → stream metadata
+
+**OpenXML API Surface:**
+```csharp
+// Image extraction
+using var doc = PresentationDocument.Open(filePath, false);
+foreach (var slidePart in doc.PresentationPart.SlideParts)
+{
+    var shapeTree = slidePart.Slide?.CommonSlideData?.ShapeTree;
+    foreach (var picture in shapeTree.Elements<Picture>())
+    {
+        var relationshipId = picture.BlipFill?.Blip?.Embed?.Value;
+        if (relationshipId != null && slidePart.TryGetPartById(relationshipId, out var part))
+        {
+            if (part is ImagePart imagePart)
+            {
+                var contentType = imagePart.ContentType; // "image/png", "image/jpeg", etc.
+                using var stream = imagePart.GetStream();
+                // Extract dimensions, file size, etc.
+            }
+        }
+    }
+}
+
+// Video/Audio extraction (MediaDataPart)
+// NOTE: MediaDataParts are references, not direct properties
+// Access via Blip.VideoFromFile or AudioFromFile child elements
+foreach (var blip in shapeTree.Descendants<Blip>())
+{
+    var video = blip.GetFirstChild<VideoFromFile>();
+    if (video != null)
+    {
+        var embedRelId = video.Embed?.Value; // Relationship to MediaDataPart
+        if (slidePart.TryGetPartById(embedRelId, out var part) && part is MediaDataPart mediaPart)
+        {
+            var format = mediaPart.ContentType; // e.g., "video/mp4"
+            var size = mediaPart.GetStream().Length;
+        }
+    }
+}
+```
+
+**Image Dimension Extraction:**
+```csharp
+// For PNG/JPEG, parse header to get dimensions
+// MarpToPptx uses similar approach in diagnostics
+private (int Width, int Height) GetImageDimensions(ImagePart imagePart)
+{
+    using var stream = imagePart.GetStream();
+    var buffer = new byte[8];
+    stream.Read(buffer, 0, 8);
+
+    if (imagePart.ContentType == "image/png")
+    {
+        // PNG: width/height at bytes 16-24 (big-endian)
+        stream.Seek(16, SeekOrigin.Begin);
+        var widthBytes = new byte[4];
+        stream.Read(widthBytes, 0, 4);
+        var width = BitConverter.ToInt32(widthBytes.Reverse().ToArray(), 0);
+        // ... similar for height
+    }
+    else if (imagePart.ContentType.Contains("jpeg"))
+    {
+        // JPEG: SOF marker parsing (more complex; use external library preferred)
+    }
+
+    return (0, 0); // Fallback
+}
+```
+
+**Gotchas:**
+- Video/Audio parts may not always have direct relationships; check `VideoFromFile`/`AudioFromFile` wrapper elements
+- Image dimensions require parsing file headers (PNG/JPEG); no direct API
+- Some media may be embedded in charts (ChartPart) — separate enumeration needed
+- Compression ratio (in-file vs. uncompressed) available via ZipArchive but not PackagePart
+
+**Dependencies:** None required for basic analysis; recommend `ImageSharp` (optional) for robust dimension parsing
+
+**Code Sketch:**
+```csharp
+public class MediaAnalysis
+{
+    public string Type { get; set; } // "image", "video", "audio"
+    public string Format { get; set; } // "png", "jpeg", "mp4", etc.
+    public long Size { get; set; }
+    public int? Width { get; set; } // Images only
+    public int? Height { get; set; } // Images only
+    public string ContentType { get; set; } // MIME type
+    public string Hash { get; set; } // SHA256 hex
+}
+
+public List<MediaAnalysis> AnalyzeMedia(string filePath)
+{
+    var result = new List<MediaAnalysis>();
+    using var doc = PresentationDocument.Open(filePath, false);
+    
+    foreach (var slidePart in doc.PresentationPart.SlideParts)
+    {
+        var shapeTree = slidePart.Slide?.CommonSlideData?.ShapeTree;
+        
+        // Images
+        foreach (var picture in shapeTree.Elements<Picture>())
+        {
+            var relationshipId = picture.BlipFill?.Blip?.Embed?.Value;
+            if (relationshipId != null && slidePart.TryGetPartById(relationshipId, out var part))
+            {
+                if (part is ImagePart imagePart)
+                {
+                    using var stream = imagePart.GetStream();
+                    var hash = Convert.ToHexString(SHA256.HashData(stream));
+                    var analysis = new MediaAnalysis
+                    {
+                        Type = "image",
+                        Format = GetFormatFromContentType(imagePart.ContentType),
+                        Size = stream.Length,
+                        ContentType = imagePart.ContentType,
+                        Hash = hash
+                    };
+                    result.Add(analysis);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+```
+
+**Validation:** JSON array of media objects; no file modification
+
+---
+
+### Issue #82: Find Unused Slide Masters and Layouts
+
+**Problem:** Traverse PresentationPart → SlideMasterParts → SlideLayoutParts. Cross-reference against actual slide usage. Report: which layouts/masters are unused.
+
+**Feasibility:** ✅ **HIGH (High Confidence)**
+
+**Prior Art:**
+- pptx-mcp: `GetLayouts()` method already enumerates masters and layouts
+- MarpToPptx: Template selection logic (`SlideTemplateSelector`) resolves layout relationships
+- Standard OpenXML traversal pattern
+
+**OpenXML API Surface:**
+```csharp
+// 1. Enumerate all layouts in presentation
+var allLayouts = new Dictionary<string, SlideLayoutPart>();
+foreach (var masterPart in presentationPart.SlideMasterParts)
+{
+    foreach (var layoutPart in masterPart.SlideLayoutParts)
+    {
+        var layoutId = presentationPart.GetIdOfPart(layoutPart); // Relationship ID
+        allLayouts[layoutId] = layoutPart;
+    }
+}
+
+// 2. Find layouts actually used in slides
+var usedLayouts = new HashSet<string>();
+foreach (var slidePart in presentationPart.SlideParts)
+{
+    var layoutId = slidePart.Slide.CommonSlideData?.SlideLayoutId; // NOT directly available!
+    // ACTUAL APPROACH: Get SlideLayoutPart directly
+    var slideLayoutPart = slidePart.SlideLayoutPart;
+    if (slideLayoutPart != null)
+    {
+        var layoutId = presentationPart.GetIdOfPart(slideLayoutPart);
+        usedLayouts.Add(layoutId);
+    }
+}
+
+// 3. Find unused
+var unused = allLayouts.Keys.Except(usedLayouts).ToList();
+```
+
+**Gotcha — Tricky Relationship Resolution:**
+- Slides have implicit relationship to their SlideLayoutPart (via `slidePart.SlideLayoutPart`)
+- This relationship is stored in slide's `.rels` file, not in the slide XML itself
+- To get the relationship ID: `slidePart.GetIdOfPart(slidePart.SlideLayoutPart)`
+
+**Master Usage:**
+- All layouts belong to a master; if a layout is unused, its master may also be unused
+- However, a master may be referenced in metadata or for theme/style inheritance → safer to report "layout-unused" rather than "master-unused"
+
+**Gotchas:**
+- Blank layouts are sometimes kept for reusability; cross-check before suggesting deletion
+- Layouts may have custom names (accessible via `layoutPart.SlideLayout.CommonSlideData?.Name?.Value`)
+- Some layouts may be referenced by Name in Marp metadata (MarpToPptx pattern) but not actually used
+
+**Dependencies:** None
+
+**Code Sketch:**
+```csharp
+public class LayoutUsageReport
+{
+    public string LayoutName { get; set; }
+    public string MasterName { get; set; }
+    public int SlideCount { get; set; } // Slides using this layout
+    public bool IsUsed { get; set; }
+}
+
+public List<LayoutUsageReport> FindUnusedLayouts(string filePath)
+{
+    using var doc = PresentationDocument.Open(filePath, false);
+    var presentationPart = doc.PresentationPart;
+    
+    // Build inventory of all layouts
+    var allLayouts = new Dictionary<string, (SlideLayoutPart, SlideMasterPart)>();
+    foreach (var masterPart in presentationPart.SlideMasterParts)
+    {
+        foreach (var layoutPart in masterPart.SlideLayoutParts)
+        {
+            var layoutId = presentationPart.GetIdOfPart(layoutPart);
+            allLayouts[layoutId] = (layoutPart, masterPart);
+        }
+    }
+
+    // Count usage
+    var usageCounts = new Dictionary<string, int>();
+    foreach (var slidePart in presentationPart.SlideParts)
+    {
+        if (slidePart.SlideLayoutPart != null)
+        {
+            var layoutId = presentationPart.GetIdOfPart(slidePart.SlideLayoutPart);
+            usageCounts[layoutId] = usageCounts.TryGetValue(layoutId, out var count) ? count + 1 : 1;
+        }
+    }
+
+    // Report
+    var report = new List<LayoutUsageReport>();
+    foreach (var (layoutId, (layoutPart, masterPart)) in allLayouts)
+    {
+        var layoutName = layoutPart.SlideLayout.CommonSlideData?.Name?.Value ?? "Unnamed";
+        var masterName = masterPart.SlideMaster.CommonSlideData?.Name?.Value ?? "Unnamed";
+        var count = usageCounts.TryGetValue(layoutId, out var c) ? c : 0;
+
+        report.Add(new LayoutUsageReport
+        {
+            LayoutName = layoutName,
+            MasterName = masterName,
+            SlideCount = count,
+            IsUsed = count > 0
+        });
+    }
+
+    return report;
+}
+```
+
+**Validation:** JSON array; no file modification
+
+---
+
+### Issue #83: Remove Unused Slide Masters and Layouts
+
+**Problem:** Delete unused layouts from issue #82. Safe cleanup: relationship integrity, content type cleanup.
+
+**Feasibility:** ⚠️ **MEDIUM (Medium Confidence)**
+
+**Risk Level:** MEDIUM — Relationship cleanup is robust in OpenXML SDK, but PowerPoint round-trip testing essential.
+
+**OpenXML API Surface:**
+```csharp
+// Safe deletion pattern (from OpenXML SDK docs):
+1. Identify unused layout (from issue #82)
+2. Get SlideLayoutPart reference
+3. Call presentationPart.DeletePart(layoutPart)
+
+// SDK automatically handles:
+// - Removing relationship from master
+// - Updating [Content_Types].xml
+// - Removing layout's own sub-parts (relationships)
+
+using var doc = PresentationDocument.Open(filePath, true);
+var presentationPart = doc.PresentationPart;
+
+foreach (var layoutId in unusedLayoutIds)
+{
+    var layoutPart = presentationPart.GetPartById(layoutId) as SlideLayoutPart;
+    if (layoutPart != null)
+    {
+        presentationPart.DeletePart(layoutPart); // Master is still referenced; SDK keeps it
+    }
+}
+
+doc.PresentationPart.Presentation.Save();
+```
+
+**Master Deletion (More Complex):**
+```csharp
+// Only safe if:
+// 1. Master has no layouts (or all deleted already)
+// 2. No slides reference master's theme
+// 3. No XML metadata references it
+
+var masterPart = presentationPart.GetPartById(masterId) as SlideMasterPart;
+if (masterPart != null && masterPart.SlideLayoutParts.Count == 0)
+{
+    presentationPart.DeletePart(masterPart); // Also removes from SlideMasterIdList
+}
+```
+
+**Gotchas:**
+- **PowerPoint round-trip risk:** Deleting layouts sometimes causes "missing template" warnings in PowerPoint. Always test in PowerPoint after deletion.
+- **Theme inheritance:** If master is deleted but theme is still referenced elsewhere → corruption risk
+- **Relationships cleanup:** OpenXML SDK is robust, but edge cases exist (custom XML, VBA macros referencing layouts)
+- **Atomic save:** If deletion fails mid-operation, PPTX may be corrupted. Wrap in try/finally.
+
+**Prior Art:**
+- MarpToPptx: `DeleteSlideParts()` method in `OpenXmlPptxRenderer.cs` handles part deletion safely
+- dotnet-mcp: No direct prior art, but general pattern: SDK handles relationship cleanup if called correctly
+
+**Dependencies:** None; DocumentFormat.OpenXml 3.3.0 sufficient
+
+**Code Sketch:**
+```csharp
+public class RemovalResult
+{
+    public bool Success { get; set; }
+    public int LayoutsRemoved { get; set; }
+    public int MastersRemoved { get; set; }
+    public string Message { get; set; }
+}
+
+public RemovalResult RemoveUnusedLayouts(string filePath, List<string> unusedLayoutIds)
+{
+    using var doc = PresentationDocument.Open(filePath, true);
+    var presentationPart = doc.PresentationPart;
+    var result = new RemovalResult { Success = true };
+
+    try
+    {
+        foreach (var layoutId in unusedLayoutIds)
+        {
+            if (presentationPart.TryGetPartById(layoutId, out var part) && part is SlideLayoutPart layoutPart)
+            {
+                presentationPart.DeletePart(layoutPart);
+                result.LayoutsRemoved++;
+            }
+        }
+
+        // Optionally remove orphaned masters
+        foreach (var masterPart in presentationPart.SlideMasterParts.ToList())
+        {
+            if (masterPart.SlideLayoutParts.Count == 0)
+            {
+                presentationPart.DeletePart(masterPart);
+                result.MastersRemoved++;
+            }
+        }
+
+        doc.Save();
+    }
+    catch (Exception ex)
+    {
+        result.Success = false;
+        result.Message = ex.Message;
+    }
+
+    return result;
+}
+```
+
+**Validation:** 
+1. File size reduced
+2. Open in PowerPoint without warnings
+3. Re-scan with issue #82 to confirm removal
+
+---
+
+### Issue #84: Deduplicate Identical Media
+
+**Problem:** Find duplicate media blobs (hash comparison). Redirect relationships from multiple slides to single media part.
+
+**Feasibility:** ⚠️ **MEDIUM-HIGH (Medium Confidence)**
+
+**Prior Art:**
+- MarpToPptx: `ComputeImageSignature()` in `PptxMarkdownExporter.Media.cs` — uses SHA256 hash on stream
+- Pattern: Hash all images → group by hash → redirect relationships
+
+**OpenXML API Surface:**
+```csharp
+// 1. Enumerate all media and compute hashes
+var mediaByHash = new Dictionary<string, ImagePart>();
+foreach (var slidePart in presentationPart.SlideParts)
+{
+    var shapeTree = slidePart.Slide?.CommonSlideData?.ShapeTree;
+    foreach (var picture in shapeTree.Elements<Picture>())
+    {
+        var relationshipId = picture.BlipFill?.Blip?.Embed?.Value;
+        if (relationshipId != null && slidePart.TryGetPartById(relationshipId, out var part) && part is ImagePart imagePart)
+        {
+            using var stream = imagePart.GetStream();
+            var hash = Convert.ToHexString(SHA256.HashData(stream));
+            
+            if (!mediaByHash.ContainsKey(hash))
+                mediaByHash[hash] = imagePart;
+            // else: duplicate found
+        }
+    }
+}
+
+// 2. Redirect relationships to canonical part
+var duplicateImages = new List<ImagePart>();
+foreach (var group in groupedByHash.Skip(1)) // Skip first (canonical)
+{
+    foreach (var imagePart in group.Value.Skip(1))
+    {
+        duplicateImages.Add(imagePart);
+    }
+}
+
+// 3. Update Blip.Embed to point to canonical
+// This is TRICKY: you must update the relationship, not delete the part yet
+foreach (var slidePart in presentationPart.SlideParts)
+{
+    foreach (var picture in shapeTree.Elements<Picture>())
+    {
+        var relationshipId = picture.BlipFill?.Blip?.Embed?.Value;
+        var imagePart = slidePart.GetPartById(relationshipId) as ImagePart;
+        var hash = ComputeHash(imagePart);
+        
+        if (mediaByHash[hash] != imagePart) // It's a duplicate
+        {
+            // Remove old relationship
+            slidePart.DeleteRelationship(relationshipId);
+            
+            // Add new relationship to canonical
+            var newRelId = slidePart.CreateRelationshipToOtherPart(mediaByHash[hash]);
+            picture.BlipFill.Blip.Embed.Value = newRelId;
+        }
+    }
+}
+
+// 4. Delete orphaned parts
+foreach (var orphan in duplicateImages)
+{
+    presentationPart.DeletePart(orphan);
+}
+
+doc.Save();
+```
+
+**Gotchas:**
+- **Relationship redirection is manual:** SDK doesn't have `RedirectRelationship()` helper; you must delete+recreate
+- **Blip.Embed is StringValue:** Setting it to new relationship ID requires careful XML manipulation
+- **File format edge cases:** Two visually identical images may differ in metadata (EXIF, compression); hash detects true binary duplicates only
+- **Charts, SmartArt:** May contain embedded media not directly via Picture shapes; need separate enumeration
+- **Atomic transaction:** If redirect fails mid-operation, relationships break. Wrap in backup pattern.
+
+**Dependencies:** None for hashing; optional `ImageSharp` for perceptual hashing (fuzzy deduplication)
+
+**Code Sketch:**
+```csharp
+public class DeduplicationResult
+{
+    public bool Success { get; set; }
+    public int DuplicatesFound { get; set; }
+    public int DuplicatesRemoved { get; set; }
+    public long BytesSaved { get; set; }
+    public string Message { get; set; }
+}
+
+public DeduplicationResult DeduplicateMedia(string filePath)
+{
+    using var doc = PresentationDocument.Open(filePath, true);
+    var presentationPart = doc.PresentationPart;
+    var result = new DeduplicationResult { Success = true };
+
+    try
+    {
+        // Build hash inventory
+        var mediaByHash = new Dictionary<string, List<(SlidePart, string, ImagePart)>>();
+        
+        foreach (var slidePart in presentationPart.SlideParts)
+        {
+            var shapeTree = slidePart.Slide?.CommonSlideData?.ShapeTree;
+            foreach (var picture in shapeTree.Elements<Picture>())
+            {
+                var relationshipId = picture.BlipFill?.Blip?.Embed?.Value;
+                if (relationshipId != null && slidePart.TryGetPartById(relationshipId, out var part) && part is ImagePart imagePart)
+                {
+                    using var stream = imagePart.GetStream();
+                    var hash = Convert.ToHexString(SHA256.HashData(stream));
+                    
+                    if (!mediaByHash.ContainsKey(hash))
+                        mediaByHash[hash] = new();
+                    
+                    mediaByHash[hash].Add((slidePart, relationshipId, imagePart));
+                }
+            }
+        }
+
+        // Redirect and delete duplicates
+        var orphans = new HashSet<ImagePart>();
+        foreach (var (hash, instances) in mediaByHash)
+        {
+            if (instances.Count > 1)
+            {
+                result.DuplicatesFound += instances.Count - 1;
+                var canonical = instances[0].Item3;
+
+                foreach (var (slidePart, oldRelId, duplicateImage) in instances.Skip(1))
+                {
+                    // Delete old relationship
+                    slidePart.DeleteRelationship(oldRelId);
+                    
+                    // Create new relationship to canonical
+                    var newRelId = slidePart.CreateRelationshipToOtherPart(canonical);
+                    
+                    // Update Blip.Embed
+                    var picture = slidePart.Slide.CommonSlideData.ShapeTree
+                        .Elements<Picture>()
+                        .FirstOrDefault(p => p.BlipFill?.Blip?.Embed?.Value == oldRelId); // Need to track better
+                    if (picture != null)
+                        picture.BlipFill.Blip.Embed.Value = newRelId;
+                    
+                    orphans.Add(duplicateImage);
+                }
+            }
+        }
+
+        // Delete orphans
+        foreach (var orphan in orphans)
+        {
+            result.BytesSaved += orphan.GetStream().Length;
+            presentationPart.DeletePart(orphan);
+            result.DuplicatesRemoved++;
+        }
+
+        doc.Save();
+    }
+    catch (Exception ex)
+    {
+        result.Success = false;
+        result.Message = ex.Message;
+    }
+
+    return result;
+}
+```
+
+**Validation:**
+1. File opens in PowerPoint without corruption
+2. Visual verification: images still displayed correctly
+3. File size reduced by deduplication count × average image size
+4. Re-scan with issue #81 to confirm dedup count
+
+---
+
+### Issue #85: Compress/Optimize Images
+
+**Problem:** Re-encode images at lower quality/resolution. No heavy dependencies.
+
+**Feasibility:** ⚠️ **MEDIUM (Medium Confidence)**
+
+**Complexity:** MEDIUM-HIGH — requires image processing library or CLI integration
+
+**Options:**
+
+**Option A: System.Drawing (Windows-only, deprecated)**
+```csharp
+// NOT RECOMMENDED for .NET 5+; marked obsolete
+// Only available on Windows; brings Platform.Windows dependency
+```
+
+**Option B: ImageSharp (NuGet, recommended)**
+```csharp
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+
+public void CompressImage(ImagePart imagePart, int quality = 85, int? maxWidth = 1920)
+{
+    using var stream = imagePart.GetStream(FileMode.Open, FileAccess.ReadWrite);
+    
+    using var image = Image.Load(stream);
+    
+    // Resize if needed
+    if (maxWidth.HasValue && image.Width > maxWidth.Value)
+    {
+        var height = (int)(image.Height * ((double)maxWidth.Value / image.Width));
+        image.Mutate(x => x.Resize(maxWidth.Value, height));
+    }
+    
+    // Re-encode at lower quality
+    var options = new JpegEncoder { Quality = quality };
+    stream.Seek(0, SeekOrigin.Begin);
+    stream.SetLength(0);
+    image.SaveAsJpeg(stream, options);
+}
+```
+
+**Option C: ImageMagick CLI (external process)**
+```csharp
+// Shell out to ImageMagick (requires CLI installed)
+using var process = new System.Diagnostics.Process
+{
+    StartInfo = new System.Diagnostics.ProcessStartInfo
+    {
+        FileName = "magick",
+        Arguments = $"input.jpg -quality 85 -resize 1920x1080 output.jpg",
+        UseShellExecute = false,
+        RedirectStandardOutput = true
+    }
+};
+process.Start();
+process.WaitForExit();
+```
+
+**Option D: SkiaSharp (cross-platform, high-performance)**
+```csharp
+using SkiaSharp;
+
+public void CompressImageSkia(ImagePart imagePart, int quality = 85)
+{
+    using var stream = imagePart.GetStream(FileMode.Open, FileAccess.ReadWrite);
+    
+    using var skBitmap = SKBitmap.Decode(stream);
+    using var image = SKImage.FromBitmap(skBitmap);
+    using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, quality);
+    
+    stream.Seek(0, SeekOrigin.Begin);
+    stream.SetLength(0);
+    encoded.SaveTo(stream);
+}
+```
+
+**Gotchas:**
+- **Lossy vs. Lossless:** JPEG compression is lossy; quality 85 is sweet spot (visually indistinguishable, ~30% file savings)
+- **PNG optimization:** PNGs are lossless; compression is limited to ZIP deflate tuning; ImageSharp can re-encode at higher deflate level but savings are ~10–20%
+- **Format conversion:** Converting PNG→JPEG may change appearance (no alpha channel); risky without explicit user opt-in
+- **Metadata loss:** Re-encoding strips EXIF, color profiles; may impact accessibility
+- **Performance:** Processing large images (4K+) is slow; consider progress reporting
+- **PowerPoint compatibility:** Some codecs (HEIC, WEBP) may not display in PowerPoint; stick to PNG/JPEG
+
+**Dependencies:**
+- **ImageSharp (SixLabors):** NuGet `SixLabors.ImageSharp` (~3 MB)
+- **SkiaSharp:** NuGet `SkiaSharp` (~15 MB, includes native binaries)
+- Neither is "heavy" by modern standards; ImageSharp preferred for .NET-only stack
+
+**Recommendation:**
+- **Add `SixLabors.ImageSharp` as optional dependency** (with feature flag or configuration)
+- Document that compression is lossy; user must opt-in
+- Provide presets: `Light` (quality 95, no resize), `Medium` (quality 85, max 1920px), `Aggressive` (quality 75, max 1280px)
+
+**Code Sketch:**
+```csharp
+public class ImageCompressionResult
+{
+    public bool Success { get; set; }
+    public long OriginalSize { get; set; }
+    public long CompressedSize { get; set; }
+    public double CompressionRatio { get; set; }
+    public string Message { get; set; }
+}
+
+public ImageCompressionResult CompressImage(string filePath, int slideNumber, string imageName, int quality = 85, int? maxWidth = 1920)
+{
+    using var doc = PresentationDocument.Open(filePath, true);
+    var slidePart = GetSlidePart(doc, slideNumber - 1);
+    
+    var shapeTree = slidePart.Slide?.CommonSlideData?.ShapeTree;
+    var picture = shapeTree.Elements<Picture>()
+        .FirstOrDefault(p => /* match by name */);
+    
+    if (picture?.BlipFill?.Blip?.Embed?.Value is null)
+        return new() { Success = false, Message = "Image not found" };
+    
+    if (slidePart.TryGetPartById(picture.BlipFill.Blip.Embed.Value, out var part) && part is ImagePart imagePart)
+    {
+        try
+        {
+            using (var stream = imagePart.GetStream(FileMode.Open, FileAccess.ReadWrite))
+            {
+                var originalSize = stream.Length;
+                
+                using (var image = SixLabors.ImageSharp.Image.Load(stream))
+                {
+                    if (maxWidth.HasValue && image.Width > maxWidth.Value)
+                    {
+                        var height = (int)(image.Height * ((double)maxWidth.Value / image.Width));
+                        image.Mutate(x => x.Resize(maxWidth.Value, height));
+                    }
+                    
+                    var options = new JpegEncoder { Quality = quality };
+                    stream.Seek(0, SeekOrigin.Begin);
+                    stream.SetLength(0);
+                    image.SaveAsJpeg(stream, options);
+                }
+                
+                var compressedSize = stream.Length;
+                doc.Save();
+                
+                return new()
+                {
+                    Success = true,
+                    OriginalSize = originalSize,
+                    CompressedSize = compressedSize,
+                    CompressionRatio = (double)compressedSize / originalSize,
+                    Message = $"Compressed from {originalSize} to {compressedSize} bytes"
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            return new() { Success = false, Message = ex.Message };
+        }
+    }
+    
+    return new() { Success = false, Message = "ImagePart not found" };
+}
+```
+
+**Validation:**
+1. Image dimensions correct (or resized as specified)
+2. File opens in PowerPoint without corruption
+3. Visual quality acceptable for specified compression level
+4. File size reduced by expected ratio
+
+---
+
+### Issue #86: Video Optimization (Analysis Only)
+
+**Problem:** Why is this `go:no`? What would analysis-only look like?
+
+**Analysis:** This issue is marked `go:no` (lowest priority / out of scope) because:
+1. **OpenXML SDK video support is minimal** — no direct codec introspection APIs
+2. **External tooling required** — MediaInfo or FFProbe CLI needed for codec/bitrate metadata
+3. **Use case unclear** — "optimize" is vague (re-encode? container conversion?); unlikely ROI
+4. **Compatibility risk** — PowerPoint has limited video codec support (MP4 H.264 primary); re-encoding risky
+
+**Feasibility (Analysis-Only): ⚠️ MEDIUM (Medium Confidence)**
+
+**What Analysis-Only Could Look Like:**
+
+```csharp
+public class VideoAnalysis
+{
+    public string Format { get; set; } // e.g., "mp4"
+    public string Codec { get; set; } // e.g., "h264", "vp9"
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public int? Bitrate { get; set; } // kbps
+    public int? Duration { get; set; } // seconds
+    public bool IsOptimizedForPowerPoint { get; set; }
+    public string Message { get; set; }
+}
+
+// Approach 1: MediaInfo CLI
+private VideoAnalysis AnalyzeVideoWithMediaInfo(MediaDataPart videoPart)
+{
+    // 1. Extract video to temp file
+    // 2. Run: mediainfo --Output=JSON video.mp4
+    // 3. Parse JSON for codec, dimensions, bitrate
+    // 4. Check if codec is PowerPoint-compatible
+}
+
+// Approach 2: FFProbe CLI
+private VideoAnalysis AnalyzeVideoWithFFProbe(MediaDataPart videoPart)
+{
+    // 1. Extract video to temp file
+    // 2. Run: ffprobe -v quiet -print_format json -show_format -show_streams video.mp4
+    // 3. Parse JSON
+}
+
+// Approach 3: Pure .NET (Limited)
+private VideoAnalysis AnalyzeVideoMinimal(MediaDataPart videoPart)
+{
+    // Only accessible without external tools:
+    // - MIME type (e.g., "video/mp4")
+    // - File size
+    // - First bytes (may contain container metadata)
+    // 
+    // Cannot determine: codec, bitrate, duration, dimensions without parsing binary
+}
+```
+
+**Recommendation for Phase 4:**
+- **Skip issue #86 entirely** — rationale: analysis-only is low-value without optimization follow-up
+- **If later video optimization is needed:** Add as Phase 5 task; scope would include:
+  - MediaInfo/FFProbe CLI integration (external dependency)
+  - Codec detection and PowerPoint compatibility check
+  - Optional: FFmpeg re-encoding workflow (very heavy)
+
+**Dependencies:**
+- **MediaInfo:** CLI tool (external, ~5 MB)
+- **FFProbe:** Part of FFmpeg (~50 MB, large)
+- Neither recommended for Phase 4; defer to Phase 5
+
+---
+
+## Current pptx-mcp State Analysis
+
+**How pptx-mcp accesses the package:**
+
+1. **PresentationDocument.Open()** is the entry point — opens PPTX via OpenXML SDK
+2. **Package access:** `doc.PresentationPart.OpenXmlPackage.Package` gives OPC (Open Packaging Convention) container access
+3. **No direct ZipArchive access** — SDK hides it, but can be accessed if needed
+4. **Parts enumeration:** `package.GetParts()` returns `PackagePart` objects (logical view, not ZIP entries)
+
+**Current service methods:**
+- `GetSlides()` — enumerates SlideParts via PresentationPart
+- `GetLayouts()` — enumerates SlideMasterParts and SlideLayoutParts
+- `AddSlide()` — creates new SlidePart with layout
+- `GetChartData()`, `UpdateChartData()` — chart analysis (chart-specific)
+
+**Pattern observation:**
+All current methods use `PresentationDocument.Open()` with `false` (read-only) or `true` (editable) based on mutation needs. This is the correct pattern.
+
+---
+
+## Dependencies Assessment
+
+**Current:** `DocumentFormat.OpenXml` v3.3.0
+
+**Proposed additions:**
+- **#80–#84:** Zero new dependencies (standard .NET APIs only)
+- **#85 (Image compression):** `SixLabors.ImageSharp` (optional, via configuration)
+- **#86 (Video analysis):** MediaInfo or FFProbe CLI (external, not NuGet; skip for Phase 4)
+
+**Recommendation:**
+- **Keep Phase 4 dependency-light** — add ImageSharp only if issue #85 is prioritized
+- **DocumentFormat.OpenXml 3.3.0 is sufficient** — no need to upgrade to 3.5.0 for Phase 4 work (3.5.0 adds minor schema updates, not required)
+
+---
+
+## Validation & Testing Recommendations
+
+**For each feature:**
+
+1. **File size breakdown (#80):**
+   - Test with 10MB+ PPTX (large presentation)
+   - Verify ZIP compression ratios match actual disk usage
+   - Confirm read-only access (file unchanged)
+
+2. **Media analysis (#81):**
+   - Test with mixed media (PNG, JPEG, MP4, audio)
+   - Verify hash consistency (same image, different slides)
+   - Edge case: images in chart parts
+
+3. **Layout detection (#82):**
+   - Test with multi-master presentations
+   - Verify accurate usage counts
+   - Confirm no false positives (layouts referenced in metadata)
+
+4. **Layout removal (#83):**
+   - Test removal → PowerPoint round-trip (must open without warnings)
+   - Verify relationship cleanup (no orphaned parts)
+   - Atomic failure case (partial deletion recovery)
+
+5. **Deduplication (#84):**
+   - Test with 3+ copies of same image
+   - Verify relationships redirect correctly
+   - PowerPoint round-trip validation
+   - Visual verification of images on all slides
+
+6. **Image compression (#85):**
+   - Test JPEG/PNG with various quality levels
+   - Verify visual quality acceptable
+   - Confirm file size reduction ~30–50% for JPEG
+   - PowerPoint round-trip validation
+
+---
+
+## Reference File Paths (Prior Art)
+
+**MarpToPptx:**
+- `src/MarpToPptx.Pptx/Rendering/OpenXmlPptxRenderer.cs` — PackagePart enumeration, ZipArchive usage, NormalizePackage
+- `src/MarpToPptx.Pptx/Extraction/PptxMarkdownExporter.Media.cs` — Image/media enumeration, SHA256 hashing, image dimension detection
+- `src/MarpToPptx.Pptx/Diagnostics/TemplateDoctor.cs` — Layout/master validation patterns
+
+**pptx-mcp:**
+- `src/PptxMcp/Services/PresentationService.cs` — Current implementation, layout enumeration (lines 96–111)
+- `src/PptxMcp/Services/PresentationService.Charts.cs` — Chart data patterns (reference for similar structure)
+
+---
+
+## Conclusion & Recommendations
+
+**Phase 4 Feasibility Summary:**
+
+| Issue | Feature | Feasibility | Confidence | Dependencies | Priority |
+|-------|---------|-------------|-----------|---|----------|
+| #80 | File size breakdown | ✅ HIGH | HIGH | None | High |
+| #81 | Media analysis | ✅ HIGH | HIGH | None | High |
+| #82 | Unused layout detection | ✅ HIGH | HIGH | None | High |
+| #83 | Layout removal | ⚠️ MEDIUM | MEDIUM | None (test req'd) | Medium |
+| #84 | Media deduplication | ⚠️ MEDIUM-HIGH | MEDIUM | None | Medium |
+| #85 | Image compression | ⚠️ MEDIUM | MEDIUM | Optional: ImageSharp | Medium-Low |
+| #86 | Video analysis | 🤔 MEDIUM | MEDIUM | MediaInfo/FFProbe CLI | Low (defer) |
+
+**Recommended Phase 4 Sequence:**
+1. **Start with #80–#82** (pure analysis, no risk, high confidence)
+2. **Follow with #83–#84** (mutations, requires PowerPoint testing)
+3. **Optional: #85** (if optimization ROI clear; adds ImageSharp dependency)
+4. **Defer #86** (low value without optimization; external CLI overhead)
+
+**Next Steps:**
+- Cheritto: Pick up implementation for #80–#82 (straightforward)
+- Shiherlis: Design test harness (PowerPoint round-trip validation for #83–#84)
+- Team: Decide on image compression scope (if #85 included, scope ImageSharp integration early)
+
+---
+
+## Implementation Notes for Implementers
+
+**Pattern to follow:**
+- All Phase 4 tools should be in `PresentationService` (or new `PresentationService.Optimization.cs` partial)
+- Use existing `GetSlidePart()` / `GetSlideIds()` helpers from service
+- Return structured result objects (not strings) — JSON serialization via models
+- Follow MCP tool naming: `{Noun}{Verb}` (e.g., `PresentationAnalyzeSize`, `MediaListAssets`)
+- Add XML doc comments for MCP SDK Description generation
+- All methods read-only unless noted (pass `false` to `PresentationDocument.Open()`)
+
+**Error handling:**
+- Wrap `PresentationDocument.Open()` in try/catch — handle corrupted PPTX gracefully
+- For mutations (#83, #84): Use backup pattern (copy → modify → verify)
+- Return `Success: false` with meaningful Message for all failure cases
+
+---
+
+**Prepared by:** Nate, Consulting Dev  
+**Date:** 2026-03-24  
+**Status:** Ready for implementation planning
+
+
+---
+
+### Phase 4: Image Compression Architecture (2026-03-23 McCauley)
+
+**Lead:** McCauley  
+**Status:** Active
+
+#### Phase 4: Presentation Optimization
+
+**Lead:** McCauley  
+**Status:** Active  
+**Created:** 2026-03-19
+
+---
+
+## Executive Summary
+
+Phase 4 ("Presentation Optimization") delivers a comprehensive suite of tools for analyzing and optimizing PowerPoint file sizes. Jon regularly needs to shrink decks by removing unused masters, deduplicating media, and compressing images. Phase 4 is structured as a natural follow-on to Phase 3 (Deck Authoring), focusing on cleanup and optimization of existing presentations.
+
+The phase is scoped into **Tier 1 (read-only analysis)**, **Tier 2 (write operations)**, and **Tier 3 (future/deferred)** to prioritize low-risk, high-value analysis tools first, then enable cleanup operations once the analysis foundation is solid.
+
+---
+
+## Phase 4 Scope & Tier Structure
+
+### Tier 1 — Read-Only Analysis (Low Risk, High Value)
+
+**Principle:** Start with diagnostic tools. These are safe, idempotent, and provide the foundation for write operations.
+
+| # | Title | Description | Complexity | Dependencies |
+|---|-------|-------------|-----------|---|
+| P4-1 | Analyze presentation file size breakdown | Scan PPTX ZIP structure; report sizes by category (slides, images, video/audio, masters, layouts, other) | Medium | None |
+| P4-2 | List and analyze media assets | Enumerate images, video, audio; report size, content type, which slides reference; detect duplicates by content hash | Medium | None |
+| P4-3 | Find unused slide masters and layouts | Cross-reference masters/layouts against actual slide usage; report unused and space impact | Medium | None |
+
+**Why Tier 1 First:**
+- Safe to ship (no mutations)
+- Diagnostic value: users can understand bloat before cleanup
+- Enables user-driven cleanup workflows (agent says "remove these masters," user approves)
+- Foundation for Tier 2 write operations
+
+---
+
+### Tier 2 — Write Operations (Cleanup & Optimization)
+
+**Principle:** Implement removal and deduplication after analysis is complete. Includes PowerPoint round-trip validation.
+
+| # | Title | Description | Complexity | Dependencies | Risk Mitigation |
+|---|-------|-------------|-----------|---|---|
+| P4-4 | Remove unused slide masters and layouts | Delete unused masters/layouts from P4-3 analysis; preserve relationship integrity; validate with OpenXmlValidator | Large | P4-3 | OpenXmlValidator before/after; PowerPoint round-trip test |
+| P4-5 | Deduplicate identical media | Find media with identical content (SHA256); consolidate to single canonical copy; remove orphans | Large | P4-2 | Relationship validation; round-trip test on duplicated media |
+| P4-6 | Compress/optimize images | Downscale images larger than display; target DPI selection; format conversion (BMP/TIFF→PNG/JPEG); compression stats | Large | None | SkiaSharp dependency decision; JPEG quality tuning; round-trip validation |
+
+**Why Tier 2 After Tier 1:**
+- Tier 1 analysis runs first; users see what can be cleaned
+- Tier 2 operations are higher-risk (package mutation); require validated analysis
+- Each tool preserves package integrity and tests PowerPoint compatibility
+
+---
+
+### Tier 3 — Future/Deferred
+
+| # | Title | Description | Scope | Deferred Reason |
+|---|-------|-------------|-------|---|
+| P4-7 | Optimize embedded video (Analysis Only) | Enumerate videos; report codec, resolution, bitrate, duration; suggest compression (no transformation) | Analysis only | Video re-encoding requires ffmpeg/external tool; deferred to future spike |
+
+---
+
+## GitHub Issues Created
+
+All 7 issues created under **Phase 4: Presentation Optimization** milestone (GitHub milestone #5), labeled with `squad` and `phase-4`.
+
+### Issue Mapping
+
+| GitHub # | Title | Tier | Label | Status |
+|---|---|---|---|---|
+| #80 | P4-1: Analyze presentation file size breakdown | Tier 1 | analysis, type:feature | Ready |
+| #81 | P4-2: List and analyze media assets | Tier 1 | analysis, media, type:feature | Ready |
+| #82 | P4-3: Find unused slide masters and layouts | Tier 1 | analysis, type:feature | Ready |
+| #83 | P4-4: Remove unused slide masters and layouts | Tier 2 | optimization, type:feature | Blocked on P4-3 |
+| #84 | P4-5: Deduplicate identical media | Tier 2 | optimization, media, type:feature | Blocked on P4-2 |
+| #85 | P4-6: Compress/optimize images | Tier 2 | optimization, media, type:feature | Ready |
+| #86 | P4-7: Optimize embedded video | Tier 3 | analysis, media, type:feature, go:no | Deferred |
+
+---
+
+## Key Architectural Decisions
+
+### 1. Read-Only Analysis First
+
+**Decision:** Implement all Tier 1 analysis tools before any Tier 2 write operations.
+
+**Rationale:**
+- Analysis tools are safe (no mutations); establish confidence in package scanning
+- Provide diagnostic value immediately
+- Foundation for write operations (Tier 2 relies on Tier 1 patterns)
+- Enables user-in-the-loop workflows (agent shows analysis, user approves cleanup)
+
+---
+
+### 2. Image Compression: SkiaSharp Dependency
+
+**Decision:** Use **SkiaSharp** for image downscaling and format conversion (P4-6).
+
+**Rationale:**
+- **Cross-platform:** Works on Windows, macOS, Linux
+- **High quality:** Proven library, used in production
+- **Modern:** Active development, good .NET integration
+- **Alternative considered:** System.Drawing.Common (Windows-only in .NET 6+, legacy)
+
+**Implementation Notes:**
+- Add NuGet dependency: `SkiaSharp` (latest stable, currently ~2.88)
+- Update README to document image optimization capabilities and SkiaSharp requirement
+- Document JPEG compression quality setting: recommend 85% as starting point (tunable via parameter)
+- Add SkiaSharp to CI dependencies if needed
+
+---
+
+### 3. OpenXML Validation & PowerPoint Round-Trip
+
+**Decision:** All Tier 2 write operations must:
+1. Run `OpenXmlValidator` before and after
+2. Include PowerPoint round-trip test (save modified PPTX, open in PowerPoint, verify fidelity)
+
+**Rationale:**
+- A file can pass `OpenXmlValidator` and still fail to open in PowerPoint (learned from Phase 1/2 experience)
+- PowerPoint compatibility is the real success criterion
+- Round-trip tests catch subtle package structure issues
+
+**Implementation Pattern:**
+```csharp
+// Before operation
+var validator = new OpenXmlValidator();
+var beforeErrors = validator.Validate(presentationPart);
+
+// Perform operation (e.g., remove master)
+// ...
+
+// After operation
+var afterErrors = validator.Validate(presentationPart);
+
+// Return results with validation status
+return new RemoveResult 
+{ 
+    ItemsRemoved = removed.Count,
+    SpaceSaved = savedBytes,
+    ValidationBefore = new { ErrorCount = beforeErrors.Count },
+    ValidationAfter = new { ErrorCount = afterErrors.Count },
+    Success = afterErrors.Count == 0
+};
+```
+
+---
+
+### 4. Media Hash-Based Deduplication
+
+**Decision:** Use SHA256 content hash for media deduplication (P4-5).
+
+**Rationale:**
+- Deterministic: same content always produces same hash
+- Reliable: SHA256 collisions extremely unlikely
+- Simple to implement: read stream, compute hash, compare
+- Proven pattern: used in backup/dedup systems
+
+**Implementation:**
+```csharp
+using var sha256 = System.Security.Cryptography.SHA256.Create();
+var hash = sha256.ComputeHash(mediaStream);
+var hexHash = Convert.ToHexString(hash);
+```
+
+---
+
+### 5. ZIP-Level Package Scanning (P4-1)
+
+**Decision:** Use `System.IO.Compression.ZipArchive` to enumerate package contents for size analysis.
+
+**Rationale:**
+- PPTX is a ZIP; direct access gives complete visibility
+- `ZipArchiveEntry.Length` provides exact sizes
+- Complementary to OpenXML SDK (which understands semantics)
+
+**Implementation Pattern:**
+```csharp
+using (var archive = ZipFile.OpenRead(filePath))
+{
+    foreach (var entry in archive.Entries)
+    {
+        var category = CategorizeByContentType(entry.Name);
+        totalByCategory[category] += entry.Length;
+    }
+}
+```
+
+---
+
+## Recommended Implementation Order
+
+### Rationale
+
+1. **P4-1, P4-2, P4-3 (Tier 1 analysis):** Implement in any order; they are independent. Each unblocks corresponding Tier 2 tool.
+   - **Suggested sequence:** P4-1 → P4-2 → P4-3 (building complexity)
+   
+2. **P4-4 (depends on P4-3):** Remove masters/layouts. Implement after P4-3 analysis is complete and tested.
+
+3. **P4-5 (depends on P4-2):** Deduplicate media. Implement after P4-2 media enumeration is solid.
+
+4. **P4-6 (independent):** Image compression. Can be implemented in parallel with Tier 2; includes new SkiaSharp dependency.
+
+5. **P4-7 (Tier 3, deferred):** Video analysis. Mark as low priority; consider for post-Phase-4 spike if demand exists.
+
+---
+
+## Team Assignment & Capacity
+
+**Default Assignment (provisional, subject to squad prioritization):**
+
+| Phase | Tool | Owner | Effort | Notes |
+|-------|------|-------|--------|-------|
+| Tier 1 | P4-1 (File size analysis) | Cheritto | 3–4h | ZIP enumeration + OpenXML categorization |
+| Tier 1 | P4-2 (Media analysis) | Cheritto | 3–4h | Hashing, reference tracking, dedup detection |
+| Tier 1 | P4-3 (Unused masters) | Cheritto | 3–4h | Master/layout traversal + usage cross-ref |
+| Tier 2 | P4-4 (Remove masters) | Cheritto | 5–6h | Relationship updates, OpenXmlValidator, round-trip |
+| Tier 2 | P4-5 (Dedup media) | Cheritto | 5–6h | Relationship updates, orphan cleanup, round-trip |
+| Tier 2 | P4-6 (Compress images) | Cheritto | 6–8h | SkiaSharp integration, DPI logic, JPEG tuning, round-trip |
+| **Total Tier 1+2** | | | **~32 hours** | 2–3 weeks part-time for one dev |
+| Tier 3 | P4-7 (Video analysis) | TBD | 2–3h | Deferred; consider for future spike |
+
+**Testing & Documentation (parallel):**
+- **Shiherlis:** E2E tests for Tier 2 operations (P4-4, P4-5, P4-6); round-trip validation on real presentations
+- **@copilot:** Document Phase 4 tools, examples, video optimization analysis patterns
+- **Nate (optional):** Code review for OpenXML package integrity and SkiaSharp integration
+
+---
+
+## Success Criteria
+
+✅ **All Tier 1 issues closed:** Analysis tools available, tested, documented  
+✅ **All Tier 2 issues closed:** Write operations complete, PowerPoint compatibility verified  
+✅ **OpenXmlValidator passes:** Before/after validation on all write operations  
+✅ **E2E round-trip tests pass:** Modified PPTX files open correctly in PowerPoint  
+✅ **Test coverage:** 3+ unit test cases per tool, comprehensive edge cases  
+✅ **Documentation:** README updated, TOOL_REFERENCE.md and EXAMPLES.md include Phase 4 tools  
+✅ **No Phase 3 regression:** All existing tests continue to pass  
+
+---
+
+## Known Risks & Mitigation
+
+| Risk | Impact | Mitigation |
+|------|--------|-----------|
+| SkiaSharp dependency adds complexity | Build/packaging | Document in README; add to CI; plan for NuGet publishing |
+| Image downscaling affects visual quality | User experience | Test JPEG quality settings (start at 85%); log before/after metadata |
+| Master/layout removal could orphan slides | Data loss | Validate relationships before removal; test round-trip with real presentations |
+| Media dedup removes wrong copy | Data loss | Use content hash (SHA256); test with intentionally duplicated media |
+| OpenXmlValidator passes but PowerPoint fails | Hidden bugs | Require round-trip tests for all Tier 2 operations |
+
+---
+
+## Future Enhancements (Post-Phase 4)
+
+1. **Video re-encoding (P4-7 full scope):** Requires ffmpeg or similar; spike with architecture decision
+2. **Batch optimization:** Multi-operation pipeline (analyze → deduplicate → compress → remove)
+3. **Optimization presets:** "Aggressive" (downscale to 150 DPI, remove all unused), "Conservative" (remove masters only)
+4. **Optimization report:** JSON summary of optimization opportunities and actual space saved
+5. **MCP UX improvements:** Async tasks for large presentations, progress notifications
+
+---
+
+## Decision Log
+
+- **2026-03-19:** Phase 4 scope defined, tier structure approved, 7 issues created
+- **2026-03-19:** GitHub milestone #5 created; labels added
+- **2026-03-19:** SkiaSharp chosen for image optimization (vs. System.Drawing.Common, ImageSharp)
+- **2026-03-19:** OpenXML validation + round-trip testing established as acceptance criteria for Tier 2
+

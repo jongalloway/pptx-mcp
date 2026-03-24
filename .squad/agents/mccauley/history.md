@@ -103,3 +103,103 @@
 - **New artifacts:** 4 model files (2 enums, 2 result records), 2 tool partial class files; old tool methods deleted
 - **Risk flags for Cheritto:** Enum deserialization casing, zero-based index conversion for AddSlide, `partial` keyword requirement, test assertion updates (Add action now returns JSON not plain text)
 - Decision document written to `.squad/decisions/inbox/mccauley-tool-consolidation-api.md`
+
+### Phase 4: Presentation Optimization Planning (2026-03-19)
+
+**Lead:** McCauley  
+**Status:** Complete — Phase 4 scope finalized, GitHub milestone created, 7 issues filed
+
+**Summary:** Defined Phase 4 ("Presentation Optimization") as a natural follow-on to Phase 3 (Deck Authoring). Jon regularly needs to shrink PowerPoint files by removing unused masters, deduplicating media, and compressing images. Phase 4 delivers this as a tier-structured suite: Tier 1 (read-only analysis, low risk), Tier 2 (write operations with OpenXML validation), Tier 3 (deferred video optimization).
+
+**Tier 1 — Read-Only Analysis (3 issues, independent, implement first):**
+- #80 (P4-1): Analyze file size breakdown — scan PPTX ZIP structure, report by category (slides, images, video/audio, masters, layouts, other)
+- #81 (P4-2): List media assets — enumerate images/video/audio, detect duplicates by SHA256 hash
+- #82 (P4-3): Find unused masters/layouts — cross-reference against actual usage, report space impact
+
+**Tier 2 — Write Operations (3 issues, require Tier 1 foundation):**
+- #83 (P4-4): Remove unused masters/layouts (depends on P4-3) — delete unused parts, preserve relationships, validate with OpenXmlValidator
+- #84 (P4-5): Deduplicate media (depends on P4-2) — consolidate identical media to single canonical copy
+- #85 (P4-6): Compress images (independent) — downscale to target DPI, format conversion (BMP/TIFF→PNG/JPEG), stats
+
+**Tier 3 — Deferred (1 issue):**
+- #86 (P4-7): Video optimization analysis only (video re-encoding deferred for future spike)
+
+**Key Architectural Decisions:**
+1. **Read-only first:** All Tier 1 analysis before any Tier 2 mutations (safe, diagnostic value, foundation for cleanup)
+2. **SkiaSharp for image compression:** Chosen for cross-platform support, high quality (vs. System.Drawing.Common legacy, ImageSharp slow)
+3. **OpenXML validation + PowerPoint round-trip:** All Tier 2 operations must validate before/after and pass file round-trip testing (learned from Phase 1/2: files can pass validator yet fail in PowerPoint)
+4. **SHA256 content hash for dedup:** Deterministic, reliable, simple
+5. **ZIP-level package scanning:** Use System.IO.Compression for size analysis (complementary to OpenXML SDK)
+
+**GitHub Artifacts:**
+- Milestone #5 "Phase 4: Presentation Optimization" created
+- Labels added: `phase-4`, `analysis`, `optimization`, `media` (in addition to existing `squad`, `type:feature`, etc.)
+- All 7 issues assigned to milestone #5, labeled `squad` + phase-specific labels
+- Issue bodies include: technical approach, acceptance criteria, tier structure, size estimates, dependencies
+
+**Scope Summary:**
+- Estimated effort: 32 hours for Tier 1+2 (2–3 weeks part-time, one developer)
+- Recommended sequence: P4-1 → P4-2 → P4-3 (Tier 1), then P4-4 (blocks on P4-3), P4-5 (blocks on P4-2), P4-6 (independent)
+- Success criteria: All Tier 1+2 closed, OpenXmlValidator passes, round-trip tests pass, 260+ tests, docs updated, no Phase 3 regression
+
+**Decision document:** `.squad/decisions/inbox/mccauley-phase4-optimization.md`
+
+### Phase 4 Scoping Exercise Complete (2026-03-23)
+
+**Lead:** McCauley  
+**Status:** Scoping complete; ready for implementation  
+
+**Summary:** Conducted full Phase 4 research spike ("Presentation Optimization & Media Analysis") following same scoping pattern as Phase 3.
+
+**Research Findings:**
+1. **Codebase Readiness:** Excellent. 377 tests baseline (no regression risk), 80 build warnings (acceptable), existing OpenXML patterns well-established in PresentationService.
+2. **Scope Alignment:** Phase 4 naturally follows Phase 3 (deck authoring); addresses core user need: shrink file size by removing unused masters, deduplicating media, compressing images.
+3. **Tier Structure:** 7 issues decomposed into Tier 1 (read-only analysis, 3 issues, low risk), Tier 2 (write operations, 3 issues, moderate risk), Tier 3 (deferred, 1 issue).
+
+**Key Architectural Decisions:**
+1. **ZIP-level package scanning** (System.IO.Compression) + OpenXML categorization (complementary analysis approach)
+2. **SHA256 content hashing** for dedup (deterministic, reliable)
+3. **SkiaSharp for image compression** (cross-platform > System.Drawing.Common legacy; faster than ImageSharp)
+4. **OpenXmlValidator + PowerPoint round-trip testing mandatory** for all Tier 2 (experience: files pass validator but fail in PowerPoint)
+5. **Master/layout relationships critical** — removing a master orphans its layouts; must validate before removal
+
+**Research Requirements Identified (for Nate):**
+- Master/layout relationship semantics (removal safety, orphan prevention)
+- Media reference management (how to consolidate duplicates while preserving refs)
+- SkiaSharp vs. System.Drawing.Common trade-offs (cross-platform, performance, PowerPoint compat)
+- PowerPoint validation gotchas (validator sufficiency, round-trip testing strategy)
+
+**Squad Reassignments (Recommended):**
+- All tools (#80–#85) → Cheritto (backend dev, not Shiherlis as currently assigned)
+- Testing for Tier 1+2 → Shiherlis (separate testing issues for each tier)
+- Documentation → @copilot (add 6 tools to TOOL_REFERENCE, example workflows)
+- #86 (video) → Parked (go:no, future spike)
+
+**Critical Path (Single Developer):**
+- Week 1: Tier 1 (#80, #81, #82) — 10–12 hours (sequential, independent)
+- Week 2: Tier 2 (#83, #84, #85) — 16–20 hours (build on Tier 1, higher risk, needs E2E PowerPoint testing)
+- Total: 32–38 hours, 2–3 weeks part-time
+
+**Risk Flags:**
+- PowerPoint compatibility (OpenXmlValidator insufficient; round-trip testing non-negotiable)
+- Relationship breakage (removing parts can orphan references; comprehensive validation required)
+- Image quality trade-offs (aggressive compression degrades fidelity; recommend 85% JPEG quality starting point)
+
+**Success Criteria:**
+- All Tier 1+2 issues closed
+- 400+ tests passing (no Phase 1–3 regression)
+- All Tier 2 E2E tests include PowerPoint round-trip validation
+- Documentation updated
+
+**Key Patterns for Reuse:**
+- Tier 1 tools establish ZIP enumeration + OpenXML categorization (foundation for all downstream size reporting)
+- P4-2 hash-based dedup pattern used by P4-4 (media reference consolidation) and P4-5 (image compression)
+- P4-3 master/layout traversal pattern used by P4-4 (removal logic)
+- All Tier 2 tools share: OpenXmlValidator before/after, error handling, detailed logging
+
+**Decision Document:** `.squad/decisions/inbox/mccauley-phase4-scoping.md`
+
+**Files Referenced:**
+- `src/PptxMcp/Services/PresentationService.cs` (partial class pattern, OpenXML traversal)
+- `src/PptxMcp/PptxMcp.csproj` (dependencies: DocumentFormat.OpenXml 3.5.1, ModelContextProtocol 1.1.0; add SkiaSharp for P4-6)
+- `tests/PptxMcp.Tests/` (377 tests baseline, xUnit v3 on MTP runner)
