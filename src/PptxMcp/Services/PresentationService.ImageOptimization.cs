@@ -102,9 +102,11 @@ public partial class PresentationService
         int jpegQuality,
         bool convertFormats)
     {
-        using var originalStream = imagePart.GetStream();
-        using var originalCopy = new MemoryStream();
-        originalStream.CopyTo(originalCopy);
+        var originalCopy = new MemoryStream();
+        using (var originalStream = imagePart.GetStream())
+        {
+            originalStream.CopyTo(originalCopy);
+        }
         originalCopy.Position = 0;
 
         long originalSize = originalCopy.Length;
