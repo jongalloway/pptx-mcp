@@ -1,4 +1,5 @@
 using System.IO.Packaging;
+using DocumentFormat.OpenXml.Packaging;
 using PptxMcp.Models;
 
 namespace PptxMcp.Services;
@@ -95,5 +96,159 @@ public partial class PresentationService
         }
 
         return "other";
+    }
+
+    public UnusedLayoutsResult FindUnusedLayouts(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var presentationPart = doc.PresentationPart
+            ?? throw new InvalidOperationException("Presentation part is missing.");
+
+        // Build a map from each SlideLayoutPart URI to the 1-based slide numbers that reference it.
+        var layoutUsage = new Dictionary<string, List<int>>();
+        int slideNumber = 0;
+        foreach (var slidePart in GetOrderedSlideParts(presentationPart))
+        {
+            slideNumber++;
+            if (slidePart.SlideLayoutPart is { } layoutPart)
+            {
+                var uri = layoutPart.Uri.ToString();
+                if (!layoutUsage.TryGetValue(uri, out var list))
+                {
+                    list = [];
+                    layoutUsage[uri] = list;
+                }
+                list.Add(slideNumber);
+            }
+        }
+
+        var masters = new List<MasterInfo>();
+        var layouts = new List<LayoutInfo>();
+        var warnings = new List<string>();
+        long estimatedSavings = 0;
+
+        foreach (var masterPart in presentationPart.SlideMasterParts)
+        {
+            var masterName = masterPart.SlideMaster?.CommonSlideData?.Name?.Value ?? "Unnamed Master";
+            var masterUri = masterPart.Uri.ToString();
+            long masterSize = EstimatePartSize(masterPart);
+
+            int layoutCount = 0;
+            int usedLayoutCount = 0;
+
+            foreach (var layoutPart in masterPart.SlideLayoutParts)
+            {
+                layoutCount++;
+                var layoutName = layoutPart.SlideLayout?.CommonSlideData?.Name?.Value ?? "Unnamed Layout";
+                var layoutUri = layoutPart.Uri.ToString();
+                long layoutSize = EstimatePartSize(layoutPart);
+                bool layoutUsed = layoutUsage.ContainsKey(layoutUri);
+
+                if (layoutUsed)
+                    usedLayoutCount++;
+                else
+                    estimatedSavings += layoutSize;
+
+                layouts.Add(new LayoutInfo(
+                    Name: layoutName,
+                    Uri: layoutUri,
+                    SizeBytes: layoutSize,
+                    IsUsed: layoutUsed,
+                    MasterName: masterName,
+                    ReferencedBySlides: layoutUsed ? layoutUsage[layoutUri].AsReadOnly() : []));
+            }
+
+            bool masterUsed = usedLayoutCount > 0;
+            if (!masterUsed)
+                estimatedSavings += masterSize;
+
+            masters.Add(new MasterInfo(
+                Name: masterName,
+                Uri: masterUri,
+                SizeBytes: masterSize,
+                IsUsed: masterUsed,
+                LayoutCount: layoutCount,
+                UsedLayoutCount: usedLayoutCount));
+
+            // Warn if removing master would orphan layouts that are still in use.
+            if (!masterUsed && usedLayoutCount > 0)
+            {
+                warnings.Add(
+                    $"Removing master '{masterName}' would orphan {usedLayoutCount} layout(s) still in use.");
+            }
+        }
+
+        int unusedMasterCount = masters.Count(m => !m.IsUsed);
+        int unusedLayoutCount = layouts.Count(l => !l.IsUsed);
+
+        string message = unusedLayoutCount == 0 && unusedMasterCount == 0
+            ? "All masters and layouts are in use."
+            : $"Found {unusedLayoutCount} unused layout(s) and {unusedMasterCount} unused master(s). " +
+              $"Estimated savings: {estimatedSavings:N0} bytes.";
+
+        return new UnusedLayoutsResult(
+            Success: true,
+            FilePath: filePath,
+            TotalMasters: masters.Count,
+            TotalLayouts: layouts.Count,
+            UnusedMasterCount: unusedMasterCount,
+            UnusedLayoutCount: unusedLayoutCount,
+            EstimatedSavingsBytes: estimatedSavings,
+            Masters: masters,
+            Layouts: layouts,
+            Warnings: warnings,
+            Message: message);
+    }
+
+    /// <summary>
+    /// Returns slide parts in presentation order (matching SlideIdList).
+    /// </summary>
+    private static IEnumerable<SlidePart> GetOrderedSlideParts(PresentationPart presentationPart)
+    {
+        var slideIdList = presentationPart.Presentation.SlideIdList;
+        if (slideIdList is null)
+            yield break;
+
+        foreach (var slideId in slideIdList.Elements<DocumentFormat.OpenXml.Presentation.SlideId>())
+        {
+            if (slideId.RelationshipId?.Value is { } relId &&
+                presentationPart.GetPartById(relId) is SlidePart slidePart)
+            {
+                yield return slidePart;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Estimates the size of an OpenXML part by reading its stream length,
+    /// plus the streams of any direct relationship parts (rels, theme, images, etc.).
+    /// </summary>
+    private static long EstimatePartSize(OpenXmlPart part)
+    {
+        long size = 0;
+        try
+        {
+            using var stream = part.GetStream();
+            size += stream.Length;
+        }
+        catch
+        {
+            // Part stream may be inaccessible; skip.
+        }
+
+        foreach (var rel in part.Parts)
+        {
+            try
+            {
+                using var relStream = rel.OpenXmlPart.GetStream();
+                size += relStream.Length;
+            }
+            catch
+            {
+                // Skip inaccessible relationship parts.
+            }
+        }
+
+        return size;
     }
 }

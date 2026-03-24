@@ -38,6 +38,14 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Phase 4 Wave 1 Execution (2026-03-24)
+- **#80 Implementation:** pptx_analyze_file_size complete — breakdown-by-part analysis (media, relationships, text) + cumulative compression insight
+- **#81 Implementation:** pptx_analyze_media complete — media type, size, compression ratio tracking
+- **#82 Implementation:** pptx_find_unused_layouts complete — identifies layout/master cleanup opportunities
+- **Pattern:** All three tools follow Analysis Tool archetype (read-only, JSON response, edge case handling for corrupted/malformed PPTX)
+- **Quality:** PR #87 (#80) CI green; branches squad/81-media-analysis and squad/82-unused-layouts ready for test & merge
+- **Learnings:** Tooling becomes scalable once Analysis Tool pattern established; implementation time 20–30min per tool after design freeze
+
 ### Slide data update tool (2026-03-16)
 - `PresentationService.UpdateSlideData(...)` uses 1-based slide numbers for the write-facing MCP tool and resolves targets by case-insensitive shape name first, with zero-based text-shape index fallback.
 - Preserving PowerPoint formatting means cloning the existing `TextBody` body/list style plus paragraph and run properties, then replacing only the text paragraphs instead of rebuilding the shape from scratch.

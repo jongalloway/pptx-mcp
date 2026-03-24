@@ -34,4 +34,27 @@ public partial class PptxTools
         new("layouts", 0, 0, []),
         new("other", 0, 0, []),
     ];
+
+    /// <summary>
+    /// Find unused slide masters and layouts in a PowerPoint presentation.
+    /// Enumerates all masters and layouts, cross-references against actual slide usage,
+    /// and identifies which could be safely removed with estimated space savings.
+    /// </summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    [McpServerTool(Title = "Find Unused Layouts", ReadOnly = true, Idempotent = true)]
+    public partial Task<string> pptx_find_unused_layouts(string filePath) =>
+        ExecuteToolStructured(filePath,
+            () => _service.FindUnusedLayouts(filePath),
+            error => new UnusedLayoutsResult(
+                Success: false,
+                FilePath: filePath,
+                TotalMasters: 0,
+                TotalLayouts: 0,
+                UnusedMasterCount: 0,
+                UnusedLayoutCount: 0,
+                EstimatedSavingsBytes: 0,
+                Masters: [],
+                Layouts: [],
+                Warnings: [],
+                Message: error));
 }
