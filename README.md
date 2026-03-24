@@ -80,6 +80,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 | `pptx_reorder_slides` | Batch reorder all slides by providing the new sequence |
 | `pptx_extract_talking_points` | Extract the highest-signal talking points from each slide |
 | `pptx_export_markdown` | Export a full presentation to a structured markdown file |
+| `pptx_analyze_file_size` | Analyze file size breakdown by category (slides, images, video/audio, masters, layouts) |
 
 **When to use `pptx_update_slide_data` vs `pptx_update_text`:** Use `pptx_update_slide_data` when shapes have descriptive names (check `pptx_get_slide_content`) — it targets shapes by name and preserves their existing formatting. Use `pptx_update_text` for anonymous placeholders identified only by index.
 

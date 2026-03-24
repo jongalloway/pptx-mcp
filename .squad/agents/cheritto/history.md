@@ -119,3 +119,11 @@
 - **Team:** Cheritto (implementation lead), Shiherlis (E2E validation), Nate (code review available)
 - **OpenXML Research:** All issues highly feasible; reference patterns established in SKILL.md
 - **Next Action:** Cheritto to begin Tier 1 tools (can implement in any order)
+
+### Issue #80 — pptx_analyze_file_size (2026-03-24)
+- Implemented `pptx_analyze_file_size` as first Phase 4 Tier 1 tool (PR #87)
+- Used `System.IO.Packaging.Package.Open()` instead of `PresentationDocument.Open()` because OpenXML SDK v3.x doesn't expose `.Package` on `OpenXmlPackage` — direct OPC access is cleaner for read-only part enumeration
+- Partial class files: `PresentationService.Optimization.cs`, `PptxTools.Optimization.cs` — these will host future optimization tools (#81–#85)
+- Categorization uses URI patterns first (/ppt/slides/, /ppt/slideMasters/, /ppt/slideLayouts/) then content type fallback (image/*, video/*, audio/*) for media
+- 160 lines across 3 new files; 418/418 existing tests still passing
+- No tests included (Shiherlis owns test creation per team charter)
