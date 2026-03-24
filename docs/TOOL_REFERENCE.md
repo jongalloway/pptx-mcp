@@ -15,6 +15,7 @@ Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetical
 - [pptx_duplicate_slide](#pptx_duplicate_slide)
 - [pptx_export_markdown](#pptx_export_markdown)
 - [pptx_extract_talking_points](#pptx_extract_talking_points)
+- [pptx_find_unused_layouts](#pptx_find_unused_layouts)
 - [pptx_get_slide_content](#pptx_get_slide_content)
 - [pptx_get_slide_xml](#pptx_get_slide_xml)
 - [pptx_insert_image](#pptx_insert_image)
@@ -560,6 +561,70 @@ Error: File not found: /path/to/presentation.pptx
   "name": "pptx_extract_talking_points",
   "arguments": {
     "filePath": "/presentations/q2-product-review.pptx"
+  }
+}
+```
+
+---
+
+## pptx_find_unused_layouts
+
+**Description:** Find unused slide masters and layouts in a PowerPoint presentation. Enumerates all masters and layouts, cross-references against actual slide usage, and identifies which could be safely removed with estimated space savings.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+
+### Returns
+
+Structured JSON with unused layout analysis:
+
+```json
+{
+  "Success": true,
+  "FilePath": "/presentations/quarterly-review.pptx",
+  "TotalMasters": 1,
+  "TotalLayouts": 11,
+  "UnusedMasterCount": 0,
+  "UnusedLayoutCount": 8,
+  "EstimatedSavingsBytes": 45000,
+  "Masters": [
+    {
+      "Name": "Office Theme",
+      "Uri": "/ppt/slideMasters/slideMaster1.xml",
+      "SizeBytes": 12500,
+      "IsUsed": true,
+      "LayoutCount": 11,
+      "UsedLayoutCount": 3
+    }
+  ],
+  "Layouts": [
+    {
+      "Name": "Title Slide",
+      "Uri": "/ppt/slideLayouts/slideLayout1.xml",
+      "SizeBytes": 4200,
+      "IsUsed": true,
+      "MasterName": "Office Theme",
+      "ReferencedBySlides": [1]
+    }
+  ],
+  "Warnings": [],
+  "Message": "Found 8 unused layouts across 1 master."
+}
+```
+
+On error, returns the same structure with `Success: false` and empty lists.
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_find_unused_layouts",
+  "arguments": {
+    "filePath": "/presentations/quarterly-review.pptx"
   }
 }
 ```
