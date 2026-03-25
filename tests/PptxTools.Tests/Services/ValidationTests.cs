@@ -436,6 +436,100 @@ public class ValidationTests : PptxTestBase
         Assert.Equal(result1.InfoCount, result2.InfoCount);
     }
 
+    // ────────────────────────────────────────────────────────
+    // XmlContext — XML path/reference debugging fields
+    // ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void ValidatePresentation_DuplicateShapeIds_IssueHasXmlContext()
+    {
+        var path = CreatePptxWithDuplicateShapeIds();
+        var result = Service.ValidatePresentation(path);
+
+        var dupIssue = Assert.Single(result.Issues, i => i.Category == "DuplicateShapeId");
+        Assert.False(string.IsNullOrEmpty(dupIssue.XmlContext));
+        Assert.Contains("p:sld", dupIssue.XmlContext, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidatePresentation_MissingImageRef_IssueHasXmlContext()
+    {
+        var path = CreatePptxWithBrokenImageRef();
+        var result = Service.ValidatePresentation(path);
+
+        var issue = Assert.Single(result.Issues, i => i.Category == "MissingImageReference");
+        Assert.False(string.IsNullOrEmpty(issue.XmlContext));
+        Assert.Contains("a:blip", issue.XmlContext, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rId999", issue.XmlContext);
+    }
+
+    [Fact]
+    public void ValidatePresentation_MissingRequiredElement_IssueHasXmlContext()
+    {
+        var path = CreatePptxMissingShapeTree();
+        var result = Service.ValidatePresentation(path);
+
+        var issue = result.Issues.First(i => i.Category == "MissingRequiredElement");
+        Assert.False(string.IsNullOrEmpty(issue.XmlContext));
+        Assert.Contains("p:spTree", issue.XmlContext, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidatePresentation_IssuesWithXmlContext_AllHaveNonNullXmlContext()
+    {
+        // All issue categories in this implementation populate XmlContext.
+        // Verify that issues from a mixed fixture always carry an XmlContext value.
+        var path = CreatePptxWithMixedIssues();
+        var result = Service.ValidatePresentation(path);
+
+        Assert.True(result.IssueCount > 0, "Expected at least one issue from the mixed-issues fixture.");
+        Assert.All(result.Issues, i => Assert.False(string.IsNullOrEmpty(i.XmlContext),
+            $"Issue category '{i.Category}' on slide {i.SlideNumber} should have a non-null XmlContext."));
+    }
+
+    // ────────────────────────────────────────────────────────
+    // Corrupt XML detection
+    // ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void ValidatePresentation_CorruptSlideXml_DetectsError()
+    {
+        var path = CreatePptxWithCorruptSlideXml();
+        var result = Service.ValidatePresentation(path);
+
+        Assert.True(result.Success); // Validation completed; corrupt slide is reported as an issue
+        var corruptIssues = result.Issues.Where(i => i.Category == "CorruptSlideXml").ToList();
+        Assert.NotEmpty(corruptIssues);
+        Assert.All(corruptIssues, i => Assert.Equal(ValidationSeverity.Error, i.Severity));
+    }
+
+    [Fact]
+    public void ValidatePresentation_CorruptSlideXml_IssueHasXmlContext()
+    {
+        var path = CreatePptxWithCorruptSlideXml();
+        var result = Service.ValidatePresentation(path);
+
+        var issue = Assert.Single(result.Issues, i => i.Category == "CorruptSlideXml");
+        // XmlContext should contain line/position info from the XmlException
+        Assert.False(string.IsNullOrEmpty(issue.XmlContext));
+        Assert.Contains("Line", issue.XmlContext, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidatePresentation_CorruptSlideXml_OtherSlidesStillValidated()
+    {
+        // A two-slide presentation where only slide 1 is corrupt — slide 2 should still be validated
+        var path = CreatePptxWithCorruptFirstSlide();
+        var result = Service.ValidatePresentation(path);
+
+        Assert.True(result.Success);
+        // Slide 1 should have a CorruptSlideXml error
+        Assert.Contains(result.Issues, i => i.Category == "CorruptSlideXml" && i.SlideNumber == 1);
+        // Slide 2 should have been validated (may have cross-slide issues as info but no corrupt errors)
+        var slide2CorruptIssues = result.Issues.Where(i => i.Category == "CorruptSlideXml" && i.SlideNumber == 2).ToList();
+        Assert.Empty(slide2CorruptIssues);
+    }
+
     // ════════════════════════════════════════════════════════
     // Fixture helpers — create corrupt PPTX files for testing
     // ════════════════════════════════════════════════════════
@@ -677,5 +771,41 @@ public class ValidationTests : PptxTestBase
         slide1Part.Slide.Save();
         // Cross-slide duplicates (Info) naturally happen because TestPptxHelper reuses shape IDs
         return path;
+    }
+
+    /// <summary>Creates a PPTX where the first slide's XML is replaced with malformed content.</summary>
+    private string CreatePptxWithCorruptSlideXml()
+    {
+        var path = CreateMinimalPptx("Corrupt Slide");
+        CorruptSlideXml(path, 1);
+        return path;
+    }
+
+    /// <summary>Creates a 2-slide PPTX where only slide 1 has corrupt XML; slide 2 is valid.</summary>
+    private string CreatePptxWithCorruptFirstSlide()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "Slide 1" },
+            new TestSlideDefinition { TitleText = "Slide 2" });
+        CorruptSlideXml(path, 1);
+        return path;
+    }
+
+    /// <summary>Overwrites the XML of the nth slide (1-based) in the PPTX zip with invalid XML.</summary>
+    private static void CorruptSlideXml(string path, int slideIndex)
+    {
+        using var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Update);
+
+        // Slide parts are named ppt/slides/slide1.xml, slide2.xml, …
+        var target = $"ppt/slides/slide{slideIndex}.xml";
+        var entry = zip.GetEntry(target);
+        if (entry is null) return;
+
+        var entryName = entry.FullName;
+        entry.Delete();
+
+        var newEntry = zip.CreateEntry(entryName);
+        using var writer = new StreamWriter(newEntry.Open());
+        writer.Write("<<<THIS IS NOT VALID XML AND WILL FAIL PARSING>>>");
     }
 }

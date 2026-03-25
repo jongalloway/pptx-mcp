@@ -1,3 +1,4 @@
+using System.Xml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using PptxTools.Models;
@@ -49,11 +50,28 @@ public partial class PresentationService
 
             var slidePart = GetSlidePart(doc, slideIds, i);
 
-            CheckRequiredElements(slidePart, currentSlideNumber, issues);
-            CheckDuplicateShapeIds(slidePart, currentSlideNumber, issues);
-            CheckMissingImageReferences(slidePart, currentSlideNumber, issues);
-            CheckOrphanedRelationships(slidePart, currentSlideNumber, issues);
-            CheckHyperlinkTargets(slidePart, currentSlideNumber, issues);
+            // Check for corrupt XML in relationship parts before touching slide XML
+            CheckCorruptPartXml(slidePart, currentSlideNumber, issues);
+
+            try
+            {
+                // All checks that access slidePart.Slide — wrapping catches corrupt slide XML
+                CheckRequiredElements(slidePart, currentSlideNumber, issues);
+                CheckDuplicateShapeIds(slidePart, currentSlideNumber, issues);
+                CheckMissingImageReferences(slidePart, currentSlideNumber, issues);
+                CheckOrphanedRelationships(slidePart, currentSlideNumber, issues);
+                CheckHyperlinkTargets(slidePart, currentSlideNumber, issues);
+            }
+            catch (XmlException ex)
+            {
+                issues.Add(new ValidationIssue(
+                    SlideNumber: currentSlideNumber,
+                    Severity: ValidationSeverity.Error,
+                    Category: "CorruptSlideXml",
+                    Description: $"Slide {currentSlideNumber} XML is malformed and cannot be fully validated.",
+                    Recommendation: "This slide may be corrupt. Consider recreating it from a layout.",
+                    XmlContext: $"Line {ex.LineNumber}, Position {ex.LinePosition}"));
+            }
         }
 
         // Presentation-wide: check for duplicate shape IDs across slides (only when not filtering)
@@ -91,7 +109,8 @@ public partial class PresentationService
                 Severity: ValidationSeverity.Error,
                 Category: "MissingRequiredElement",
                 Description: $"Slide {slideNumber} is missing CommonSlideData (p:cSld).",
-                Recommendation: "This slide may be corrupt. Consider recreating it from a layout."));
+                Recommendation: "This slide may be corrupt. Consider recreating it from a layout.",
+                XmlContext: "p:sld/p:cSld"));
             return;
         }
 
@@ -102,7 +121,8 @@ public partial class PresentationService
                 Severity: ValidationSeverity.Error,
                 Category: "MissingRequiredElement",
                 Description: $"Slide {slideNumber} is missing ShapeTree (p:spTree) inside CommonSlideData.",
-                Recommendation: "The slide has no shape container. Consider recreating it from a layout."));
+                Recommendation: "The slide has no shape container. Consider recreating it from a layout.",
+                XmlContext: "p:sld/p:cSld/p:spTree"));
         }
     }
 
@@ -125,7 +145,8 @@ public partial class PresentationService
                     Severity: ValidationSeverity.Error,
                     Category: "DuplicateShapeId",
                     Description: $"Slide {slideNumber}: Shape ID {id.Value} is shared by '{existingName}' and '{name}'.",
-                    Recommendation: "Assign unique IDs to each shape. Duplicate IDs can cause editing failures in PowerPoint."));
+                    Recommendation: "Assign unique IDs to each shape. Duplicate IDs can cause editing failures in PowerPoint.",
+                    XmlContext: $"p:sld/p:cSld/p:spTree/{child.LocalName}[cNvPr[@id='{id}']]"));
             }
             else
             {
@@ -166,7 +187,8 @@ public partial class PresentationService
             Severity: ValidationSeverity.Error,
             Category: "MissingImageReference",
             Description: $"Slide {slideNumber}: Picture '{shapeName}' references relationship '{relId}' which does not resolve to an image part.",
-            Recommendation: "Replace the image or remove the picture shape. The image will appear broken in PowerPoint."));
+            Recommendation: "Replace the image or remove the picture shape. The image will appear broken in PowerPoint.",
+            XmlContext: $"p:sld/p:cSld/p:spTree/p:pic/p:blipFill/a:blip[@r:embed='{relId}']"));
     }
 
     private static void CheckOrphanedRelationships(SlidePart slidePart, int slideNumber, List<ValidationIssue> issues)
@@ -226,7 +248,8 @@ public partial class PresentationService
                     Severity: ValidationSeverity.Warning,
                     Category: "OrphanedRelationship",
                     Description: $"Slide {slideNumber}: Part '{relId}' ({partType}) is not referenced in the slide XML.",
-                    Recommendation: "This part may be left over from a deleted shape. It wastes file space but is not harmful."));
+                    Recommendation: "This part may be left over from a deleted shape. It wastes file space but is not harmful.",
+                    XmlContext: relId));
             }
         }
     }
@@ -252,7 +275,8 @@ public partial class PresentationService
                             Severity: ValidationSeverity.Error,
                             Category: "BrokenHyperlinkTarget",
                             Description: $"Slide {slideNumber}: Internal slide link '{relId}' does not point to a valid slide.",
-                            Recommendation: "Update or remove the hyperlink. The link will fail when clicked in PowerPoint."));
+                            Recommendation: "Update or remove the hyperlink. The link will fail when clicked in PowerPoint.",
+                            XmlContext: $"a:hlinkClick[@r:id='{relId}']"));
                     }
                 }
                 catch
@@ -262,7 +286,8 @@ public partial class PresentationService
                         Severity: ValidationSeverity.Error,
                         Category: "BrokenHyperlinkTarget",
                         Description: $"Slide {slideNumber}: Internal slide link '{relId}' references a missing part.",
-                        Recommendation: "Remove the broken hyperlink. The target slide no longer exists."));
+                        Recommendation: "Remove the broken hyperlink. The target slide no longer exists.",
+                        XmlContext: $"a:hlinkClick[@r:id='{relId}']"));
                 }
                 continue;
             }
@@ -276,7 +301,56 @@ public partial class PresentationService
                     Severity: ValidationSeverity.Warning,
                     Category: "BrokenHyperlinkTarget",
                     Description: $"Slide {slideNumber}: Hyperlink references relationship '{relId}' which does not exist.",
-                    Recommendation: "Remove or re-create the hyperlink. It will not work when clicked."));
+                    Recommendation: "Remove or re-create the hyperlink. It will not work when clicked.",
+                    XmlContext: $"a:hlinkClick[@r:id='{relId}']"));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tries to parse the XML of each related part to detect corruption.
+    /// The OpenXML SDK loads part XML lazily, so this forces parsing without touching the slide XML.
+    /// </summary>
+    private static void CheckCorruptPartXml(SlidePart slidePart, int slideNumber, List<ValidationIssue> issues)
+    {
+        List<DocumentFormat.OpenXml.Packaging.IdPartPair> parts;
+        try
+        {
+            parts = slidePart.Parts.ToList();
+        }
+        catch (XmlException ex)
+        {
+            issues.Add(new ValidationIssue(
+                SlideNumber: slideNumber,
+                Severity: ValidationSeverity.Error,
+                Category: "CorruptRelationshipXml",
+                Description: $"Slide {slideNumber}: The slide's relationship file (.rels) contains malformed XML.",
+                Recommendation: "The relationship file is corrupt. This slide may not load or render correctly.",
+                XmlContext: $"Line {ex.LineNumber}, Position {ex.LinePosition}"));
+            return;
+        }
+
+        foreach (var partRef in parts)
+        {
+            // Skip structural parts accessed separately (slide XML handled by the outer try/catch)
+            if (partRef.OpenXmlPart is SlideLayoutPart or SlideMasterPart or NotesSlidePart or ThemePart or SlidePart)
+                continue;
+
+            try
+            {
+                // Force lazy XML parsing — throws XmlException if the part XML is malformed
+                var _ = partRef.OpenXmlPart.RootElement;
+            }
+            catch (XmlException ex)
+            {
+                var partType = partRef.OpenXmlPart.GetType().Name;
+                issues.Add(new ValidationIssue(
+                    SlideNumber: slideNumber,
+                    Severity: ValidationSeverity.Error,
+                    Category: "CorruptPartXml",
+                    Description: $"Slide {slideNumber}: Related part '{partRef.RelationshipId}' ({partType}) contains malformed XML.",
+                    Recommendation: "The part XML is corrupt. Consider recreating the affected content (e.g. re-insert the chart or image).",
+                    XmlContext: $"{partRef.RelationshipId}, Line {ex.LineNumber}, Position {ex.LinePosition}"));
             }
         }
     }
@@ -293,7 +367,18 @@ public partial class PresentationService
         {
             int currentSlideNumber = i + 1;
             var slidePart = GetSlidePart(doc, slideIds, i);
-            var shapeTree = slidePart.Slide.CommonSlideData?.ShapeTree;
+
+            ShapeTree? shapeTree;
+            try
+            {
+                shapeTree = slidePart.Slide.CommonSlideData?.ShapeTree;
+            }
+            catch (XmlException)
+            {
+                // Corrupt slide XML — already reported in the per-slide loop; skip here.
+                continue;
+            }
+
             if (shapeTree is null) continue;
 
             foreach (var child in shapeTree.ChildElements)
@@ -309,7 +394,8 @@ public partial class PresentationService
                         Severity: ValidationSeverity.Info,
                         Category: "CrossSlideDuplicateShapeId",
                         Description: $"Shape ID {id.Value} ('{name}') on slide {currentSlideNumber} also appears on slide {firstSlide}.",
-                        Recommendation: "Cross-slide shape ID reuse is common and usually harmless, but may cause issues with some automation tools."));
+                        Recommendation: "Cross-slide shape ID reuse is common and usually harmless, but may cause issues with some automation tools.",
+                        XmlContext: $"p:sld/p:cSld/p:spTree/{child.LocalName}[cNvPr[@id='{id}']]"));
                 }
                 else
                 {

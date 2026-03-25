@@ -26,12 +26,14 @@ public enum ValidationSeverity
 /// <param name="Category">Classification of the issue (e.g. "DuplicateShapeId", "MissingImageReference").</param>
 /// <param name="Description">Human-readable description of what was found.</param>
 /// <param name="Recommendation">Suggested action to resolve the issue.</param>
+/// <param name="XmlContext">XML element path or line/position reference for debugging (e.g. "p:spTree/p:sp[@id=2]" or "Line 4, Position 12").</param>
 public record ValidationIssue(
     int? SlideNumber,
     ValidationSeverity Severity,
     string Category,
     string Description,
-    string Recommendation);
+    string Recommendation,
+    string? XmlContext = null);
 
 /// <summary>Result of a presentation validation operation.</summary>
 /// <param name="Success">True when validation completed without internal errors.</param>
