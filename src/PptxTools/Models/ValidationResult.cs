@@ -1,6 +1,6 @@
 namespace PptxTools.Models;
 
-/// <summary>Actions for the consolidated pxtx_validate_presentation tool.</summary>
+/// <summary>Actions for the consolidated pptx_validate_presentation tool.</summary>
 public enum ValidationAction
 {
     /// <summary>Run all validation checks on the presentation.</summary>

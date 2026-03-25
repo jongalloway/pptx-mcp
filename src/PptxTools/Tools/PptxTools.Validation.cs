@@ -20,7 +20,7 @@ public partial class PptxTools
     [McpServerTool(Title = "Validate Presentation", ReadOnly = true, Idempotent = true)]
     [McpMeta("consolidatedTool", true)]
     [McpMeta("actions", JsonValue = """["Validate"]""")]
-    public partial Task<string> pxtx_validate_presentation(
+    public partial Task<string> pptx_validate_presentation(
         string filePath,
         ValidationAction action,
         int? slideNumber = null)
