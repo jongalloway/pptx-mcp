@@ -187,3 +187,18 @@
 - **Tests:** 23 new tests including hand-crafted minimal MP4/M4A byte sequences with full ISOBMFF box structure
 - **Build:** 0 errors; 575/575 tests passing
 - **PR:** on branch squad/86-video-metadata
+
+### Project Rename — Issue #110 (2026-03-27)
+- **Scope:** Mechanical rename pptx-mcp → pptx-tools for broader discoverability (now supports both MCP server and CLI modes)
+- **Execution:** 117 files changed (+351/-352), all via `git mv` to preserve history
+- **Namespaces:** PptxMcp → PptxTools across all .cs files
+- **Solution:** PptxMcp.slnx → PptxTools.slnx
+- **Projects:** PptxMcp.csproj → PptxTools.csproj (PackageId: pptx-tools), PptxMcp.Tests.csproj → PptxTools.Tests.csproj
+- **CLI:** ToolCommandName: pptx-mcp → pptx
+- **URLs:** GitHub repo references updated from jongalloway/pptx-mcp → jongalloway/pptx-tools
+- **Namespace conflict fix:** Test files in PptxTools.Tests.Tools namespace now use `global::PptxTools.Tools.PptxTools` to disambiguate from PptxTools root namespace
+- **Documentation:** Updated README, CLIENT_SETUP, QUICKSTART, TOOL_REFERENCE, EXAMPLES, MULTI_SOURCE_COMPOSITION, PRD, TABLE_TOOLS_IMPLEMENTATION_MAP, copilot-instructions.md, all agent charters, .squad/team.md, .squad/config.json
+- **CI:** Updated build.yml and copilot-setup-steps.yml workflow files
+- **Build:** 0 errors, 575/575 tests passing
+- **PR:** #113 on branch squad/110-rename-pptx-tools
+

@@ -298,7 +298,7 @@ foreach (var part in package.GetParts())
 
 **Prior Art:**
 - **MarpToPptx:** `OpenXmlPptxRenderer.cs`, `PptxMarkdownExporter.Media.cs`
-- **pptx-mcp:** `PresentationService.cs` (lines 96–111, GetLayouts pattern)
+- **pptx-tools:** `PresentationService.cs` (lines 96–111, GetLayouts pattern)
 
 **OpenXML SDK Docs:**
 - https://github.com/dotnet/Open-XML-SDK/wiki

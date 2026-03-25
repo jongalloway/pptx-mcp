@@ -10,7 +10,7 @@ By exposing PowerPoint operations as MCP tools, pptx-tools bridges the gap betwe
 
 ## Current State
 
-**PR #1 — Bootstrap pptx-mcp** established:
+**PR #1 — Bootstrap pptx-tools** established:
 - **.NET 10 console application** with stdio MCP transport
 - **7 MCP tools** for core PowerPoint operations:
   - `pptx_list_slides` — enumerate slides with metadata

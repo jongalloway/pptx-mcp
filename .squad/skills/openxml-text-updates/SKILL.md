@@ -8,7 +8,7 @@ source: "issue-19 implementation"
 
 ## Context
 
-Use this pattern when a pptx-mcp feature needs to replace text in an existing PowerPoint shape without breaking formatting or package structure.
+Use this pattern when a pptx-tools feature needs to replace text in an existing PowerPoint shape without breaking formatting or package structure.
 
 ## Pattern
 

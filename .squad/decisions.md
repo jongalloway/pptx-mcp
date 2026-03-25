@@ -2534,3 +2534,168 @@ For issue #85 (compress/optimize images), use **Magick.NET** instead of ImageSha
 
 **Next Step:** Pass research to Cheritto with implementation sketch for development.
 
+
+---
+
+## Decision Archive: Merged from Inbox (2026-03-25)
+
+### CLI Interface Decomposition (#94 → #98–#105)
+
+**Lead:** McCauley  
+**Date:** 2026-03-24  
+**Status:** ✅ Approved — 7 GitHub issues created  
+
+The design decomposes #94 into 7 implementable sub-issues. Dual-mode architecture approved: pptx-tools --stdio (MCP server) vs pptx-tools analyze [options] (CLI). System.CommandLine 3.0 for CLI surface. 21 MCP tools reused without refactoring.
+
+**Key decisions:**
+- Single binary, dual-mode entry point (40 lines of Program.cs)
+- 7 command groups: analyze, optimize, inspect, export, edit, media, slides
+- Compound command (optimize) orchestrates multiple service calls with reporting
+- NuGet Phase 1, Scoop/Homebrew Phase 2
+
+**Effort:** 22–32 hours over 3 weeks. All 7 issues await #98 (foundation). See full decision document in .squad/decisions/inbox/mccauley-cli-decomposition.md (archived).
+
+---
+
+### System.CommandLine v3 CLI Command Pattern (Analysis)
+
+**Author:** Cheritto  
+**Date:** 2026-03-24  
+**PR:** #108 (squad/99-102-analyze-export)
+
+Implementing CLI commands on System.CommandLine v3.0.0-preview.2. The v3 API differs from v2 docs online.
+
+**Key patterns:**
+- Command factory: static class with Create(PresentationService) returning fully-configured Command
+- v3 API: Argument<T>("name") constructor, set Description via property; Option<T>("--name") likewise
+- SetAction receives ParseResult, NOT context object
+- Exit codes: cast to Func<ParseResult, int> for return-value overload
+- Value access: parseResult.GetValue(argObj) / parseResult.GetValue(optObj)
+- DI: lightweight ServiceCollection → BuildServiceProvider in RunCliAsync
+
+**Impact:** All future CLI command implementations (#99–#105) follow this pattern. Reference for team.
+
+---
+
+### System.CommandLine v3 CLI Command Pattern (Inspect/Media)
+
+**Author:** Cheritto  
+**Date:** 2026-03-27  
+**Context:** PR #109 - CLI inspect, media, slides commands
+
+**Established pattern:**
+- Constructors: single-arg with Description property
+- SetAction takes ParseResult parameter, use parseResult.GetValue(argObj)
+- Exit codes: Use Environment.ExitCode (not ctx.ExitCode)
+- DI: ServiceCollection + PresentationService singleton in RunCliAsync
+- JSON output: --json flag on read-only subcommands
+- Slide numbering: CLI takes 1-based --slide, converts to 0-based for GetSlideContent/GetSlideXml
+
+**Consistency:** Matches AnalyzeCommand/ExportCommand patterns established in #108.
+
+---
+
+### Dual-Mode Entry Point Implementation
+
+**Author:** Cheritto  
+**Date:** 2026-03-27  
+**Status:** ✅ Implemented (PR #107)
+
+Refactored Program.cs to support both MCP server mode (--stdio) and CLI mode from the same binary.
+
+**Key decisions:**
+- System.CommandLine 3.0.0-preview.2 (latest resolved by dotnet add --prerelease; v3 API differs from v2)
+- Mode detection: string-based DetermineMode() returns "mcp" or "cli" (simple, testable)
+- MCP path byte-for-byte identical (zero risk to existing functionality)
+- Stub commands use SetAction with Console.WriteLine (minimal surface for #99–#105 to replace)
+
+**Impact:** Foundation for all CLI issues (#99–#105). Zero MCP regressions (575/575 tests pass). 2 files changed, +81/-21 lines.
+
+---
+
+### CLI edit command — JSON input patterns
+
+**Author:** Cheritto  
+**Date:** 2026-03-27  
+**Context:** Issue #103, PR #112
+
+**Two JSON input patterns:**
+1. **File-based** (dit batch): mutations loaded from JSON file path (large payloads, composable)
+2. **Inline** (table, chart): JSON passed directly as option values (small inputs, single-command convenience)
+
+All JSON deserialization uses PropertyNameCaseInsensitive = true.
+
+**Team pattern:** File-based for unbounded input, inline for bounded/small structured input.
+
+---
+
+### OptimizeCommand compound CLI pattern
+
+**Author:** Cheritto  
+**Date:** 2026-03-24  
+**Issue:** #100  
+**PR:** #111  
+
+The optimize command chains multiple service calls (dedup, image compress, layout removal) in sequence.
+
+**Decisions:**
+1. Copy-first: File.Copy before any mutations; original file untouched
+2. Try/catch per step: each optimization step independently wrapped; if dedup fails, others still run
+3. --no-* toggle pattern: --remove-layouts defaults true; --no-remove-layouts explicitly disables (System.CommandLine v3 lacks native negation support)
+4. FormatBytes duplicated: copy from AnalyzeCommand; extract to CliHelpers if a third command needs it
+5. JSON output model private to command: OptimizeStepResult and OptimizeResult nested in OptimizeCommand class
+
+**Team impact:** The dit command (#103) is last remaining stub. --no-* toggle pattern reusable for future boolean defaults-to-true options.
+
+---
+
+### Video/Audio Metadata Extraction Research (Issue #86)
+
+**Consulting Dev:** Nate  
+**Date:** 2026-03-24  
+**Deliverable:** NuGet package recommendation for embedded video/audio metadata extraction
+
+**Verdict: GO with SharpMp4Parser** ⭐
+
+After evaluating 10+ candidates, **SharpMp4Parser v0.0.5** is the only solution meeting all requirements: MIT license, pure .NET, cross-platform (Windows/Linux/macOS), zero native dependencies, stream-based API, extracts codec/resolution/bitrate/duration, NuGet-native (~100KB).
+
+**Rejected alternatives:**
+- FFMpegCore, MediaInfo.DotNetWrapper, FFMediaToolkit: ALL require external native binaries (FFmpeg, MediaInfo) — incompatible with MCP server distribution
+- TagLibSharp: Pure .NET but inadequate for VIDEO (excellent for audio; no video codec/resolution extraction)
+
+**Implementation pattern:** Analogous to Magick.NET — lightweight .NET wrapper focused on one job (metadata extraction), works from streams, zero external dependencies, MIT-licensed, cross-platform by design.
+
+**Complexity:** 200–300 lines of helper methods to map MP4 box structure → codec/resolution/bitrate/duration. Prototype within Services/PresentationService.cs.
+
+**Effort:** 7–10 hours (Phase 1: dependency + box parsing helpers; Phase 2: MCP tool; Phase 3: tests).
+
+**Escalation:** If 10% of presentations fail (malformed MP4), escalate to FFMpegCore + binary distribution discussion.
+
+---
+
+### CLI Mode Detection Design (Copilot Directive)
+
+**Date:** 2026-03-24T20:17:00Z  
+**Decision Authority:** Jon Galloway (via Copilot)
+
+--stdio flag for MCP server mode. No args = show help (standard CLI convention). No backward compatibility concern — pptx-tools is not yet released. The serve subcommand approach is dropped.
+
+**Rationale:** --stdio matches MCP ecosystem convention, no-args-help matches universal CLI convention (dotnet, git, gh), and since the tool isn't released yet, backward compat is irrelevant.
+
+---
+
+### Project Rename Decision (Copilot Directive)
+
+**Date:** 2026-03-24T21:50:00Z  
+**Decision Authority:** Jon Galloway (via Copilot)
+
+Rename project from pptx-mcp to pptx-tools (repo + NuGet package). CLI command becomes pptx. Namespace changes from PptxMcp to PptxTools. Execute after CLI commands are complete.
+
+**Rationale:** Broader discoverability for non-MCP users searching for PowerPoint CLI tools. MCP is a feature, not the identity.
+
+---
+
+## End Inbox Archive (2026-03-25T04:50:46Z)
+
+All 10 inbox files merged above and deleted from .squad/decisions/inbox/.
+

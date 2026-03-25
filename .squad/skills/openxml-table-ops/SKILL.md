@@ -25,5 +25,5 @@ Tables use `frame.NonVisualGraphicFrameProperties.NonVisualDrawingProperties.Nam
 - Do NOT try to reuse existing `TextBody` — rebuild is safer
 
 ## Reference Files
-- `src/PptxMcp/Services/PresentationService.cs` — `InsertTable()`, `UpdateTable()`, `BuildTableRow()`
-- `tests/PptxMcp.Tests/TestPptxHelper.cs` — `CreateTable()` (test fixture builder)
+- `src/PptxTools/Services/PresentationService.cs` — `InsertTable()`, `UpdateTable()`, `BuildTableRow()`
+- `tests/PptxTools.Tests/TestPptxHelper.cs` — `CreateTable()` (test fixture builder)

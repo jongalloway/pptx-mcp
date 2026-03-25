@@ -14,7 +14,7 @@ public sealed class BlogTools
             "2025-06-09",
             "Introducing MCP Composition Patterns for .NET Agents",
             "https://devblogs.microsoft.com/dotnet/mcp-composition-patterns",
-            "Learn how to compose multiple MCP servers — pptx-mcp, web browsing, and data APIs — " +
+            "Learn how to compose multiple MCP servers — pptx-tools, web browsing, and data APIs — " +
             "to build powerful multi-source agent workflows without writing custom glue code.",
             ["mcp", "dotnet", "ai-agents", "composition"]
         ),
@@ -48,7 +48,7 @@ public sealed class BlogTools
             "https://devblogs.microsoft.com/dotnet/ai-docs-deck-to-markdown",
             "Walk through a real workflow where an AI agent reads a training presentation " +
             "and generates a structured markdown doc ready for your knowledge base.",
-            ["mcp", "pptx-mcp", "documentation", "ai-agents"]
+            ["mcp", "pptx-tools", "documentation", "ai-agents"]
         )
     ];
 

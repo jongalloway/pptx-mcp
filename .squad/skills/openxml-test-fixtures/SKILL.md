@@ -8,7 +8,7 @@ source: "issue-6"
 
 ## Context
 
-`tests/PptxMcp.Tests/TestPptxHelper.cs` is the shared test-fixture builder for pptx-mcp. Use it whenever a test needs a valid presentation with realistic combinations of titles, body placeholders, and images.
+`tests/PptxTools.Tests/TestPptxHelper.cs` is the shared test-fixture builder for pptx-tools. Use it whenever a test needs a valid presentation with realistic combinations of titles, body placeholders, and images.
 
 ## Pattern
 
