@@ -26,6 +26,19 @@ public partial class PresentationService
                 Message: "Presentation has no slides.");
         }
 
+        if (slideNumber.HasValue && (slideNumber.Value < 1 || slideNumber.Value > slideIds.Count))
+        {
+            return new ValidationResult(
+                Success: false,
+                Action: "Validate",
+                IssueCount: 0,
+                ErrorCount: 0,
+                WarningCount: 0,
+                InfoCount: 0,
+                Issues: [],
+                Message: $"slideNumber {slideNumber.Value} is out of range. Presentation has {slideIds.Count} slide(s).");
+        }
+
         var issues = new List<ValidationIssue>();
 
         for (int i = 0; i < slideIds.Count; i++)
@@ -136,11 +149,7 @@ public partial class PresentationService
 
             try
             {
-                var part = slidePart.GetPartById(embed);
-                if (part is null)
-                {
-                    AddMissingImageIssue(slideNumber, embed, picture, issues);
-                }
+                slidePart.GetPartById(embed);
             }
             catch
             {

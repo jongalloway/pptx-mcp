@@ -251,6 +251,36 @@ public class ValidationTests : PptxTestBase
         Assert.Empty(crossSlideIssues);
     }
 
+    [Fact]
+    public void ValidatePresentation_SlideNumberTooHigh_ReturnsFailure()
+    {
+        var path = CreateMinimalPptx();
+        var result = Service.ValidatePresentation(path, slideNumber: 999);
+
+        Assert.False(result.Success);
+        Assert.Contains("out of range", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidatePresentation_SlideNumberZero_ReturnsFailure()
+    {
+        var path = CreateMinimalPptx();
+        var result = Service.ValidatePresentation(path, slideNumber: 0);
+
+        Assert.False(result.Success);
+        Assert.Contains("out of range", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidatePresentation_SlideNumberNegative_ReturnsFailure()
+    {
+        var path = CreateMinimalPptx();
+        var result = Service.ValidatePresentation(path, slideNumber: -1);
+
+        Assert.False(result.Success);
+        Assert.Contains("out of range", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ────────────────────────────────────────────────────────
     // Severity counts and sorting
     // ────────────────────────────────────────────────────────
