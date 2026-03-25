@@ -2699,3 +2699,22 @@ Rename project from pptx-mcp to pptx-tools (repo + NuGet package). CLI command b
 
 All 10 inbox files merged above and deleted from .squad/decisions/inbox/.
 
+
+---
+
+### Issue #114 Orchestration: Hyperlink Support Implementation
+
+**Orchestrator:** McCauley  
+**Date:** 2026-03-25  
+**Status:** ✅ Implemented (PR #145)
+
+**Parallel Agents:** Shiherlis (testing), Cheritto (feature)
+
+**Work Summary:**
+- **Shiherlis:** 49 comprehensive tests (30 service + 19 tool) covering all hyperlink CRUD operations
+- **Cheritto:** Full feature implementation — HyperlinkInfo model, PresentationService.Hyperlinks.cs service layer, pxtx_manage_hyperlinks tool (Get/Add/Update/Remove actions)
+- **Build:** 0 errors, **Tests:** 624/624 passing
+- **New Files:** 5 (HyperlinkInfo.cs, PresentationService.Hyperlinks.cs, PptxTools.Hyperlinks.cs, HyperlinkTests.cs, HyperlinkToolsTests.cs)
+
+**Impact:** Feature-complete hyperlink support. Ready for review & merge.
+
