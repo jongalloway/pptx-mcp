@@ -523,6 +523,138 @@ public class TextFormattingTests : PptxTestBase
             Service.ApplyTextFormatting(path, 1, "Target", alignment: "diagonal"));
     }
 
+    // ── ApplyTextFormatting: no-op / invalid input ────────────────────────────────
+
+    [Fact]
+    public void ApplyTextFormatting_NoPropertiesSpecified_ReturnsFailure()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        var result = Service.ApplyTextFormatting(path, 1, "Target");
+
+        Assert.False(result.Success);
+        Assert.Contains("No formatting properties specified", result.Message);
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_NegativeFontSize_ReturnsFailure()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        var result = Service.ApplyTextFormatting(path, 1, "Target", fontSize: -1.0);
+
+        Assert.False(result.Success);
+        Assert.Contains("fontSize must be a positive number", result.Message);
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_ZeroFontSize_ReturnsFailure()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        var result = Service.ApplyTextFormatting(path, 1, "Target", fontSize: 0.0);
+
+        Assert.False(result.Success);
+        Assert.Contains("fontSize must be a positive number", result.Message);
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_InvalidHexColor_ThrowsArgumentException()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        Assert.Throws<ArgumentException>(() =>
+            Service.ApplyTextFormatting(path, 1, "Target", color: "red"));
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_InvalidHexColor_TooShort_ThrowsArgumentException()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        Assert.Throws<ArgumentException>(() =>
+            Service.ApplyTextFormatting(path, 1, "Target", color: "#FFF"));
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_InvalidHexColor_InvalidCharacters_ThrowsArgumentException()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        Assert.Throws<ArgumentException>(() =>
+            Service.ApplyTextFormatting(path, 1, "Target", color: "#GGGGGG"));
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_IdempotentBold_ReturnsZeroModifiedCount()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test", bold: true);
+
+        // Bold is already true — applying bold: true again should report no actual changes
+        var result = Service.ApplyTextFormatting(path, 1, "Target", bold: true);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.FormattingCount);
+    }
+
+    [Fact]
+    public void ApplyTextFormatting_IdempotentColor_ReturnsZeroModifiedCount()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test", colorHex: "FF0000");
+
+        // Same color — applying #FF0000 again should report no actual changes
+        var result = Service.ApplyTextFormatting(path, 1, "Target", color: "#FF0000");
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.FormattingCount);
+    }
+
+    // ── GetTextFormatting: scheme / non-RGB colors ────────────────────────────────
+
+    [Fact]
+    public void GetTextFormatting_SchemeColor_ReturnedWithSchemePrefix()
+    {
+        var path = CreateMinimalPptx("Slide 1");
+
+        // Build the fixture and close the document before reading back
+        {
+            using var doc = PresentationDocument.Open(path, true);
+            var slidePart = doc.PresentationPart!.SlideParts.First();
+            var tree = slidePart.Slide.CommonSlideData!.ShapeTree!;
+
+            var schemeColor = new A.SchemeColor
+            {
+                Val = new DocumentFormat.OpenXml.EnumValue<A.SchemeColorValues>(A.SchemeColorValues.Accent1)
+            };
+            var runProps = new A.RunProperties();
+            runProps.InsertAt(new A.SolidFill(schemeColor), 0);
+
+            var paragraph = new A.Paragraph(
+                new A.Run(runProps, new A.Text("Themed")),
+                new A.EndParagraphRunProperties());
+            var textBody = new TextBody(new A.BodyProperties(), new A.ListStyle(), paragraph);
+
+            var nextId = (uint)(tree.Elements<Shape>().Count() + 10);
+            tree.Append(new Shape(
+                new P.NonVisualShapeProperties(
+                    new P.NonVisualDrawingProperties { Id = nextId, Name = "SchemeShape" },
+                    new P.NonVisualShapeDrawingProperties(),
+                    new ApplicationNonVisualDrawingProperties()),
+                new ShapeProperties(
+                    new A.Transform2D(
+                        new A.Offset { X = 100000, Y = 100000 },
+                        new A.Extents { Cx = 5000000, Cy = 1000000 })),
+                textBody));
+
+            slidePart.Slide.Save();
+        }
+
+        var result = Service.GetTextFormatting(path, shapeName: "SchemeShape");
+        var run = Assert.Single(result.Formattings, f => f.ShapeName == "SchemeShape");
+        Assert.NotNull(run.Color);
+        Assert.StartsWith("scheme:", run.Color);
+    }
+
     // ── ApplyTextFormatting: multiple properties at once ──────────────────────────
 
     [Fact]

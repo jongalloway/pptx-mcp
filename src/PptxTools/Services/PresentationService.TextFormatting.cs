@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using PptxTools.Models;
@@ -7,6 +8,10 @@ namespace PptxTools.Services;
 
 public partial class PresentationService
 {
+    /// <summary>Fill element local names in the DrawingML namespace.</summary>
+    private static readonly HashSet<string> FillLocalNames =
+        ["solidFill", "noFill", "gradFill", "pattFill", "blipFill", "grpFill"];
+
     public TextFormattingResult GetTextFormatting(string filePath, int? slideNumber = null, string? shapeName = null)
     {
         using var doc = PresentationDocument.Open(filePath, false);
@@ -15,14 +20,14 @@ public partial class PresentationService
         if (slideIds.Count == 0)
             return new TextFormattingResult(true, "Get", slideNumber, shapeName, 0, [], "Presentation has no slides.");
 
+        if (slideNumber.HasValue && (slideNumber.Value < 1 || slideNumber.Value > slideIds.Count))
+            return new TextFormattingResult(false, "Get", slideNumber, shapeName, 0, [],
+                $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+
         var formattings = new List<TextFormattingInfo>();
 
         int startSlide = slideNumber.HasValue ? slideNumber.Value : 1;
         int endSlide = slideNumber.HasValue ? slideNumber.Value : slideIds.Count;
-
-        if (slideNumber.HasValue && (slideNumber.Value < 1 || slideNumber.Value > slideIds.Count))
-            return new TextFormattingResult(false, "Get", slideNumber, shapeName, 0, [],
-                $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
 
         for (int sn = startSlide; sn <= endSlide; sn++)
         {
@@ -101,6 +106,15 @@ public partial class PresentationService
         string? color = null,
         string? alignment = null)
     {
+        // Require at least one formatting property to avoid silent no-ops
+        if (!HasAnyFormattingProperties(fontFamily, fontSize, bold, italic, underline, color, alignment))
+            return new TextFormattingResult(false, "Apply", slideNumber, shapeName, 0, [],
+                "No formatting properties specified. Provide at least one of: fontFamily, fontSize, bold, italic, underline, color, alignment.");
+
+        if (fontSize.HasValue && (fontSize.Value <= 0 || fontSize.Value > int.MaxValue / 100.0))
+            return new TextFormattingResult(false, "Apply", slideNumber, shapeName, 0, [],
+                $"fontSize must be a positive number no greater than {(int)(int.MaxValue / 100.0)} points.");
+
         using var doc = PresentationDocument.Open(filePath, true);
         var slideIds = GetSlideIds(doc);
 
@@ -165,32 +179,69 @@ public partial class PresentationService
                     run.InsertAt(rp, 0);
                 }
 
-                if (bold.HasValue)
-                    rp.Bold = bold.Value;
+                var runModified = false;
 
-                if (italic.HasValue)
+                if (bold.HasValue && (rp.Bold is null || rp.Bold.Value != bold.Value))
+                {
+                    rp.Bold = bold.Value;
+                    runModified = true;
+                }
+
+                if (italic.HasValue && (rp.Italic is null || rp.Italic.Value != italic.Value))
+                {
                     rp.Italic = italic.Value;
+                    runModified = true;
+                }
 
                 if (underline.HasValue)
-                    rp.Underline = underline.Value ? A.TextUnderlineValues.Single : A.TextUnderlineValues.None;
+                {
+                    var desiredUnderline = underline.Value
+                        ? A.TextUnderlineValues.Single
+                        : A.TextUnderlineValues.None;
+                    if (rp.Underline is null || rp.Underline.Value != desiredUnderline)
+                    {
+                        rp.Underline = desiredUnderline;
+                        runModified = true;
+                    }
+                }
 
                 if (fontSize.HasValue)
-                    rp.FontSize = (int)(fontSize.Value * 100);
+                {
+                    var newFontSize = (int)Math.Round(fontSize.Value * 100, MidpointRounding.AwayFromZero);
+                    if (rp.FontSize is null || rp.FontSize.Value != newFontSize)
+                    {
+                        rp.FontSize = newFontSize;
+                        runModified = true;
+                    }
+                }
 
                 if (!string.IsNullOrWhiteSpace(fontFamily))
                 {
+                    var trimmedFontFamily = fontFamily.Trim();
                     var existingLatin = rp.GetFirstChild<A.LatinFont>();
-                    if (existingLatin is not null)
-                        rp.RemoveChild(existingLatin);
-                    rp.Append(new A.LatinFont { Typeface = fontFamily.Trim() });
+                    if (existingLatin?.Typeface?.Value != trimmedFontFamily)
+                    {
+                        if (existingLatin is not null)
+                            rp.RemoveChild(existingLatin);
+                        rp.Append(new A.LatinFont { Typeface = trimmedFontFamily });
+                        runModified = true;
+                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(color))
                 {
-                    ApplyRunColor(rp, color.Trim());
+                    var normalizedHex = NormalizeHexColor(color.Trim()); // validates; throws if invalid
+                    var existingColor = GetRunColor(rp);
+                    var existingHex = existingColor?.StartsWith('#') == true ? existingColor[1..] : null;
+                    if (!string.Equals(existingHex, normalizedHex, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ApplyRunColor(rp, normalizedHex);
+                        runModified = true;
+                    }
                 }
 
-                runsModified++;
+                if (runModified)
+                    runsModified++;
             }
         }
 
@@ -204,20 +255,55 @@ public partial class PresentationService
     {
         if (rp is null) return null;
         var solidFill = rp.GetFirstChild<A.SolidFill>();
-        var rgbColor = solidFill?.GetFirstChild<A.RgbColorModelHex>();
-        return rgbColor?.Val?.Value is not null ? $"#{rgbColor.Val.Value}" : null;
+        if (solidFill is null) return null;
+
+        var rgbColor = solidFill.GetFirstChild<A.RgbColorModelHex>();
+        if (rgbColor?.Val?.Value is not null)
+            return $"#{rgbColor.Val.Value}";
+
+        var schemeColor = solidFill.GetFirstChild<A.SchemeColor>();
+        if (schemeColor?.Val?.Value is not null)
+            return $"scheme:{schemeColor.Val.Value}";
+
+        var systemColor = solidFill.GetFirstChild<A.SystemColor>();
+        if (systemColor?.Val?.Value is not null)
+            return $"system:{systemColor.Val.Value}";
+
+        var presetColor = solidFill.GetFirstChild<A.PresetColor>();
+        if (presetColor?.Val?.Value is not null)
+            return $"preset:{presetColor.Val.Value}";
+
+        return null;
     }
 
-    private static void ApplyRunColor(A.RunProperties rp, string hexColor)
+    /// <summary>
+    /// Validates <paramref name="hexColor"/> and returns the 6-digit uppercase hex without '#'.
+    /// Throws <see cref="ArgumentException"/> for invalid input.
+    /// </summary>
+    private static string NormalizeHexColor(string hexColor)
     {
         var hex = hexColor.StartsWith('#') ? hexColor[1..] : hexColor;
-
-        var existingSolidFill = rp.GetFirstChild<A.SolidFill>();
-        if (existingSolidFill is not null)
-            rp.RemoveChild(existingSolidFill);
-
-        rp.InsertAt(new A.SolidFill(new A.RgbColorModelHex { Val = hex }), 0);
+        if (!Regex.IsMatch(hex, @"^[0-9A-Fa-f]{6}$"))
+            throw new ArgumentException(
+                $"Invalid hex color '{hexColor}'. Expected a 6-digit RGB hex color (e.g. \"#FF0000\" or \"FF0000\").");
+        return hex.ToUpperInvariant();
     }
+
+    /// <param name="upperHex">6-digit uppercase hex without '#', already validated by <see cref="NormalizeHexColor"/>.</param>
+    private static void ApplyRunColor(A.RunProperties rp, string upperHex)
+    {
+        // Remove all fill-related children to prevent conflicting fill definitions in the XML
+        foreach (var fill in rp.ChildElements.Where(e => FillLocalNames.Contains(e.LocalName)).ToList())
+            rp.RemoveChild(fill);
+
+        rp.InsertAt(new A.SolidFill(new A.RgbColorModelHex { Val = upperHex }), 0);
+    }
+
+    private static bool HasAnyFormattingProperties(
+        string? fontFamily, double? fontSize, bool? bold, bool? italic,
+        bool? underline, string? color, string? alignment) =>
+        fontFamily is not null || fontSize is not null || bold is not null || italic is not null
+        || underline is not null || !string.IsNullOrWhiteSpace(color) || !string.IsNullOrWhiteSpace(alignment);
 
     private static A.TextAlignmentTypeValues ParseAlignment(string alignment) =>
         alignment.Trim().ToLowerInvariant() switch
