@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="src/PptxMcp/PptxMcp.csproj" />
-  <Project Path="tests/PptxMcp.Tests/PptxMcp.Tests.csproj" />
-</Solution>

@@ -36,22 +36,22 @@ jobs:
 
       - name: Restore dependencies
         id: restore
-        run: dotnet restore PptxMcp.slnx
+        run: dotnet restore PptxTools.slnx
 
       - name: Build
         id: build
-        run: dotnet build PptxMcp.slnx --no-restore --configuration Release
+        run: dotnet build PptxTools.slnx --no-restore --configuration Release
 
       - name: Test
         id: test
-        run: dotnet test --solution PptxMcp.slnx --no-build --configuration Release --verbosity normal -- --coverage --coverage-output-format cobertura
+        run: dotnet test --solution PptxTools.slnx --no-build --configuration Release --verbosity normal -- --coverage --coverage-output-format cobertura
 
       - name: Collect coverage artifact
         id: collect_coverage
         shell: bash
         run: |
           set -euo pipefail
-          coverage_file=$(find tests/PptxMcp.Tests/bin/Release -name '*.cobertura.xml' | head -n 1)
+          coverage_file=$(find tests/PptxTools.Tests/bin/Release -name '*.cobertura.xml' | head -n 1)
           if [[ -z "${coverage_file}" ]]; then
             echo "Warning: No coverage file found" >&2
             exit 0
@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## pptx-mcp CI summary"
+            echo "## pptx-tools CI summary"
             echo ""
             echo "- Workflow: \`${{ github.workflow }}\`"
             echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

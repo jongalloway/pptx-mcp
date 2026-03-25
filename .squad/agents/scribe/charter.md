@@ -4,7 +4,7 @@ Documentation specialist maintaining history, decisions, and technical records.
 
 ## Project Context
 
-**Project:** pptx-mcp
+**Project:** pptx-tools
 
 
 ## Responsibilities

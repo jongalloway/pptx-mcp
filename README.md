@@ -1,8 +1,8 @@
-# pptx-mcp
+# pptx-tools
 
 Give AI agents native access to PowerPoint. Read slides, extract content, add slides, update text and shape data, and insert images—all through natural language, without touching Office.
 
-**pptx-mcp** is a .NET [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that bridges AI reasoning and PowerPoint files. It's built for developers and power users who want to automate content extraction, data-driven slide updates, and intelligent presentation generation.
+**pptx-tools** is a .NET [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that bridges AI reasoning and PowerPoint files. It's built for developers and power users who want to automate content extraction, data-driven slide updates, and intelligent presentation generation.
 
 ---
 
@@ -11,9 +11,9 @@ Give AI agents native access to PowerPoint. Read slides, extract content, add sl
 > **Note:** NuGet publishing is planned. For now, build from source.
 
 ```bash
-git clone https://github.com/jongalloway/pptx-mcp.git
-cd pptx-mcp
-dotnet build PptxMcp.slnx --configuration Release
+git clone https://github.com/jongalloway/pptx-tools.git
+cd pptx-tools
+dotnet build PptxTools.slnx --configuration Release
 ```
 
 ### Wire it up to Claude Desktop
@@ -23,12 +23,12 @@ Add the following to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "pptx-mcp": {
+    "pptx-tools": {
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/pptx-mcp/src/PptxMcp",
+        "/absolute/path/to/pptx-tools/src/PptxTools",
         "--configuration",
         "Release"
       ]
@@ -42,8 +42,8 @@ Once NuGet publishing is set up, this simplifies to:
 ```json
 {
   "mcpServers": {
-    "pptx-mcp": {
-      "command": "pptx-mcp"
+    "pptx-tools": {
+      "command": "pptx"
     }
   }
 }
@@ -119,12 +119,12 @@ Prompts are reusable workflow templates that give agents a structured starting p
 
 ### Completions
 
-pptx-mcp supports argument auto-completion for:
+pptx-tools supports argument auto-completion for:
 - **`layoutName`** — autocompletes layout names from the actual presentation file (requires `file` or `filePath` context argument)
 - **`shapeName`** — autocompletes shape names across all slides in a single file pass (requires `file` or `filePath` context argument)  
 - **`placeholderType`** — suggests standard OpenXML placeholder type names (`title`, `body`, `ctrTitle`, etc.)
 
-**Limitations:** pptx-mcp updates text content, inserts images, creates tables, and refreshes data in existing charts. It does not create charts from scratch or modify slide master/theme styles. Complex layout changes should be done in PowerPoint directly.
+**Limitations:** pptx-tools updates text content, inserts images, creates tables, and refreshes data in existing charts. It does not create charts from scratch or modify slide master/theme styles. Complex layout changes should be done in PowerPoint directly.
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)
 
@@ -139,7 +139,7 @@ Ask your AI assistant to read your keynote deck, pull out the key talking points
 Export a training presentation to markdown for your knowledge base. Use `pptx_export_markdown` to convert the whole deck—headings, bullets, tables, and image references—to a structured `.md` file in one step. Keep the deck as the source of truth; let the agent keep the docs in sync.
 
 **Data Dashboard Updater**
-Connect pptx-mcp with a data source MCP. Your agent fetches today's KPIs and updates the metrics slide automatically—no manual editing needed. Use the `refresh-qbr-deck` prompt to guide the workflow, or browse the `pptx://{file}/shape-map` resource first to discover shape names. See the [multi-source composition guide](docs/MULTI_SOURCE_COMPOSITION.md) and the included [mock-data-mcp example](examples/mock-data-mcp/) to run it locally.
+Connect pptx-tools with a data source MCP. Your agent fetches today's KPIs and updates the metrics slide automatically—no manual editing needed. Use the `refresh-qbr-deck` prompt to guide the workflow, or browse the `pptx://{file}/shape-map` resource first to discover shape names. See the [multi-source composition guide](docs/MULTI_SOURCE_COMPOSITION.md) and the included [mock-data-mcp example](examples/mock-data-mcp/) to run it locally.
 
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for complete agent prompts and sample tool call sequences for each scenario.
 
@@ -151,10 +151,10 @@ Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download)
 
 ```bash
 # Build
-dotnet build PptxMcp.slnx --configuration Release
+dotnet build PptxTools.slnx --configuration Release
 
 # Test
-dotnet test PptxMcp.slnx --configuration Release
+dotnet test PptxTools.slnx --configuration Release
 ```
 
 Architecture overview and internal docs live in [docs/PRD.md](docs/PRD.md).

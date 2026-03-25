@@ -13,7 +13,7 @@ Tables in PPTX are NOT Shape elements—they are GraphicFrame elements wrapping 
 ## KEY FILES & PATTERNS
 
 ### 1. TOOL PATTERN (PptxTools.cs, 418 lines)
-**Location**: C:\Users\Jon\Documents\GitHub\pptx-mcp\src\PptxMcp\Tools\PptxTools.cs
+**Location**: C:\Users\Jon\Documents\GitHub\pptx-tools\src\PptxTools\Tools\PptxTools.cs
 
 **Attributes & XML Docs**:
 - Attribute: [McpServerTool(Title = "Display Name", ReadOnly = true/false, Idempotent = true/false)]
@@ -35,7 +35,7 @@ Tables in PPTX are NOT Shape elements—they are GraphicFrame elements wrapping 
 ---
 
 ### 2. SERVICE LAYER PATTERNS (PresentationService.cs, ~1200 lines)
-**Location**: C:\Users\Jon\Documents\GitHub\pptx-mcp\src\PptxMcp\Services\PresentationService.cs
+**Location**: C:\Users\Jon\Documents\GitHub\pptx-tools\src\PptxTools\Services\PresentationService.cs
 
 **Write Operation Lifecycle** (see AddSlide, InsertImage, UpdateSlideData):
 1. Open: PresentationDocument.Open(filePath, true) [editable mode]
@@ -70,7 +70,7 @@ Tables in PPTX are NOT Shape elements—they are GraphicFrame elements wrapping 
 ---
 
 ### 3. RESULT/REQUEST DTOs (Models/)
-**Location**: C:\Users\Jon\Documents\GitHub\pptx-mcp\src\PptxMcp\Models/
+**Location**: C:\Users\Jon\Documents\GitHub\pptx-tools\src\PptxTools\Models/
 
 **SlideDataUpdateResult** (SlideDataUpdateResult.cs):
 `csharp
@@ -239,35 +239,35 @@ public sealed class TestTableDefinition
 
 ### PRIMARY (Must create/edit):
 
-1. **src/PptxMcp/Tools/PptxTools.cs** [existing]
+1. **src/PptxTools/Tools/PptxTools.cs** [existing]
    - Add: pptx_insert_table()
    - Add: pptx_update_table()
    - OR create: PptxTools.Tables.cs (partial class)
 
-2. **src/PptxMcp/Services/PresentationService.cs** [existing]
+2. **src/PptxTools/Services/PresentationService.cs** [existing]
    - Add: InsertTable(filePath, slideIndex, rows, x, y, width, height, name?)
    - Add: UpdateTable(filePath, slideIndex, tableName, tableIndex?, rows?, updateMode?)
 
-3. **src/PptxMcp/Models/TableInsertResult.cs** [NEW]
+3. **src/PptxTools/Models/TableInsertResult.cs** [NEW]
 
-4. **src/PptxMcp/Models/TableUpdateResult.cs** [NEW]
+4. **src/PptxTools/Models/TableUpdateResult.cs** [NEW]
 
-5. **tests/PptxMcp.Tests/Services/TableOperationTests.cs** [NEW]
+5. **tests/PptxTools.Tests/Services/TableOperationTests.cs** [NEW]
    - Test InsertTable: row/col counts, ID uniqueness, positioning
    - Test UpdateTable: cell updates, compatibility
    - Test with real metric deck (UpdateSlideDataTests.cs pattern)
 
-6. **tests/PptxMcp.Tests/Tools/TableToolsTests.cs** [NEW]
+6. **tests/PptxTools.Tests/Tools/TableToolsTests.cs** [NEW]
    - Test pptx_insert_table: JSON format, file errors, parameter validation
    - Test pptx_update_table: shape resolution, error messages
 
 ### SECONDARY (Verify, no changes):
 
-7. **src/PptxMcp/Services/PresentationService.cs** [existing]:
+7. **src/PptxTools/Services/PresentationService.cs** [existing]:
    - GetSlideContent() — already extracts tables, no change needed
    - Markdown export — already handles tables, no change needed
 
-8. **tests/PptxMcp.Tests/TestPptxHelper.cs** [existing]:
+8. **tests/PptxTools.Tests/TestPptxHelper.cs** [existing]:
    - CreateTable() already exists
    - TestTableDefinition already exists
    - Reuse for test setup

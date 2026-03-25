@@ -1,6 +1,6 @@
-# pptx-mcp Examples
+# pptx-tools Examples
 
-Real-world use case walkthroughs showing how to use pptx-mcp with AI agents.
+Real-world use case walkthroughs showing how to use pptx-tools with AI agents.
 
 ---
 
@@ -95,10 +95,10 @@ Agent-synthesized summary:
 
 ### Try It Yourself
 
-1. Open your AI assistant (Claude, Copilot, etc.) with pptx-mcp configured.
+1. Open your AI assistant (Claude, Copilot, etc.) with pptx-tools configured.
 2. Point it at any `.pptx` file on your machine.
 3. Use the agent prompt above, replacing the file path.
-4. Don't have a deck handy? Use any of the [sample files in the test suite](../tests/PptxMcp.Tests/).
+4. Don't have a deck handy? Use any of the [sample files in the test suite](../tests/PptxTools.Tests/).
 
 ---
 
@@ -179,7 +179,7 @@ setup and key processes.
 
 ### Try It Yourself
 
-1. Configure pptx-mcp in your AI assistant.
+1. Configure pptx-tools in your AI assistant.
 2. Use a training or documentation deck you already have.
 3. Ask the agent to export it to markdown using the prompt above.
 4. Review the output and check it into your docs repo.
@@ -315,7 +315,7 @@ This example uses the **[mock-data-mcp](../examples/mock-data-mcp/)** server inc
 Build both servers from the repo root:
 
 ```bash
-dotnet build PptxMcp.slnx --configuration Release
+dotnet build PptxTools.slnx --configuration Release
 dotnet build examples/mock-data-mcp/MockDataMcp.csproj --configuration Release
 ```
 
@@ -349,19 +349,19 @@ I have a weekly board presentation at /presentations/weekly-board.pptx.
    { "name": "get_team_updates", "arguments": {} }
    ```
 
-3. **`pptx_list_slides`** (pptx-mcp) — Identify slide titles and indices.
+3. **`pptx_list_slides`** (pptx-tools) — Identify slide titles and indices.
 
    ```json
    { "name": "pptx_list_slides", "arguments": { "filePath": "/presentations/weekly-board.pptx" } }
    ```
 
-4. **`pptx_get_slide_content`** (pptx-mcp) — Read the KPI slide to map placeholder names to indices before writing.
+4. **`pptx_get_slide_content`** (pptx-tools) — Read the KPI slide to map placeholder names to indices before writing.
 
    ```json
    { "name": "pptx_get_slide_content", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideIndex": 1 } }
    ```
 
-5. **`pptx_update_slide_data`** (pptx-mcp, repeated) — Write each new KPI value to its named shape, preserving formatting.
+5. **`pptx_update_slide_data`** (pptx-tools, repeated) — Write each new KPI value to its named shape, preserving formatting.
 
    ```json
    { "name": "pptx_update_slide_data", "arguments": { "filePath": "/presentations/weekly-board.pptx", "slideNumber": 2, "shapeName": "ARR", "newText": "$19.6M ARR (+3.3%)" } }
@@ -421,7 +421,7 @@ weekly-board.pptx is ready for Monday's board meeting.
 
 - [README](../README.md) — Full tool reference and configuration
 - [PRD](PRD.md) — Product requirements, goals, and roadmap
-- [Multi-Source Composition Guide](MULTI_SOURCE_COMPOSITION.md) — Architecture, configuration, and full walkthroughs for composing pptx-mcp with external data MCPs
+- [Multi-Source Composition Guide](MULTI_SOURCE_COMPOSITION.md) — Architecture, configuration, and full walkthroughs for composing pptx-tools with external data MCPs
 - [mock-data-mcp](../examples/mock-data-mcp/README.md) — Runnable example MCP server providing mock business metrics and blog data
 
 ---
@@ -728,5 +728,5 @@ competitors across five key features. Then mark "SSO / SAML" as
 
 - [README](../README.md) — Full tool reference and configuration
 - [PRD](PRD.md) — Product requirements, goals, and roadmap
-- [Multi-Source Composition Guide](MULTI_SOURCE_COMPOSITION.md) — Architecture, configuration, and full walkthroughs for composing pptx-mcp with external data MCPs
+- [Multi-Source Composition Guide](MULTI_SOURCE_COMPOSITION.md) — Architecture, configuration, and full walkthroughs for composing pptx-tools with external data MCPs
 - [mock-data-mcp](../examples/mock-data-mcp/README.md) — Runnable example MCP server providing mock business metrics and blog data
