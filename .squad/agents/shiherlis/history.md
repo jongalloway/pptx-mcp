@@ -109,3 +109,20 @@
   - `CategorizePart` logic excludes `.rels` files from content categories — they fall to "other"
   - `FileSizeAnalysisResult` has both `TotalFileSize` (disk) and `TotalPartSize` (uncompressed sum) — distinct values
 - **Test count:** 441/441 passing (up from 418)
+
+### Issue #114 Hyperlink Support Test Suite (2026-03-24)
+- **Scope:** 49 new tests across 2 files for hyperlink CRUD operations and MCP tool
+- **Files created:**
+  - `tests/PptxTools.Tests/Services/HyperlinkTests.cs` — 30 service-level tests
+  - `tests/PptxTools.Tests/Tools/HyperlinkToolsTests.cs` — 19 tool-level tests
+- **Written proactively** while Cheritto implements `PresentationService.Hyperlinks.cs` — aligned tests to WIP model/service/tool signatures
+- **Service test coverage:** GetHyperlinks (empty, external URL, mailto, slide filtering, tooltip, multiple per slide, file-not-found), AddHyperlink (happy path, discoverable via Get, tooltip, mailto, non-existent shape/slide/file), UpdateHyperlink (URL change, tooltip change, preserves others, no-hyperlink-throws, non-existent shape), RemoveHyperlink (success, verify via Get, preserves text, no-hyperlink-throws, non-existent shape), full CRUD round-trip
+- **Tool test coverage:** Structured `HyperlinkResult` assertions for Get/Add/Update/Remove actions, file-not-found across all actions, missing parameter validation (slideNumber, shapeName, url)
+- **Key patterns:**
+  - Custom OpenXML fixture helper `CreatePptxWithHyperlinks` creates presentations with run-level `A.HyperlinkOnClick` + `HyperlinkRelationship` for external URLs
+  - `FakeGrouping` helper enables empty-slide fixture creation
+  - Service returns `HyperlinkResult` record (not void) — Add/Update/Remove all return structured results with Success, Action, Url, HyperlinkCount
+  - `HyperlinkAction` enum (Get, Add, Update, Remove) mirrors `ChartDataAction` consolidation pattern
+  - Tool uses `ExecuteToolStructured` pattern returning structured `HyperlinkResult` on both success and error paths
+  - Update/Remove throw `InvalidOperationException` when shape has no hyperlink; both throw `ArgumentException` for non-existent shapes, `ArgumentOutOfRangeException` for invalid slide numbers
+- **Build status:** Cheritto's WIP service has compilation errors (`RunProperties.HyperlinkOnClick` doesn't exist — need `GetFirstChild<A.HyperlinkOnClick>()`; `P.NonVisualDrawingProperties` vs `A.NonVisualDrawingProperties` type mismatch in `GetNonVisualDrawingProperties`). Tests cannot run until those are fixed.

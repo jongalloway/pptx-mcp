@@ -563,7 +563,7 @@ public class HyperlinkTests : PptxTestBase
 
         // Shape should still exist with its text, just no hyperlink
         var slideContent = Service.GetSlideContent(path, 0);
-        var shape = slideContent.Shapes.FirstOrDefault(s => s.ShapeName == "Link Shape");
+        var shape = slideContent.Shapes.FirstOrDefault(s => s.Name == "Link Shape");
         Assert.NotNull(shape);
         Assert.Contains("Important Text", shape.Text);
     }

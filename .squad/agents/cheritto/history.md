@@ -202,3 +202,12 @@
 - **Build:** 0 errors, 575/575 tests passing
 - **PR:** #113 on branch squad/110-rename-pptx-tools
 
+### Issue #114 — Hyperlink Support (2026-03-27)
+- **Implementation:** `pptx_manage_hyperlinks` consolidated tool with Get/Add/Update/Remove actions
+- **OpenXML types:** `P.NonVisualDrawingProperties` (not `A.NonVisualDrawingProperties`) is the correct type for presentation shape cNvPr; use `GetFirstChild<A.HyperlinkOnClick>()` on both P.NonVisualDrawingProperties and A.RunProperties — neither exposes HyperlinkOnClick as a direct property
+- **Internal links:** Detected via `action` attribute containing "hlinksldjump"; target slide resolved by matching SlidePart URI against presentation SlideIdList
+- **Shape-level vs run-level:** Shape-level hyperlinks live on cNvPr; run-level hyperlinks live on a:rPr child element. Get scans both; Add sets shape-level; Update tries shape-level first then falls back to first run-level; Remove clears both
+- **Files:** 3 new (HyperlinkInfo.cs model + enum + result, PresentationService.Hyperlinks.cs, PptxTools.Hyperlinks.cs), 1 test fix (ShapeName → Name property)
+- **Build:** 0 errors; 624/624 tests passing
+- **PR:** on branch squad/114-hyperlink-support
+
