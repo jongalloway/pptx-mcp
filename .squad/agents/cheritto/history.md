@@ -202,3 +202,12 @@
 - **Build:** 0 errors, 575/575 tests passing
 - **PR:** #113 on branch squad/110-rename-pptx-tools
 
+### MCP Prompt Templates — Issue #123 (2026-03-27)
+- **Implementation:** Added 4 new workflow orchestration prompt templates to `PptxPrompts.cs`
+- **Prompts added:** `batch-update-from-csv` (CSV → pptx_batch_update), `extract-for-blog` (presentation → markdown/html blog post), `create-speaker-notes-outline` (content analysis → pptx_write_notes), `optimize-for-web` (file size analysis → image/layout/media optimization)
+- **Pattern:** Each prompt returns `IEnumerable<PromptMessage>`, uses `[McpServerPrompt]` attribute with kebab-case name + human title, XML doc comments, raw string literals (`$""" ... """`), references real tool names, provides numbered workflow steps
+- **Key insight:** Prompts are pure orchestration templates — no service code needed, just multi-step instructions referencing existing MCP tools
+- **Optional params:** `csvPath`, `format` (markdown/html), `style` (bullet-points/narrative/timing-cues), `targetSizeMb` — all with sensible defaults
+- **Build:** Main project builds clean; pre-existing test failures on main (SearchTests.cs — pptx_search_text not implemented yet) confirmed unrelated
+- **PR:** #143 on branch squad/123-additional-mcp-prompts
+
