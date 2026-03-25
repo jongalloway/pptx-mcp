@@ -26,7 +26,7 @@ public partial class PresentationService
             var shapeTree = slidePart.Slide.CommonSlideData?.ShapeTree;
             if (shapeTree is null) { slideNumber++; continue; }
 
-            foreach (var picture in shapeTree.Elements<Picture>())
+            foreach (var picture in shapeTree.Descendants<Picture>())
             {
                 var drawingProps = picture.NonVisualPictureProperties?.NonVisualDrawingProperties;
                 var shapeName = drawingProps?.Name?.Value ?? "";
