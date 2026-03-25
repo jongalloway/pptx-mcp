@@ -38,6 +38,13 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Completion handler expansion (#137, 2026-07-24)
+- `PptxCompletionHandler` supports two categories: static completions (just a string[] array + filter) and dynamic completions (resolve file path from contextArgs, call PresentationService, extract names)
+- Static completions added: `action`, `format`, `style`, `chartAction` — no file context needed
+- Dynamic completions added: `slideNumber`/`slideIndex` (uses `GetSlides`), `tableName`/`table` (uses `GetAllSlideContents` + ShapeType filter)
+- For table completions, filter shapes by `ShapeType.Equals("Table")` — don't use `TableRows != null` as the discriminator
+- Test command for .NET 10: `dotnet test --solution PptxTools.slnx --configuration Release --no-build` (note: `--solution` flag, not positional arg)
+
 ### Phase 4 Wave 1 Execution (2026-03-24)
 - **#80 Implementation:** pptx_analyze_file_size complete — breakdown-by-part analysis (media, relationships, text) + cumulative compression insight
 - **#81 Implementation:** pptx_analyze_media complete — media type, size, compression ratio tracking
