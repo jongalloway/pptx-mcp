@@ -260,6 +260,283 @@ public class PptxCompletionHandlerTests : PptxTestBase
         Assert.Empty(result.Completion.Values);
     }
 
+    // --- Action completions ---
+
+    [Fact]
+    public void GetCompletions_Action_EmptyPartial_ReturnsAllActions()
+    {
+        var result = Invoke("action");
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("Add", result.Completion.Values);
+        Assert.Contains("Read", result.Completion.Values);
+        Assert.Contains("Update", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_Action_PartialFilter_FiltersCorrectly()
+    {
+        var result = Invoke("action", "An");
+        Assert.All(result.Completion.Values,
+            v => Assert.StartsWith("An", v, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Analyze", result.Completion.Values);
+        Assert.Contains("AnalyzeVideo", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_Action_CaseInsensitive()
+    {
+        var result = Invoke("ACTION", "add");
+        Assert.Contains("Add", result.Completion.Values);
+    }
+
+    // --- Format completions ---
+
+    [Fact]
+    public void GetCompletions_Format_EmptyPartial_ReturnsAllFormats()
+    {
+        var result = Invoke("format");
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("png", result.Completion.Values);
+        Assert.Contains("markdown", result.Completion.Values);
+        Assert.Contains("html", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_Format_PartialFilter_FiltersCorrectly()
+    {
+        var result = Invoke("format", "jp");
+        Assert.All(result.Completion.Values,
+            v => Assert.StartsWith("jp", v, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("jpg", result.Completion.Values);
+        Assert.Contains("jpeg", result.Completion.Values);
+    }
+
+    // --- Style completions ---
+
+    [Fact]
+    public void GetCompletions_Style_EmptyPartial_ReturnsAllStyles()
+    {
+        var result = Invoke("style");
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("bullet-points", result.Completion.Values);
+        Assert.Contains("narrative", result.Completion.Values);
+        Assert.Contains("timing-cues", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_Style_PartialFilter_FiltersCorrectly()
+    {
+        var result = Invoke("style", "bu");
+        Assert.Single(result.Completion.Values);
+        Assert.Contains("bullet-points", result.Completion.Values);
+    }
+
+    // --- ChartAction completions ---
+
+    [Fact]
+    public void GetCompletions_ChartAction_EmptyPartial_ReturnsAllChartActions()
+    {
+        var result = Invoke("chartAction");
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("Read", result.Completion.Values);
+        Assert.Contains("Update", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_ChartAction_PartialFilter_FiltersCorrectly()
+    {
+        var result = Invoke("chartAction", "Re");
+        Assert.Single(result.Completion.Values);
+        Assert.Contains("Read", result.Completion.Values);
+    }
+
+    // --- SlideNumber completions ---
+
+    [Fact]
+    public void GetCompletions_SlideNumber_WithFileContext_ReturnsSlideNumbers()
+    {
+        var path = CreateTempPptx(
+            new TestSlideDefinition { TitleText = "Slide 1" },
+            new TestSlideDefinition { TitleText = "Slide 2" },
+            new TestSlideDefinition { TitleText = "Slide 3" });
+
+        var result = Invoke(
+            "slideNumber",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Equal(3, result.Completion.Values.Count);
+        Assert.Contains("1", result.Completion.Values);
+        Assert.Contains("2", result.Completion.Values);
+        Assert.Contains("3", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_SlideIndex_AliasWorks()
+    {
+        var path = CreateTempPptx(
+            new TestSlideDefinition { TitleText = "Slide 1" });
+
+        var result = Invoke(
+            "slideIndex",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Single(result.Completion.Values);
+        Assert.Contains("1", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_SlideNumber_NoFileContext_ReturnsEmpty()
+    {
+        var result = Invoke("slideNumber", service: Service);
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_SlideNumber_PartialFilter_FiltersCorrectly()
+    {
+        var slides = Enumerable.Range(1, 12)
+            .Select(i => new TestSlideDefinition { TitleText = $"Slide {i}" })
+            .ToArray();
+        var path = CreateTempPptx(slides);
+
+        var result = Invoke(
+            "slideNumber",
+            partialValue: "1",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.All(result.Completion.Values,
+            v => Assert.StartsWith("1", v, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("1", result.Completion.Values);
+        Assert.Contains("10", result.Completion.Values);
+        Assert.Contains("11", result.Completion.Values);
+        Assert.Contains("12", result.Completion.Values);
+    }
+
+    // --- TableName completions ---
+
+    [Fact]
+    public void GetCompletions_TableName_WithFileContext_ReturnsTableNames()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Data Slide",
+            Tables =
+            [
+                new TestTableDefinition { Name = "Revenue Table", Rows = [["Q1", "Q2"], ["100", "200"]] },
+                new TestTableDefinition { Name = "Cost Table", Rows = [["Q1", "Q2"], ["50", "75"]] }
+            ]
+        });
+
+        var result = Invoke(
+            "tableName",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("Revenue Table", result.Completion.Values);
+        Assert.Contains("Cost Table", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_Table_AliasWorks()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Data Slide",
+            Tables = [new TestTableDefinition { Name = "My Table", Rows = [["A", "B"]] }]
+        });
+
+        var result = Invoke(
+            "table",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Contains("My Table", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_TableName_NoFileContext_ReturnsEmpty()
+    {
+        var result = Invoke("tableName", service: Service);
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_TableName_PartialFilter_FiltersCorrectly()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Data Slide",
+            Tables =
+            [
+                new TestTableDefinition { Name = "Revenue Table", Rows = [["Q1"], ["100"]] },
+                new TestTableDefinition { Name = "Cost Table", Rows = [["Q1"], ["50"]] }
+            ]
+        });
+
+        var result = Invoke(
+            "tableName",
+            partialValue: "Rev",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Single(result.Completion.Values);
+        Assert.Contains("Revenue Table", result.Completion.Values);
+        Assert.DoesNotContain("Cost Table", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_TableName_ExcludesNonTableShapes()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Mixed Slide",
+            TextShapes =
+            [
+                new TestTextShapeDefinition { Name = "Text Shape", Paragraphs = ["hello"] }
+            ],
+            Tables =
+            [
+                new TestTableDefinition { Name = "Data Table", Rows = [["A"]] }
+            ]
+        });
+
+        var result = Invoke(
+            "tableName",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Contains("Data Table", result.Completion.Values);
+        Assert.DoesNotContain("Text Shape", result.Completion.Values);
+    }
+
+    [Fact]
+    public void GetCompletions_TableName_DeduplicatesAcrossSlides()
+    {
+        var path = CreateTempPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Slide 1",
+                Tables = [new TestTableDefinition { Name = "Shared Table", Rows = [["A"]] }]
+            },
+            new TestSlideDefinition
+            {
+                TitleText = "Slide 2",
+                Tables = [new TestTableDefinition { Name = "Shared Table", Rows = [["B"]] }]
+            });
+
+        var result = Invoke(
+            "tableName",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        var count = result.Completion.Values.Count(v => v.Equals("Shared Table", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, count);
+    }
+
     // --- Result structure ---
 
     [Fact]

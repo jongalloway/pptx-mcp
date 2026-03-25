@@ -17,6 +17,31 @@ public static class PptxCompletionHandler
         "hdr", "obj", "pic", "tbl", "chart", "dgm", "media", "clipArt"
     ];
 
+    /// <summary>Common action enum values used across tools.</summary>
+    private static readonly string[] KnownActions =
+    [
+        "Add", "AddFromLayout", "Duplicate", "Move", "Reorder", "Find",
+        "Remove", "Analyze", "Deduplicate", "AnalyzeVideo", "Read", "Update"
+    ];
+
+    /// <summary>Image/export format options.</summary>
+    private static readonly string[] KnownFormats =
+    [
+        "png", "jpg", "jpeg", "gif", "bmp", "tiff", "svg", "markdown", "html"
+    ];
+
+    /// <summary>Speaker notes style options used by prompts.</summary>
+    private static readonly string[] KnownStyles =
+    [
+        "bullet-points", "narrative", "timing-cues"
+    ];
+
+    /// <summary>Chart-specific action values.</summary>
+    private static readonly string[] KnownChartActions =
+    [
+        "Read", "Update"
+    ];
+
     /// <summary>
     /// Handles <c>completion/complete</c> requests by returning matching values for
     /// layout names, shape names, and placeholder types.
@@ -57,11 +82,24 @@ public static class PptxCompletionHandler
         if (argumentName is null)
             return EmptyResult();
 
-        // Completions for OpenXML placeholder type names (e.g. title, body, ctrTitle)
+        // --- Static completions (no file context needed) ---
+
         if (argumentName.Equals("placeholderType", StringComparison.OrdinalIgnoreCase))
             return FilterCompletions(KnownPlaceholderTypes, partialValue);
 
-        // Completions for layout names and shape names require a file path.
+        if (argumentName.Equals("action", StringComparison.OrdinalIgnoreCase))
+            return FilterCompletions(KnownActions, partialValue);
+
+        if (argumentName.Equals("format", StringComparison.OrdinalIgnoreCase))
+            return FilterCompletions(KnownFormats, partialValue);
+
+        if (argumentName.Equals("style", StringComparison.OrdinalIgnoreCase))
+            return FilterCompletions(KnownStyles, partialValue);
+
+        if (argumentName.Equals("chartAction", StringComparison.OrdinalIgnoreCase))
+            return FilterCompletions(KnownChartActions, partialValue);
+
+        // --- Dynamic completions (require a file path) ---
         // The file path can come from:
         //   - The "file" argument on resource templates
         //   - The "filePath" argument on prompts
@@ -105,6 +143,47 @@ public static class PptxCompletionHandler
                 var allSlides = service.GetAllSlideContents(resolvedFilePath);
                 var uniqueNames = allSlides
                     .SelectMany(s => s.Shapes.Select(sh => sh.Name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                return FilterCompletions(uniqueNames, partialValue);
+            }
+            catch
+            {
+                return EmptyResult();
+            }
+        }
+
+        if (argumentName.Equals("slideNumber", StringComparison.OrdinalIgnoreCase)
+            || argumentName.Equals("slideIndex", StringComparison.OrdinalIgnoreCase))
+        {
+            if (service is null || string.IsNullOrWhiteSpace(resolvedFilePath) || !File.Exists(resolvedFilePath))
+                return EmptyResult();
+
+            try
+            {
+                var slides = service.GetSlides(resolvedFilePath);
+                var numbers = Enumerable.Range(1, slides.Count).Select(n => n.ToString()).ToArray();
+                return FilterCompletions(numbers, partialValue);
+            }
+            catch
+            {
+                return EmptyResult();
+            }
+        }
+
+        if (argumentName.Equals("tableName", StringComparison.OrdinalIgnoreCase)
+            || argumentName.Equals("table", StringComparison.OrdinalIgnoreCase))
+        {
+            if (service is null || string.IsNullOrWhiteSpace(resolvedFilePath) || !File.Exists(resolvedFilePath))
+                return EmptyResult();
+
+            try
+            {
+                var allSlides = service.GetAllSlideContents(resolvedFilePath);
+                var uniqueNames = allSlides
+                    .SelectMany(s => s.Shapes
+                        .Where(sh => sh.ShapeType.Equals("Table", StringComparison.OrdinalIgnoreCase))
+                        .Select(sh => sh.Name))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
                 return FilterCompletions(uniqueNames, partialValue);
