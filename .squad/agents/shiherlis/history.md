@@ -109,3 +109,23 @@
   - `CategorizePart` logic excludes `.rels` files from content categories — they fall to "other"
   - `FileSizeAnalysisResult` has both `TotalFileSize` (disk) and `TotalPartSize` (uncompressed sum) — distinct values
 - **Test count:** 441/441 passing (up from 418)
+
+### Issue #123 MCP Prompt Template Tests (2026-03-24)
+- **Scope:** 44 new test methods (289 lines) for comprehensive prompt template coverage in `tests/PptxTools.Tests/Prompts/PptxPromptsTests.cs`
+- **Context:** Written for 4 new prompt methods being added by Cheritto (BatchUpdateFromCsv, ExtractForBlog, CreateSpeakerNotesOutline, OptimizeForWeb) + full coverage for 3 existing prompts (RefreshQbrDeck, CreateAgendaSlide, ReplaceKpiPlaceholders)
+- **Pattern:** Each prompt tested for: returns ≥1 message, first message is User role, contains file path, optional params use defaults when null, expected tool references in text
+- **Test breakdown:**
+  - RefreshQbrDeck: 7 tests (metricsSource optional param, mentions pptx_update_slide_data/pptx_list_slides)
+  - CreateAgendaSlide: 6 tests (no optional params, mentions pptx_manage_slides/pptx_list_layouts)
+  - ReplaceKpiPlaceholders: 7 tests (placeholderPattern optional param, mentions pptx_get_slide_content/pptx_update_slide_data)
+  - BatchUpdateFromCsv: 7 tests (csvPath required param, mentions pptx_batch_update)
+  - ExtractForBlog: 9 tests (format optional param defaults to "markdown", mentions pptx_export_markdown/pptx_extract_talking_points)
+  - CreateSpeakerNotesOutline: 10 tests (style optional param with switch logic for bullet-points/narrative/timing-cues, mentions pptx_write_notes)
+  - OptimizeForWeb: 10 tests (targetSizeMb optional param, mentions pptx_analyze_file_size/pptx_optimize_images/pptx_manage_media/pptx_manage_layouts)
+- **Key findings:**
+  - Prompt methods return `IEnumerable<PromptMessage>` with single yielded message
+  - All prompts use User role (not Assistant or System)
+  - Content is TextContentBlock with multiline string text
+  - Optional params use `string.IsNullOrWhiteSpace` or nullable types with null-coalescing logic
+  - Prompts reference tool names by their MCP names (e.g., "pptx_batch_update" not "BatchUpdate")
+- **Result:** Branch `squad/123-additional-mcp-prompts` pushed with tests; full prompt template test coverage achieved (7/7 prompts tested)
