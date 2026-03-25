@@ -155,6 +155,8 @@ public class HyperlinkTests : PptxTestBase
             var hlinkClick = new A.HyperlinkOnClick { Id = relationship.Id };
             if (!string.IsNullOrEmpty(fixture.Tooltip))
                 hlinkClick.Tooltip = fixture.Tooltip;
+            if (!string.IsNullOrEmpty(fixture.Action))
+                hlinkClick.Action = fixture.Action;
             run.RunProperties!.Append(hlinkClick);
         }
 
@@ -500,6 +502,32 @@ public class HyperlinkTests : PptxTestBase
     }
 
     [Fact]
+    public void UpdateHyperlink_WithActionAttribute_ClearsActionAndBecomesExternal()
+    {
+        // Simulate an internal-style hyperlink: the HyperlinkOnClick has an Action attribute
+        // that would cause GetHyperlinks to classify it as "internal". After UpdateHyperlink
+        // is called with an external URL the Action must be cleared so it is reclassified.
+        var path = CreatePptxWithHyperlinks(
+            new HyperlinkFixture(1, "Link Shape", "Click", "https://original.com",
+                Action: "ppaction://hlinksldjump"));
+
+        // Before update: GetHyperlinks sees the Action attribute and classifies as "internal"
+        var before = Service.GetHyperlinks(path);
+        var beforeLink = Assert.Single(before);
+        Assert.Equal("internal", beforeLink.HyperlinkType);
+
+        // Update to an external URL
+        var result = Service.UpdateHyperlink(path, 1, "Link Shape", "https://updated.com");
+        Assert.True(result.Success);
+
+        // After update: Action is cleared → classified as "external"
+        var after = Service.GetHyperlinks(path);
+        var afterLink = Assert.Single(after);
+        Assert.Equal("external", afterLink.HyperlinkType);
+        Assert.Equal("https://updated.com", afterLink.Url);
+    }
+
+    [Fact]
     public void UpdateHyperlink_ShapeWithNoHyperlink_ThrowsInvalidOperation()
     {
         var path = CreatePptxWithNamedShapes("Plain Shape");
@@ -627,7 +655,8 @@ public class HyperlinkTests : PptxTestBase
         string ShapeName,
         string DisplayText,
         string Url,
-        string? Tooltip = null);
+        string? Tooltip = null,
+        string? Action = null);
 
     /// <summary>Minimal IGrouping implementation for the fixture helper.</summary>
     private sealed class FakeGrouping(int key, IEnumerable<HyperlinkFixture> items) : IGrouping<int, HyperlinkFixture>

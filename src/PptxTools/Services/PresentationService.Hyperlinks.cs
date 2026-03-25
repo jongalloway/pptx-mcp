@@ -339,6 +339,11 @@ public partial class PresentationService
         var newRel = slidePart.AddHyperlinkRelationship(new Uri(newUrl, UriKind.Absolute), true);
         hlinkClick.Id = newRel.Id;
 
+        // Clear any existing Action attribute (e.g. "ppaction://hlinksldjump" for internal slide
+        // jumps) so the updated link is treated as a plain external hyperlink by GetHyperlinks
+        // and by PowerPoint itself.
+        hlinkClick.Action = null;
+
         if (newTooltip is not null)
             hlinkClick.Tooltip = newTooltip;
     }
