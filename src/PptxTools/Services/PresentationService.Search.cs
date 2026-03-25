@@ -9,9 +9,12 @@ public partial class PresentationService
     public TextSearchResult SearchText(string filePath, string searchText, bool caseSensitive = false, int? slideNumber = null)
     {
         if (string.IsNullOrEmpty(searchText))
-            return new TextSearchResult(true, [], 0, 0, "Search text cannot be empty.");
+            return new TextSearchResult(false, [], 0, 0, "Search text cannot be empty.");
 
         var allSlides = GetAllSlideContents(filePath);
+        if (slideNumber.HasValue && (slideNumber.Value < 1 || slideNumber.Value > allSlides.Count))
+            return new TextSearchResult(false, [], 0, 0, $"Slide {slideNumber.Value} is out of range. The presentation has {allSlides.Count} slide(s).");
+
         var slides = FilterSlides(allSlides, slideNumber);
         var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         var matches = new List<TextSearchMatch>();
@@ -47,15 +50,16 @@ public partial class PresentationService
     }
 
     /// <summary>Search all slides for shapes containing text matching a regex pattern.</summary>
-    public TextSearchResult SearchByRegex(string filePath, string pattern, int? slideNumber = null)
+    public TextSearchResult SearchByRegex(string filePath, string pattern, bool caseSensitive = false, int? slideNumber = null)
     {
         if (string.IsNullOrEmpty(pattern))
-            return new TextSearchResult(true, [], 0, 0, "Regex pattern cannot be empty.");
+            return new TextSearchResult(false, [], 0, 0, "Regex pattern cannot be empty.");
 
+        var options = caseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
         Regex regex;
         try
         {
-            regex = new Regex(pattern, RegexOptions.None, TimeSpan.FromSeconds(5));
+            regex = new Regex(pattern, options, TimeSpan.FromSeconds(5));
         }
         catch (ArgumentException ex)
         {
@@ -63,6 +67,9 @@ public partial class PresentationService
         }
 
         var allSlides = GetAllSlideContents(filePath);
+        if (slideNumber.HasValue && (slideNumber.Value < 1 || slideNumber.Value > allSlides.Count))
+            return new TextSearchResult(false, [], 0, 0, $"Slide {slideNumber.Value} is out of range. The presentation has {allSlides.Count} slide(s).");
+
         var slides = FilterSlides(allSlides, slideNumber);
         var matches = new List<TextSearchMatch>();
 
@@ -94,6 +101,9 @@ public partial class PresentationService
     public EmptyShapeResult FindEmptyShapes(string filePath, int? slideNumber = null)
     {
         var allSlides = GetAllSlideContents(filePath);
+        if (slideNumber.HasValue && (slideNumber.Value < 1 || slideNumber.Value > allSlides.Count))
+            return new EmptyShapeResult(false, [], 0, 0, $"Slide {slideNumber.Value} is out of range. The presentation has {allSlides.Count} slide(s).");
+
         var slides = FilterSlides(allSlides, slideNumber);
         var empties = new List<EmptyShapeInfo>();
 

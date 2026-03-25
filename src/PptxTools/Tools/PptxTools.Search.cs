@@ -14,7 +14,7 @@ public partial class PptxTools
     /// </summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="searchText">Text string or regex pattern to search for.</param>
-    /// <param name="caseSensitive">When false (default), matches ignore case. Ignored when useRegex is true.</param>
+    /// <param name="caseSensitive">When false (default), matches ignore case.</param>
     /// <param name="slideNumber">Optional 1-based slide number to limit the search to a single slide.</param>
     /// <param name="useRegex">When true, treat searchText as a regular expression pattern. Defaults to false.</param>
     [McpServerTool(Title = "Search Text", ReadOnly = true, Idempotent = true)]
@@ -26,7 +26,7 @@ public partial class PptxTools
         bool useRegex = false) =>
         ExecuteToolStructured(filePath,
             () => useRegex
-                ? _service.SearchByRegex(filePath, searchText, slideNumber)
+                ? _service.SearchByRegex(filePath, searchText, caseSensitive, slideNumber)
                 : _service.SearchText(filePath, searchText, caseSensitive, slideNumber),
             error => new TextSearchResult(
                 Success: false,
