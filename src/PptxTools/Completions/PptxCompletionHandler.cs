@@ -24,10 +24,10 @@ public static class PptxCompletionHandler
         "Remove", "Analyze", "Deduplicate", "AnalyzeVideo", "Read", "Update"
     ];
 
-    /// <summary>Image/export format options.</summary>
+    /// <summary>Image/export format options accepted by insert/replace/export tools.</summary>
     private static readonly string[] KnownFormats =
     [
-        "png", "jpg", "jpeg", "gif", "bmp", "tiff", "svg", "markdown", "html"
+        "png", "jpg", "jpeg", "gif", "bmp", "svg", "markdown"
     ];
 
     /// <summary>Speaker notes style options used by prompts.</summary>

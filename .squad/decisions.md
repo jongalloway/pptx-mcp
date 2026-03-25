@@ -2620,7 +2620,7 @@ Refactored Program.cs to support both MCP server mode (--stdio) and CLI mode fro
 **Context:** Issue #103, PR #112
 
 **Two JSON input patterns:**
-1. **File-based** (dit batch): mutations loaded from JSON file path (large payloads, composable)
+1. **File-based** (edit batch): mutations loaded from JSON file path (large payloads, composable)
 2. **Inline** (table, chart): JSON passed directly as option values (small inputs, single-command convenience)
 
 All JSON deserialization uses PropertyNameCaseInsensitive = true.
@@ -2645,7 +2645,7 @@ The optimize command chains multiple service calls (dedup, image compress, layou
 4. FormatBytes duplicated: copy from AnalyzeCommand; extract to CliHelpers if a third command needs it
 5. JSON output model private to command: OptimizeStepResult and OptimizeResult nested in OptimizeCommand class
 
-**Team impact:** The dit command (#103) is last remaining stub. --no-* toggle pattern reusable for future boolean defaults-to-true options.
+**Team impact:** The edit command (#103) is last remaining stub. --no-* toggle pattern reusable for future boolean defaults-to-true options.
 
 ---
 

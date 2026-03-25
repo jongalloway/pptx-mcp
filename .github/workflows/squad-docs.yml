@@ -1,5 +1,4 @@
 name: Squad Docs — Build & Deploy
-# dotnet project — configure documentation build commands below
 
 on:
   workflow_dispatch:
@@ -20,8 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build docs
+      - name: Verify docs
         run: |
-          # TODO: Add your documentation build commands here
-          # This workflow is optional — remove or customize it for your project
-          echo "No docs build commands configured — update or remove squad-docs.yml"
+          # pptx-tools uses static Markdown documentation in docs/
+          # No build step required — verify the docs directory exists
+          if [ -d "docs" ]; then
+            echo "docs/ found — $(find docs -name '*.md' | wc -l) Markdown files"
+          else
+            echo "::warning::docs/ directory not found"
+          fi

@@ -415,10 +415,10 @@ public class PptxCompletionHandlerTests : PptxTestBase
         Assert.Contains("jpeg", values);
         Assert.Contains("gif", values);
         Assert.Contains("bmp", values);
-        Assert.Contains("tiff", values);
         Assert.Contains("svg", values);
         Assert.Contains("markdown", values);
-        Assert.Contains("html", values);
+        Assert.DoesNotContain("tiff", values);
+        Assert.DoesNotContain("html", values);
     }
 
     [Fact]
@@ -436,7 +436,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     public void Format_EmptyPartial_ReturnsAllValues()
     {
         var result = Invoke("format", "");
-        Assert.Equal(9, result.Completion.Values.Count);
+        Assert.Equal(7, result.Completion.Values.Count);
     }
 
     [Fact]
