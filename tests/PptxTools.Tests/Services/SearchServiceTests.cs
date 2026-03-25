@@ -293,6 +293,22 @@ public class SearchServiceTests : PptxTestBase
     }
 
     [Fact]
+    public void FindEmptyShapes_WhitespaceOnlyTextShape_ReturnsEmpty()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition
+            {
+                TextShapes = [new TestTextShapeDefinition { Name = "Whitespace Box", Paragraphs = ["   "] }]
+            });
+
+        var result = Service.FindEmptyShapes(path);
+
+        Assert.True(result.Success);
+        Assert.Single(result.EmptyShapes);
+        Assert.Equal("Whitespace Box", result.EmptyShapes[0].ShapeName);
+    }
+
+    [Fact]
     public void FindEmptyShapes_SlideFilter_SearchesOnlySpecifiedSlide()
     {
         var path = CreatePptxWithSlides(
@@ -327,7 +343,7 @@ public class SearchServiceTests : PptxTestBase
             new TestSlideDefinition { TitleText = "Slide 1" },
             new TestSlideDefinition
             {
-                TextShapes = [new TestTextShapeDefinition { Name = "Empty Shape" }]
+                TextShapes = [new TestTextShapeDefinition { Name = "Empty Shape", Paragraphs = [] }]
             });
 
         var result = Service.FindEmptyShapes(path);

@@ -22,5 +22,8 @@ jobs:
         with:
           dotnet-version: '9.x'
 
+      - name: Restore dependencies
+        run: dotnet restore PptxTools.slnx
+
       - name: Build and test
-        run: dotnet test PptxTools.slnx --configuration Release --no-restore || dotnet test PptxTools.slnx --configuration Release
+        run: dotnet test PptxTools.slnx --configuration Release --no-restore
