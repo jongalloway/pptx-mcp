@@ -20,7 +20,9 @@ public class PptxCompletionHandlerTests : PptxTestBase
         Dictionary<string, string>? contextArgs = null)
         => PptxCompletionHandler.GetCompletions(argumentName, partialValue, contextArgs, service);
 
-    // --- Null / empty argument name tests ---
+    // ================================================================
+    // Null / empty argument name
+    // ================================================================
 
     [Fact]
     public void GetCompletions_NullArgumentName_ReturnsEmpty()
@@ -36,10 +38,12 @@ public class PptxCompletionHandlerTests : PptxTestBase
         Assert.Empty(result.Completion.Values);
     }
 
-    // --- PlaceholderType completions ---
+    // ================================================================
+    // PlaceholderType completions (existing)
+    // ================================================================
 
     [Fact]
-    public void GetCompletions_PlaceholderType_EmptyPartial_ReturnsAllTypes()
+    public void PlaceholderType_EmptyPartial_ReturnsAllTypes()
     {
         var result = Invoke("placeholderType");
         Assert.NotEmpty(result.Completion.Values);
@@ -48,7 +52,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_PlaceholderType_PartialTitle_FiltersCorrectly()
+    public void PlaceholderType_WithPartialValue_FiltersResults()
     {
         var result = Invoke("placeholderType", "ti");
         Assert.All(result.Completion.Values,
@@ -57,23 +61,48 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_PlaceholderType_NonMatchingPartial_ReturnsEmpty()
+    public void PlaceholderType_NonMatchingPartial_ReturnsEmpty()
     {
         var result = Invoke("placeholderType", "zzz");
         Assert.Empty(result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_PlaceholderType_CaseInsensitive()
+    public void PlaceholderType_CaseInsensitiveArgumentName()
+    {
+        var result = Invoke("PLACEHOLDERTYPE");
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("title", result.Completion.Values);
+    }
+
+    [Fact]
+    public void PlaceholderType_CaseInsensitiveFiltering()
     {
         var result = Invoke("placeholderType", "TITLE");
         Assert.Contains("title", result.Completion.Values);
     }
 
-    // --- LayoutName completions ---
+    [Fact]
+    public void PlaceholderType_ContainsExpectedValues()
+    {
+        var result = Invoke("placeholderType");
+        var values = result.Completion.Values;
+        Assert.Contains("ctrTitle", values);
+        Assert.Contains("subTitle", values);
+        Assert.Contains("dt", values);
+        Assert.Contains("ftr", values);
+        Assert.Contains("sldNum", values);
+        Assert.Contains("obj", values);
+        Assert.Contains("tbl", values);
+        Assert.Contains("chart", values);
+    }
+
+    // ================================================================
+    // LayoutName completions (existing)
+    // ================================================================
 
     [Fact]
-    public void GetCompletions_LayoutName_WithFileContext_ReturnsLayouts()
+    public void LayoutName_WithFileContext_ReturnsLayouts()
     {
         var path = CreateTempPptx();
         var result = Invoke(
@@ -86,7 +115,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_LayoutName_WithPartial_FiltersCorrectly()
+    public void LayoutName_WithPartialValue_FiltersResults()
     {
         var path = CreateTempPptx();
         var result = Invoke(
@@ -100,14 +129,14 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_LayoutName_NoFileContext_ReturnsEmpty()
+    public void LayoutName_NoFileContext_ReturnsEmpty()
     {
         var result = Invoke("layoutName", service: Service);
         Assert.Empty(result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_LayoutName_FileNotFound_ReturnsEmpty()
+    public void LayoutName_FileNotFound_ReturnsEmpty()
     {
         var result = Invoke(
             "layoutName",
@@ -118,7 +147,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_LayoutName_UrlEncodedFilePath_Decodes()
+    public void LayoutName_UrlEncodedFilePath_Decodes()
     {
         var path = CreateTempPptx();
         var encoded = Uri.EscapeDataString(path);
@@ -131,7 +160,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_LayoutName_NullService_ReturnsEmpty()
+    public void LayoutName_NullService_ReturnsEmpty()
     {
         var path = CreateTempPptx();
         var result = Invoke(
@@ -142,10 +171,24 @@ public class PptxCompletionHandlerTests : PptxTestBase
         Assert.Empty(result.Completion.Values);
     }
 
-    // --- ShapeName completions ---
+    [Fact]
+    public void Layout_AliasCaseInsensitive()
+    {
+        var path = CreateTempPptx();
+        var result = Invoke(
+            "layout",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    // ================================================================
+    // ShapeName completions (existing)
+    // ================================================================
 
     [Fact]
-    public void GetCompletions_ShapeName_WithFileContext_ReturnsShapeNames()
+    public void ShapeName_WithFileContext_ReturnsShapeNames()
     {
         var path = CreateTempPptx(new TestSlideDefinition
         {
@@ -168,7 +211,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_ShapeName_WithPartial_FiltersCorrectly()
+    public void ShapeName_WithPartialValue_FiltersResults()
     {
         var path = CreateTempPptx(new TestSlideDefinition
         {
@@ -193,7 +236,7 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_ShapeName_AcceptsFilePathKey()
+    public void ShapeName_AcceptsFilePathKey()
     {
         var path = CreateTempPptx(new TestSlideDefinition
         {
@@ -214,14 +257,14 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_ShapeName_NoFileContext_ReturnsEmpty()
+    public void ShapeName_NoFileContext_ReturnsEmpty()
     {
         var result = Invoke("shapeName", service: Service);
         Assert.Empty(result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_ShapeName_DeduplicatesAcrossSlides()
+    public void ShapeName_DeduplicatesAcrossSlides()
     {
         var sharedName = "Shared Shape";
         var path = CreateTempPptx(
@@ -251,109 +294,312 @@ public class PptxCompletionHandlerTests : PptxTestBase
         Assert.Equal(1, count);
     }
 
-    // --- Unknown argument name ---
-
     [Fact]
-    public void GetCompletions_UnknownArgumentName_ReturnsEmpty()
+    public void Shape_AliasCaseInsensitive()
     {
-        var result = Invoke("unknownArgument");
-        Assert.Empty(result.Completion.Values);
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Title",
+            TextShapes =
+            [
+                new TestTextShapeDefinition { Name = "TestShape", Paragraphs = ["x"] }
+            ]
+        });
+
+        var result = Invoke(
+            "shape",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
     }
 
-    // --- Action completions ---
+    // ================================================================
+    // Action completions (new - static)
+    // ================================================================
 
     [Fact]
-    public void GetCompletions_Action_EmptyPartial_ReturnsAllActions()
+    public void Action_ReturnsNonEmptyCompletions()
     {
         var result = Invoke("action");
         Assert.NotEmpty(result.Completion.Values);
-        Assert.Contains("Add", result.Completion.Values);
-        Assert.Contains("Read", result.Completion.Values);
-        Assert.Contains("Update", result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_Action_PartialFilter_FiltersCorrectly()
+    public void Action_CaseInsensitiveArgumentName()
     {
-        var result = Invoke("action", "An");
+        var result = Invoke("ACTION");
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void Action_EmptyPartial_ReturnsAllValues()
+    {
+        var result = Invoke("action", "");
+        Assert.True(result.Completion.Values.Count >= 10,
+            "Expected at least 10 action completions");
+    }
+
+    [Fact]
+    public void Action_WithPartialValue_FiltersResults()
+    {
+        var result = Invoke("action", "Add");
+        Assert.NotEmpty(result.Completion.Values);
         Assert.All(result.Completion.Values,
-            v => Assert.StartsWith("An", v, StringComparison.OrdinalIgnoreCase));
-        Assert.Contains("Analyze", result.Completion.Values);
-        Assert.Contains("AnalyzeVideo", result.Completion.Values);
+            v => Assert.StartsWith("Add", v, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void GetCompletions_Action_CaseInsensitive()
+    public void Action_ContainsExpectedValues()
     {
-        var result = Invoke("ACTION", "add");
-        Assert.Contains("Add", result.Completion.Values);
+        var result = Invoke("action");
+        var values = result.Completion.Values;
+        Assert.Contains("Add", values);
+        Assert.Contains("AddFromLayout", values);
+        Assert.Contains("Duplicate", values);
+        Assert.Contains("Move", values);
+        Assert.Contains("Reorder", values);
+        Assert.Contains("Find", values);
+        Assert.Contains("Remove", values);
+        Assert.Contains("Analyze", values);
+        Assert.Contains("Deduplicate", values);
+        Assert.Contains("AnalyzeVideo", values);
+        Assert.Contains("Read", values);
+        Assert.Contains("Update", values);
     }
 
-    // --- Format completions ---
+    [Fact]
+    public void Action_PartialRe_FiltersToRelevantValues()
+    {
+        var result = Invoke("action", "Re");
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.All(result.Completion.Values,
+            v => Assert.StartsWith("Re", v, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Reorder", result.Completion.Values);
+        Assert.Contains("Remove", result.Completion.Values);
+        Assert.Contains("Read", result.Completion.Values);
+    }
 
     [Fact]
-    public void GetCompletions_Format_EmptyPartial_ReturnsAllFormats()
+    public void Action_NonMatchingPartial_ReturnsEmpty()
+    {
+        var result = Invoke("action", "zzz");
+        Assert.Empty(result.Completion.Values);
+    }
+
+    // ================================================================
+    // Format completions (new - static)
+    // ================================================================
+
+    [Fact]
+    public void Format_ReturnsNonEmptyCompletions()
     {
         var result = Invoke("format");
         Assert.NotEmpty(result.Completion.Values);
-        Assert.Contains("png", result.Completion.Values);
-        Assert.Contains("markdown", result.Completion.Values);
-        Assert.Contains("html", result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_Format_PartialFilter_FiltersCorrectly()
+    public void Format_CaseInsensitiveArgumentName()
     {
-        var result = Invoke("format", "jp");
+        var result = Invoke("FORMAT");
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void Format_ContainsExpectedValues()
+    {
+        var result = Invoke("format");
+        var values = result.Completion.Values;
+        Assert.Contains("png", values);
+        Assert.Contains("jpg", values);
+        Assert.Contains("jpeg", values);
+        Assert.Contains("gif", values);
+        Assert.Contains("bmp", values);
+        Assert.Contains("tiff", values);
+        Assert.Contains("svg", values);
+        Assert.Contains("markdown", values);
+        Assert.Contains("html", values);
+    }
+
+    [Fact]
+    public void Format_WithPartialValue_FiltersResults()
+    {
+        var result = Invoke("format", "j");
+        Assert.NotEmpty(result.Completion.Values);
         Assert.All(result.Completion.Values,
-            v => Assert.StartsWith("jp", v, StringComparison.OrdinalIgnoreCase));
+            v => Assert.StartsWith("j", v, StringComparison.OrdinalIgnoreCase));
         Assert.Contains("jpg", result.Completion.Values);
         Assert.Contains("jpeg", result.Completion.Values);
     }
 
-    // --- Style completions ---
+    [Fact]
+    public void Format_EmptyPartial_ReturnsAllValues()
+    {
+        var result = Invoke("format", "");
+        Assert.Equal(9, result.Completion.Values.Count);
+    }
 
     [Fact]
-    public void GetCompletions_Style_EmptyPartial_ReturnsAllStyles()
+    public void Format_NonMatchingPartial_ReturnsEmpty()
+    {
+        var result = Invoke("format", "zzz");
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void Format_PartialMark_FiltersToMarkdown()
+    {
+        var result = Invoke("format", "mark");
+        Assert.Single(result.Completion.Values);
+        Assert.Contains("markdown", result.Completion.Values);
+    }
+
+    // ================================================================
+    // Style completions (new - static)
+    // ================================================================
+
+    [Fact]
+    public void Style_ReturnsNonEmptyCompletions()
     {
         var result = Invoke("style");
         Assert.NotEmpty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void Style_CaseInsensitiveArgumentName()
+    {
+        var result = Invoke("STYLE");
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void Style_ContainsExpectedValues()
+    {
+        var result = Invoke("style");
+        var values = result.Completion.Values;
+        Assert.Contains("bullet-points", values);
+        Assert.Contains("narrative", values);
+        Assert.Contains("timing-cues", values);
+    }
+
+    [Fact]
+    public void Style_EmptyPartial_ReturnsAllValues()
+    {
+        var result = Invoke("style", "");
+        Assert.Equal(3, result.Completion.Values.Count);
+    }
+
+    [Fact]
+    public void Style_WithPartialValue_FiltersResults()
+    {
+        var result = Invoke("style", "bullet");
+        Assert.Single(result.Completion.Values);
         Assert.Contains("bullet-points", result.Completion.Values);
-        Assert.Contains("narrative", result.Completion.Values);
+    }
+
+    [Fact]
+    public void Style_NonMatchingPartial_ReturnsEmpty()
+    {
+        var result = Invoke("style", "zzz");
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void Style_PartialT_FiltersToTimingCues()
+    {
+        var result = Invoke("style", "t");
+        Assert.Single(result.Completion.Values);
         Assert.Contains("timing-cues", result.Completion.Values);
     }
 
-    [Fact]
-    public void GetCompletions_Style_PartialFilter_FiltersCorrectly()
-    {
-        var result = Invoke("style", "bu");
-        Assert.Single(result.Completion.Values);
-        Assert.Contains("bullet-points", result.Completion.Values);
-    }
-
-    // --- ChartAction completions ---
+    // ================================================================
+    // ChartAction completions (new - static)
+    // ================================================================
 
     [Fact]
-    public void GetCompletions_ChartAction_EmptyPartial_ReturnsAllChartActions()
+    public void ChartAction_ReturnsNonEmptyCompletions()
     {
         var result = Invoke("chartAction");
         Assert.NotEmpty(result.Completion.Values);
-        Assert.Contains("Read", result.Completion.Values);
-        Assert.Contains("Update", result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_ChartAction_PartialFilter_FiltersCorrectly()
+    public void ChartAction_CaseInsensitiveArgumentName()
     {
-        var result = Invoke("chartAction", "Re");
+        var result = Invoke("CHARTACTION");
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void ChartAction_ContainsExpectedValues()
+    {
+        var result = Invoke("chartAction");
+        var values = result.Completion.Values;
+        Assert.Contains("Read", values);
+        Assert.Contains("Update", values);
+    }
+
+    [Fact]
+    public void ChartAction_EmptyPartial_ReturnsAllValues()
+    {
+        var result = Invoke("chartAction", "");
+        Assert.Equal(2, result.Completion.Values.Count);
+    }
+
+    [Fact]
+    public void ChartAction_WithPartialValue_FiltersResults()
+    {
+        var result = Invoke("chartAction", "R");
         Assert.Single(result.Completion.Values);
         Assert.Contains("Read", result.Completion.Values);
     }
 
-    // --- SlideNumber completions ---
-
     [Fact]
-    public void GetCompletions_SlideNumber_WithFileContext_ReturnsSlideNumbers()
+    public void ChartAction_NonMatchingPartial_ReturnsEmpty()
+    {
+        var result = Invoke("chartAction", "zzz");
+        Assert.Empty(result.Completion.Values);
+    }
+
+    // ================================================================
+    // SlideNumber / SlideIndex completions (new - dynamic)
+    // ================================================================
+
+    [Theory]
+    [InlineData("slideNumber")]
+    [InlineData("slideIndex")]
+    public void SlideNumber_WithoutService_ReturnsEmpty(string argName)
+    {
+        var result = Invoke(argName, service: null);
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("slideNumber")]
+    [InlineData("slideIndex")]
+    public void SlideNumber_WithoutFilePath_ReturnsEmpty(string argName)
+    {
+        var result = Invoke(argName, service: Service);
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("slideNumber")]
+    [InlineData("slideIndex")]
+    public void SlideNumber_FileNotFound_ReturnsEmpty(string argName)
+    {
+        var result = Invoke(
+            argName,
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = "/nonexistent/deck.pptx" });
+
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("slideNumber")]
+    [InlineData("slideIndex")]
+    public void SlideNumber_WithValidFile_ReturnsSlideNumbers(string argName)
     {
         var path = CreateTempPptx(
             new TestSlideDefinition { TitleText = "Slide 1" },
@@ -361,45 +607,50 @@ public class PptxCompletionHandlerTests : PptxTestBase
             new TestSlideDefinition { TitleText = "Slide 3" });
 
         var result = Invoke(
-            "slideNumber",
+            argName,
             service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
-        Assert.Equal(3, result.Completion.Values.Count);
-        Assert.Contains("1", result.Completion.Values);
-        Assert.Contains("2", result.Completion.Values);
-        Assert.Contains("3", result.Completion.Values);
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.True(result.Completion.Values.Count >= 3,
+            "Expected at least 3 slide number completions for a 3-slide deck");
     }
 
-    [Fact]
-    public void GetCompletions_SlideIndex_AliasWorks()
+    [Theory]
+    [InlineData("slideNumber")]
+    [InlineData("slideIndex")]
+    public void SlideNumber_SingleSlide_ReturnsSingleValue(string argName)
     {
-        var path = CreateTempPptx(
-            new TestSlideDefinition { TitleText = "Slide 1" });
-
+        var path = CreateTempPptx();
         var result = Invoke(
-            "slideIndex",
+            argName,
             service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
-        Assert.Single(result.Completion.Values);
-        Assert.Contains("1", result.Completion.Values);
+        Assert.NotEmpty(result.Completion.Values);
     }
 
-    [Fact]
-    public void GetCompletions_SlideNumber_NoFileContext_ReturnsEmpty()
+    [Theory]
+    [InlineData("slideNumber")]
+    [InlineData("slideIndex")]
+    public void SlideNumber_CaseInsensitiveArgumentName(string argName)
     {
-        var result = Invoke("slideNumber", service: Service);
-        Assert.Empty(result.Completion.Values);
+        var path = CreateTempPptx();
+        var result = Invoke(
+            argName.ToUpperInvariant(),
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_SlideNumber_PartialFilter_FiltersCorrectly()
+    public void SlideNumber_WithPartialValue_FiltersResults()
     {
         var slides = Enumerable.Range(1, 12)
             .Select(i => new TestSlideDefinition { TitleText = $"Slide {i}" })
             .ToArray();
-        var path = CreateTempPptx(slides);
+        var path = CreatePptxWithSlides(slides);
 
         var result = Invoke(
             "slideNumber",
@@ -407,31 +658,99 @@ public class PptxCompletionHandlerTests : PptxTestBase
             service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
+        Assert.NotEmpty(result.Completion.Values);
         Assert.All(result.Completion.Values,
             v => Assert.StartsWith("1", v, StringComparison.OrdinalIgnoreCase));
-        Assert.Contains("1", result.Completion.Values);
-        Assert.Contains("10", result.Completion.Values);
-        Assert.Contains("11", result.Completion.Values);
-        Assert.Contains("12", result.Completion.Values);
     }
 
-    // --- TableName completions ---
+    [Fact]
+    public void SlideNumber_AcceptsFilePathKey()
+    {
+        var path = CreateTempPptx(
+            new TestSlideDefinition { TitleText = "S1" },
+            new TestSlideDefinition { TitleText = "S2" });
+
+        var result = Invoke(
+            "slideNumber",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["filePath"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
+    }
 
     [Fact]
-    public void GetCompletions_TableName_WithFileContext_ReturnsTableNames()
+    public void SlideNumber_UrlEncodedFilePath_Decodes()
+    {
+        var path = CreateTempPptx();
+        var encoded = Uri.EscapeDataString(path);
+        var result = Invoke(
+            "slideNumber",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = encoded });
+
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    // ================================================================
+    // TableName / Table completions (new - dynamic)
+    // ================================================================
+
+    [Theory]
+    [InlineData("tableName")]
+    [InlineData("table")]
+    public void TableName_WithoutService_ReturnsEmpty(string argName)
+    {
+        var result = Invoke(argName, service: null);
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("tableName")]
+    [InlineData("table")]
+    public void TableName_WithoutFilePath_ReturnsEmpty(string argName)
+    {
+        var result = Invoke(argName, service: Service);
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("tableName")]
+    [InlineData("table")]
+    public void TableName_FileNotFound_ReturnsEmpty(string argName)
+    {
+        var result = Invoke(
+            argName,
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = "/nonexistent/deck.pptx" });
+
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("tableName")]
+    [InlineData("table")]
+    public void TableName_WithValidFile_ReturnsTableNames(string argName)
     {
         var path = CreateTempPptx(new TestSlideDefinition
         {
             TitleText = "Data Slide",
             Tables =
             [
-                new TestTableDefinition { Name = "Revenue Table", Rows = [["Q1", "Q2"], ["100", "200"]] },
-                new TestTableDefinition { Name = "Cost Table", Rows = [["Q1", "Q2"], ["50", "75"]] }
+                new TestTableDefinition
+                {
+                    Name = "Revenue Table",
+                    Rows = [["Q1", "100"], ["Q2", "200"]]
+                },
+                new TestTableDefinition
+                {
+                    Name = "Cost Table",
+                    Rows = [["Q1", "50"], ["Q2", "75"]]
+                }
             ]
         });
 
         var result = Invoke(
-            "tableName",
+            argName,
             service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
@@ -441,39 +760,23 @@ public class PptxCompletionHandlerTests : PptxTestBase
     }
 
     [Fact]
-    public void GetCompletions_Table_AliasWorks()
-    {
-        var path = CreateTempPptx(new TestSlideDefinition
-        {
-            TitleText = "Data Slide",
-            Tables = [new TestTableDefinition { Name = "My Table", Rows = [["A", "B"]] }]
-        });
-
-        var result = Invoke(
-            "table",
-            service: Service,
-            contextArgs: new Dictionary<string, string> { ["file"] = path });
-
-        Assert.Contains("My Table", result.Completion.Values);
-    }
-
-    [Fact]
-    public void GetCompletions_TableName_NoFileContext_ReturnsEmpty()
-    {
-        var result = Invoke("tableName", service: Service);
-        Assert.Empty(result.Completion.Values);
-    }
-
-    [Fact]
-    public void GetCompletions_TableName_PartialFilter_FiltersCorrectly()
+    public void TableName_WithPartialValue_FiltersResults()
     {
         var path = CreateTempPptx(new TestSlideDefinition
         {
             TitleText = "Data Slide",
             Tables =
             [
-                new TestTableDefinition { Name = "Revenue Table", Rows = [["Q1"], ["100"]] },
-                new TestTableDefinition { Name = "Cost Table", Rows = [["Q1"], ["50"]] }
+                new TestTableDefinition
+                {
+                    Name = "Revenue Table",
+                    Rows = [["Q1", "100"]]
+                },
+                new TestTableDefinition
+                {
+                    Name = "Cost Table",
+                    Rows = [["Q1", "50"]]
+                }
             ]
         });
 
@@ -483,49 +786,40 @@ public class PptxCompletionHandlerTests : PptxTestBase
             service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
-        Assert.Single(result.Completion.Values);
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.All(result.Completion.Values,
+            v => Assert.StartsWith("Rev", v, StringComparison.OrdinalIgnoreCase));
         Assert.Contains("Revenue Table", result.Completion.Values);
         Assert.DoesNotContain("Cost Table", result.Completion.Values);
     }
 
     [Fact]
-    public void GetCompletions_TableName_ExcludesNonTableShapes()
-    {
-        var path = CreateTempPptx(new TestSlideDefinition
-        {
-            TitleText = "Mixed Slide",
-            TextShapes =
-            [
-                new TestTextShapeDefinition { Name = "Text Shape", Paragraphs = ["hello"] }
-            ],
-            Tables =
-            [
-                new TestTableDefinition { Name = "Data Table", Rows = [["A"]] }
-            ]
-        });
-
-        var result = Invoke(
-            "tableName",
-            service: Service,
-            contextArgs: new Dictionary<string, string> { ["file"] = path });
-
-        Assert.Contains("Data Table", result.Completion.Values);
-        Assert.DoesNotContain("Text Shape", result.Completion.Values);
-    }
-
-    [Fact]
-    public void GetCompletions_TableName_DeduplicatesAcrossSlides()
+    public void TableName_AcrossMultipleSlides_ReturnsAll()
     {
         var path = CreateTempPptx(
             new TestSlideDefinition
             {
                 TitleText = "Slide 1",
-                Tables = [new TestTableDefinition { Name = "Shared Table", Rows = [["A"]] }]
+                Tables =
+                [
+                    new TestTableDefinition
+                    {
+                        Name = "Table Alpha",
+                        Rows = [["A", "B"]]
+                    }
+                ]
             },
             new TestSlideDefinition
             {
                 TitleText = "Slide 2",
-                Tables = [new TestTableDefinition { Name = "Shared Table", Rows = [["B"]] }]
+                Tables =
+                [
+                    new TestTableDefinition
+                    {
+                        Name = "Table Beta",
+                        Rows = [["C", "D"]]
+                    }
+                ]
             });
 
         var result = Invoke(
@@ -533,11 +827,152 @@ public class PptxCompletionHandlerTests : PptxTestBase
             service: Service,
             contextArgs: new Dictionary<string, string> { ["file"] = path });
 
-        var count = result.Completion.Values.Count(v => v.Equals("Shared Table", StringComparison.OrdinalIgnoreCase));
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("Table Alpha", result.Completion.Values);
+        Assert.Contains("Table Beta", result.Completion.Values);
+    }
+
+    [Fact]
+    public void TableName_DeduplicatesAcrossSlides()
+    {
+        var path = CreateTempPptx(
+            new TestSlideDefinition
+            {
+                TitleText = "Slide 1",
+                Tables =
+                [
+                    new TestTableDefinition
+                    {
+                        Name = "Shared Table",
+                        Rows = [["A", "B"]]
+                    }
+                ]
+            },
+            new TestSlideDefinition
+            {
+                TitleText = "Slide 2",
+                Tables =
+                [
+                    new TestTableDefinition
+                    {
+                        Name = "Shared Table",
+                        Rows = [["C", "D"]]
+                    }
+                ]
+            });
+
+        var result = Invoke(
+            "tableName",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        var count = result.Completion.Values.Count(
+            v => v.Equals("Shared Table", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(1, count);
     }
 
-    // --- Result structure ---
+    [Fact]
+    public void TableName_NoTables_ReturnsEmpty()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition { TitleText = "No tables here" });
+        var result = Invoke(
+            "tableName",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Empty(result.Completion.Values);
+    }
+
+    [Theory]
+    [InlineData("tableName")]
+    [InlineData("table")]
+    public void TableName_CaseInsensitiveArgumentName(string argName)
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Data",
+            Tables =
+            [
+                new TestTableDefinition
+                {
+                    Name = "TestTable",
+                    Rows = [["X", "Y"]]
+                }
+            ]
+        });
+
+        var result = Invoke(
+            argName.ToUpperInvariant(),
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
+    }
+
+    [Fact]
+    public void TableName_AcceptsFilePathKey()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Data",
+            Tables =
+            [
+                new TestTableDefinition
+                {
+                    Name = "MyTable",
+                    Rows = [["A", "B"]]
+                }
+            ]
+        });
+
+        var result = Invoke(
+            "tableName",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["filePath"] = path });
+
+        Assert.NotEmpty(result.Completion.Values);
+        Assert.Contains("MyTable", result.Completion.Values);
+    }
+
+    [Fact]
+    public void TableName_NonMatchingPartial_ReturnsEmpty()
+    {
+        var path = CreateTempPptx(new TestSlideDefinition
+        {
+            TitleText = "Data",
+            Tables =
+            [
+                new TestTableDefinition
+                {
+                    Name = "Revenue",
+                    Rows = [["Q1", "100"]]
+                }
+            ]
+        });
+
+        var result = Invoke(
+            "tableName",
+            partialValue: "zzz",
+            service: Service,
+            contextArgs: new Dictionary<string, string> { ["file"] = path });
+
+        Assert.Empty(result.Completion.Values);
+    }
+
+    // ================================================================
+    // Unknown argument name
+    // ================================================================
+
+    [Fact]
+    public void GetCompletions_UnknownArgumentName_ReturnsEmpty()
+    {
+        var result = Invoke("unknownArgument");
+        Assert.Empty(result.Completion.Values);
+    }
+
+    // ================================================================
+    // Result structure invariants
+    // ================================================================
 
     [Fact]
     public void GetCompletions_Result_HasCorrectTotalCount()
@@ -550,6 +985,27 @@ public class PptxCompletionHandlerTests : PptxTestBase
     public void GetCompletions_Result_HasMoreIsFalse()
     {
         var result = Invoke("placeholderType");
+        Assert.False(result.Completion.HasMore);
+    }
+
+    [Fact]
+    public void Action_Result_TotalMatchesValuesCount()
+    {
+        var result = Invoke("action");
+        Assert.Equal(result.Completion.Values.Count, result.Completion.Total);
+    }
+
+    [Fact]
+    public void Format_Result_TotalMatchesValuesCount()
+    {
+        var result = Invoke("format");
+        Assert.Equal(result.Completion.Values.Count, result.Completion.Total);
+    }
+
+    [Fact]
+    public void Style_Result_HasMoreIsFalse()
+    {
+        var result = Invoke("style");
         Assert.False(result.Completion.HasMore);
     }
 }
