@@ -15,15 +15,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore PptxTools.slnx
 
-      - name: Build and test
-        run: dotnet test PptxTools.slnx --configuration Release --no-restore
+      - name: Build
+        run: dotnet build PptxTools.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --solution PptxTools.slnx --no-build --configuration Release
