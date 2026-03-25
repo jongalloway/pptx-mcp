@@ -1,6 +1,6 @@
 # mock-data-mcp
 
-A sample MCP server providing mock business metrics and blog post data. Built with the same .NET MCP SDK pattern as pptx-mcp. Use it with pptx-mcp to run the [multi-source composition example](../../docs/MULTI_SOURCE_COMPOSITION.md) locally without any external API keys or services.
+A sample MCP server providing mock business metrics and blog post data. Built with the same .NET MCP SDK pattern as pptx-tools. Use it with pptx-tools to run the [multi-source composition example](../../docs/MULTI_SOURCE_COMPOSITION.md) locally without any external API keys or services.
 
 ---
 
@@ -23,23 +23,23 @@ A sample MCP server providing mock business metrics and blog post data. Built wi
 dotnet run --project examples/mock-data-mcp --configuration Release
 ```
 
-The server starts on stdio and waits for MCP messages. It is designed to be registered in your AI client config alongside pptx-mcp, not run manually.
+The server starts on stdio and waits for MCP messages. It is designed to be registered in your AI client config alongside pptx-tools, not run manually.
 
 ---
 
-## Wire Up with pptx-mcp (Claude Desktop)
+## Wire Up with pptx-tools (Claude Desktop)
 
 Add both servers to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "pptx-mcp": {
+    "pptx-tools": {
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/pptx-mcp/src/PptxMcp",
+        "/absolute/path/to/pptx-tools/src/PptxTools",
         "--configuration",
         "Release"
       ]
@@ -49,7 +49,7 @@ Add both servers to your `claude_desktop_config.json`:
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/pptx-mcp/examples/mock-data-mcp",
+        "/absolute/path/to/pptx-tools/examples/mock-data-mcp",
         "--configuration",
         "Release"
       ]
@@ -179,12 +179,12 @@ This server is intentionally minimal. To adapt it to real data:
 2. Add authentication as needed in `Program.cs`.
 3. Adjust tool names and parameters to match your data model.
 
-The composition pattern with pptx-mcp stays the same regardless of how the data source MCP is implemented.
+The composition pattern with pptx-tools stays the same regardless of how the data source MCP is implemented.
 
 ---
 
 ## Related
 
 - [Multi-Source Composition Guide](../../docs/MULTI_SOURCE_COMPOSITION.md) — full walkthrough
-- [pptx-mcp README](../../README.md) — PowerPoint tool reference
+- [pptx-tools README](../../README.md) — PowerPoint tool reference
 - [docs/EXAMPLES.md](../../docs/EXAMPLES.md) — all usage examples

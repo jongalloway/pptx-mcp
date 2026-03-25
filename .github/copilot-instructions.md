@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions for pptx-mcp
+# GitHub Copilot Instructions for pptx-tools
 
 ## Project Overview
 
@@ -16,12 +16,12 @@ This project is an **MCP (Model Context Protocol) server** that reads and modifi
 
 ## Architecture
 
-- `src/PptxMcp/` — Main MCP server project
+- `src/PptxTools/` — Main MCP server project
   - `Program.cs` — Host builder, MCP server registration
   - `Tools/` — MCP tool methods (marked with `[McpServerToolType]` / `[McpServerTool]`)
   - `Services/` — Business logic (e.g., `PresentationService` for OpenXML operations)
   - `Models/` — Data transfer objects for tool responses
-- `tests/PptxMcp.Tests/` — xUnit v3 tests using Microsoft Testing Platform
+- `tests/PptxTools.Tests/` — xUnit v3 tests using Microsoft Testing Platform
 
 ## Code Style and Conventions
 
@@ -52,13 +52,13 @@ This project is an **MCP (Model Context Protocol) server** that reads and modifi
 
 ```bash
 # Build
-dotnet build PptxMcp.slnx --configuration Release
+dotnet build PptxTools.slnx --configuration Release
 
 # Test (uses Microsoft Testing Platform via global.json)
-dotnet test --solution PptxMcp.slnx --configuration Release --no-build
+dotnet test --solution PptxTools.slnx --configuration Release --no-build
 
 # Targeted test run (xUnit v3 under MTP)
-dotnet test --project tests/PptxMcp.Tests/PptxMcp.Tests.csproj -c Release -- --filter-method "*SpecificTestMethod"
+dotnet test --project tests/PptxTools.Tests/PptxTools.Tests.csproj -c Release -- --filter-method "*SpecificTestMethod"
 ```
 
 Do not assume VSTest-style `--filter` works here; under MTP/xUnit v3, use `--filter-method`, `--filter-class`, or other runner-supported options after `--`.
@@ -69,7 +69,7 @@ Do not assume VSTest-style `--filter` works here; under MTP/xUnit v3, use `--fil
 2. Mark with `[McpServerToolType]` (class) and `[McpServerTool]` (method, `partial`)
 3. Add XML doc comments for tool and all parameters
 4. Implement business logic in `Services/` — keep tools thin
-5. Add tests in `tests/PptxMcp.Tests/`
+5. Add tests in `tests/PptxTools.Tests/`
 6. Update README.md to list the new tool
 
 ## Documentation Guidelines

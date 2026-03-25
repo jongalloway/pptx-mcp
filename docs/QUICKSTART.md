@@ -1,4 +1,4 @@
-# pptx-mcp Quickstart
+# pptx-tools Quickstart
 
 Get from zero to a working PowerPoint MCP server in 5–10 minutes.
 
@@ -24,20 +24,20 @@ Before you begin, make sure you have:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/jongalloway/pptx-mcp.git
-cd pptx-mcp
+git clone https://github.com/jongalloway/pptx-tools.git
+cd pptx-tools
 
 # 2. Build the project
-dotnet build src/PptxMcp/PptxMcp.csproj --configuration Release
+dotnet build src/PptxTools/PptxTools.csproj --configuration Release
 
 # 3. Note the path to the output binary — you'll need it when configuring your MCP client
-#    Default output path: src/PptxMcp/bin/Release/net10.0/PptxMcp
+#    Default output path: src/PptxTools/bin/Release/net10.0/PptxTools
 ```
 
 Verify the build succeeded:
 
 ```bash
-dotnet run --project src/PptxMcp/PptxMcp.csproj --configuration Release
+dotnet run --project src/PptxTools/PptxTools.csproj --configuration Release
 # The server starts and waits for MCP messages on stdin — press Ctrl+C to stop
 ```
 
@@ -46,7 +46,7 @@ dotnet run --project src/PptxMcp/PptxMcp.csproj --configuration Release
 > **Note:** NuGet package publishing is planned for a future release. Once available, installation will be:
 >
 > ```bash
-> dotnet tool install --global PptxMcp
+> dotnet tool install --global PptxTools
 > ```
 >
 > This page will be updated with full instructions when the package is published.
@@ -65,17 +65,17 @@ Open (or create) your Claude Desktop configuration file:
 | Windows  | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Linux    | `~/.config/Claude/claude_desktop_config.json` |
 
-Add the `pptx-mcp` server entry. Replace `/path/to/pptx-mcp` with the actual path where you cloned the repository:
+Add the `pptx-tools` server entry. Replace `/path/to/pptx-tools` with the actual path where you cloned the repository:
 
 ```json
 {
   "mcpServers": {
-    "pptx-mcp": {
+    "pptx-tools": {
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "/path/to/pptx-mcp/src/PptxMcp/PptxMcp.csproj",
+        "/path/to/pptx-tools/src/PptxTools/PptxTools.csproj",
         "--configuration",
         "Release"
       ]
@@ -89,20 +89,20 @@ Add the `pptx-mcp` server entry. Replace `/path/to/pptx-mcp` with the actual pat
 > ```json
 > {
 >   "mcpServers": {
->     "pptx-mcp": {
->       "command": "/path/to/pptx-mcp/src/PptxMcp/bin/Release/net10.0/PptxMcp"
+>     "pptx-tools": {
+>       "command": "/path/to/pptx-tools/src/PptxTools/bin/Release/net10.0/PptxTools"
 >     }
 >   }
 > }
 > ```
 >
-> On Windows, add `.exe` to the binary name: `PptxMcp.exe`.
+> On Windows, add `.exe` to the binary name: `PptxTools.exe`.
 
 After saving the file, **restart Claude Desktop** to pick up the new server.
 
 ### Other MCP Clients
 
-pptx-mcp uses the standard **stdio transport** defined by the [Model Context Protocol specification](https://modelcontextprotocol.io/docs/concepts/transports). Any MCP client that supports stdio transport can connect to it using the same `command`/`args` pattern shown above. Refer to your client's documentation for the exact configuration syntax.
+pptx-tools uses the standard **stdio transport** defined by the [Model Context Protocol specification](https://modelcontextprotocol.io/docs/concepts/transports). Any MCP client that supports stdio transport can connect to it using the same `command`/`args` pattern shown above. Refer to your client's documentation for the exact configuration syntax.
 
 ---
 
@@ -110,7 +110,7 @@ pptx-mcp uses the standard **stdio transport** defined by the [Model Context Pro
 
 ### 1. Open a chat with your MCP client
 
-Once Claude Desktop (or your client) has restarted and connected to the server, you should see `pptx-mcp` listed in the available tools.
+Once Claude Desktop (or your client) has restarted and connected to the server, you should see `pptx-tools` listed in the available tools.
 
 ### 2. Ask the agent to list your slides
 
@@ -145,7 +145,7 @@ The agent will call `pptx_list_slides` and return structured output similar to:
 
 ### 3. What just happened?
 
-The agent translated your natural-language request into a call to the `pptx_list_slides` MCP tool. pptx-mcp opened the `.pptx` file using the OpenXML SDK, extracted slide metadata (index, title, layout, shape count), and returned it as structured JSON. The agent then presented that data to you in readable form.
+The agent translated your natural-language request into a call to the `pptx_list_slides` MCP tool. pptx-tools opened the `.pptx` file using the OpenXML SDK, extracted slide metadata (index, title, layout, shape count), and returned it as structured JSON. The agent then presented that data to you in readable form.
 
 ### 4. Try a few more commands
 
@@ -170,7 +170,7 @@ The agent translated your natural-language request into a call to the `pptx_list
 - Verify the path in your config is **absolute**, not relative.
 - Run the server manually to check for errors:
   ```bash
-  dotnet run --project /path/to/pptx-mcp/src/PptxMcp/PptxMcp.csproj
+  dotnet run --project /path/to/pptx-tools/src/PptxTools/PptxTools.csproj
   ```
 - Check the Claude Desktop logs (macOS: `~/Library/Logs/Claude/`) for connection errors.
 
@@ -212,4 +212,4 @@ Some clients require you to **explicitly enable** MCP tools or grant permissions
 - **[TOOL_REFERENCE.md](TOOL_REFERENCE.md)** — Complete reference for all 7 available tools with parameter descriptions and example outputs.
 - **[docs/EXAMPLES/](EXAMPLES/)** — Worked examples of common agentic workflows: content extraction, slide updates, image insertion, and more.
 - **[PRD.md](PRD.md)** — Product roadmap including planned Phase 1 (content extraction) and Phase 2 (data-driven updates) features.
-- **[GitHub Issues](https://github.com/jongalloway/pptx-mcp/issues)** — Report bugs, request features, or follow development progress.
+- **[GitHub Issues](https://github.com/jongalloway/pptx-tools/issues)** — Report bugs, request features, or follow development progress.

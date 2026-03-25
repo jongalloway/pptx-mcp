@@ -1,0 +1,91 @@
+using System.CommandLine;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using PptxTools.Commands;
+using PptxTools.Completions;
+using PptxTools.Prompts;
+using PptxTools.Resources;
+using PptxTools.Services;
+
+var mode = DetermineMode(args);
+if (mode == "mcp")
+{
+    await RunMcpServerAsync(args);
+    return 0;
+}
+else
+{
+    return await RunCliAsync(args);
+}
+
+static string DetermineMode(string[] args)
+{
+    if (args.Contains("--stdio"))
+        return "mcp";
+
+    if (args.Length == 0)
+        return "cli";
+
+    var first = args[0].ToLowerInvariant();
+    if (first is "-h" or "--help" or "-v" or "--version")
+        return "cli";
+
+    string[] knownCommands = ["analyze", "optimize", "inspect", "export", "edit", "media", "slides"];
+    if (knownCommands.Contains(first))
+        return "cli";
+
+    return "cli";
+}
+
+static async Task RunMcpServerAsync(string[] args)
+{
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.Logging.AddConsole(options =>
+    {
+        options.LogToStandardErrorThreshold = LogLevel.Trace;
+    });
+
+    builder.Services.AddSingleton<PresentationService>();
+
+    builder.Services.AddMcpServer(options =>
+    {
+        options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+        {
+            Name = "pptx-tools",
+            Version = "1.0.0",
+            Title = "PowerPoint Tools",
+            Description = "MCP server and CLI tool for reading and modifying PowerPoint (.pptx) files using OpenXML SDK",
+            WebsiteUrl = "https://github.com/jongalloway/pptx-tools"
+        };
+    })
+    .WithStdioServerTransport()
+    .WithTools<PptxTools.Tools.PptxTools>()
+    .WithResources<PptxResources>()
+    .WithPrompts<PptxPrompts>()
+    .WithCompleteHandler(PptxCompletionHandler.HandleAsync);
+
+    await builder.Build().RunAsync();
+}
+
+static async Task<int> RunCliAsync(string[] args)
+{
+    var services = new ServiceCollection();
+    services.AddSingleton<PresentationService>();
+    var sp = services.BuildServiceProvider();
+    var service = sp.GetRequiredService<PresentationService>();
+
+    var rootCommand = new RootCommand("pptx-tools - Analyze, optimize, and edit PowerPoint files");
+
+    // Real commands
+    rootCommand.Add(AnalyzeCommand.Create(service));
+    rootCommand.Add(EditCommand.Create(service));
+    rootCommand.Add(ExportCommand.Create(service));
+    rootCommand.Add(InspectCommand.Create(service));
+    rootCommand.Add(MediaCommand.Create(service));
+    rootCommand.Add(OptimizeCommand.Create(service));
+    rootCommand.Add(SlidesCommand.Create(service));
+
+    return await rootCommand.Parse(args).InvokeAsync();
+}

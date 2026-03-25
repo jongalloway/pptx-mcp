@@ -1,6 +1,6 @@
-# pptx-mcp Tool Reference
+# pptx-tools Tool Reference
 
-Complete reference for all MCP tools exposed by pptx-mcp, organized alphabetically.
+Complete reference for all MCP tools exposed by pptx-tools, organized alphabetically.
 
 ---
 

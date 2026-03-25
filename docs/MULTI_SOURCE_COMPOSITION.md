@@ -1,6 +1,6 @@
-# Multi-Source Composition with pptx-mcp
+# Multi-Source Composition with pptx-tools
 
-This guide shows how to combine pptx-mcp with one or more external data source MCPs so an AI agent can fetch live information and update a presentation in a single prompt — no manual editing, no glue code.
+This guide shows how to combine pptx-tools with one or more external data source MCPs so an AI agent can fetch live information and update a presentation in a single prompt — no manual editing, no glue code.
 
 ---
 
@@ -27,7 +27,7 @@ Multi-source composition is the practice of configuring an AI agent with two or 
 └───────────────┬─────────────────────────────┬───────────────────┘
                 │                             │
         ┌───────▼────────┐           ┌────────▼────────┐
-        │  Data Source   │           │   pptx-mcp      │
+        │  Data Source   │           │   pptx-tools      │
         │     MCP        │           │                 │
         │                │           │ pptx_list_slides│
         │ get_weekly_    │           │ pptx_get_slide_ │
@@ -46,14 +46,14 @@ Multi-source composition is the practice of configuring an AI agent with two or 
 
 - **No glue code.** The agent handles the orchestration — reading data from one MCP, understanding the presentation structure, and writing updates via the other.
 - **Stateless tools.** Each tool call is self-contained. The agent maintains all context between calls.
-- **Composable by design.** Any MCP server that returns data can be paired with pptx-mcp. The pattern scales from mock data to production APIs.
+- **Composable by design.** Any MCP server that returns data can be paired with pptx-tools. The pattern scales from mock data to production APIs.
 
 ---
 
 ## 2. Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- pptx-mcp built from source (see [README](../README.md))
+- pptx-tools built from source (see [README](../README.md))
 - An AI client that supports multiple MCP servers (Claude Desktop, VS Code Copilot, etc.)
 
 For **Scenario A**, also build the mock data server:
@@ -76,17 +76,17 @@ npm install -g @modelcontextprotocol/server-fetch
 
 Add both servers to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
-**Scenario A — pptx-mcp + mock-data-mcp**
+**Scenario A — pptx-tools + mock-data-mcp**
 
 ```json
 {
   "mcpServers": {
-    "pptx-mcp": {
+    "pptx-tools": {
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/pptx-mcp/src/PptxMcp",
+        "/absolute/path/to/pptx-tools/src/PptxTools",
         "--configuration",
         "Release"
       ]
@@ -96,7 +96,7 @@ Add both servers to `~/Library/Application Support/Claude/claude_desktop_config.
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/pptx-mcp/examples/mock-data-mcp",
+        "/absolute/path/to/pptx-tools/examples/mock-data-mcp",
         "--configuration",
         "Release"
       ]
@@ -105,17 +105,17 @@ Add both servers to `~/Library/Application Support/Claude/claude_desktop_config.
 }
 ```
 
-**Scenario B — pptx-mcp + fetch MCP**
+**Scenario B — pptx-tools + fetch MCP**
 
 ```json
 {
   "mcpServers": {
-    "pptx-mcp": {
+    "pptx-tools": {
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/pptx-mcp/src/PptxMcp",
+        "/absolute/path/to/pptx-tools/src/PptxTools",
         "--configuration",
         "Release"
       ]
@@ -135,13 +135,13 @@ Add an `.vscode/mcp.json` file at the workspace root:
 ```json
 {
   "servers": {
-    "pptx-mcp": {
+    "pptx-tools": {
       "type": "stdio",
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/src/PptxMcp",
+        "${workspaceFolder}/src/PptxTools",
         "--configuration",
         "Release"
       ]
@@ -240,7 +240,7 @@ Response (excerpt):
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_list_slides",
   "arguments": { "filePath": "/presentations/weekly-board.pptx" }
 }
@@ -260,7 +260,7 @@ Response:
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_get_slide_content",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
@@ -290,7 +290,7 @@ Because the KPI shapes have descriptive names (`ARR`, `MRR`, etc.), the agent ca
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
@@ -303,7 +303,7 @@ Because the KPI shapes have descriptive names (`ARR`, `MRR`, etc.), the agent ca
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
@@ -324,7 +324,7 @@ After inspecting slide 2 with `pptx_get_slide_content`, the agent updates the bo
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
@@ -339,7 +339,7 @@ After inspecting slide 2 with `pptx_get_slide_content`, the agent updates the bo
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_update_slide_data",
   "arguments": {
     "filePath": "/presentations/weekly-board.pptx",
@@ -442,7 +442,7 @@ Response:
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_list_slides",
   "arguments": { "filePath": "/presentations/product-updates.pptx" }
 }
@@ -452,7 +452,7 @@ Response:
 
 ```json
 {
-  "server": "pptx-mcp",
+  "server": "pptx-tools",
   "name": "pptx_update_text",
   "arguments": {
     "filePath": "/presentations/product-updates.pptx",
@@ -479,7 +479,7 @@ The same pattern extends to three or more servers. For example:
 Agent
  ├── mock-data-mcp      → business KPIs
  ├── fetch (web MCP)    → blog posts, press releases
- └── pptx-mcp           → slide inspection + updates
+ └── pptx-tools           → slide inspection + updates
 ```
 
 The agent decides which server to query at each step based on the task. MCP tool descriptions (the `Description` attribute set from XML doc comments in .NET) are the primary signal the agent uses to pick the right tool.
@@ -493,7 +493,7 @@ The agent decides which server to query at each step based on the task. MCP tool
 - The [GitHub MCP server](https://github.com/github/github-mcp-server) for repo-level metrics
 - A custom server following the same .NET pattern used here
 
-The pptx-mcp side of the workflow stays unchanged.
+The pptx-tools side of the workflow stays unchanged.
 
 ### Using `pptx_update_slide_data` vs. `pptx_update_text`
 
@@ -521,6 +521,6 @@ Workflow comparison:
 ## Related Resources
 
 - [mock-data-mcp README](../examples/mock-data-mcp/README.md) — mock server setup and tool reference
-- [docs/EXAMPLES.md](EXAMPLES.md) — all pptx-mcp usage examples
-- [docs/TOOL_REFERENCE.md](TOOL_REFERENCE.md) — full pptx-mcp tool reference
+- [docs/EXAMPLES.md](EXAMPLES.md) — all pptx-tools usage examples
+- [docs/TOOL_REFERENCE.md](TOOL_REFERENCE.md) — full pptx-tools tool reference
 - [MCP SDK for .NET](https://github.com/modelcontextprotocol/csharp-sdk) — build your own data source MCP

@@ -1,10 +1,10 @@
-# pptx-mcp Product Requirements Document
+# pptx-tools Product Requirements Document
 
 ## Vision
 
-**pptx-mcp** is a .NET-based Model Context Protocol (MCP) server that gives AI agents native access to PowerPoint manipulation and content extraction. It enables agentic workflows to read, analyze, update, and generate presentations programmatically through a clean, composable tool interface.
+**pptx-tools** is a .NET-based Model Context Protocol (MCP) server that gives AI agents native access to PowerPoint manipulation and content extraction. It enables agentic workflows to read, analyze, update, and generate presentations programmatically through a clean, composable tool interface.
 
-By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between AI reasoning and Office document creation—enabling scenarios like intelligent content extraction, data-driven slide generation, and dynamic presentation updates pulling from live data sources.
+By exposing PowerPoint operations as MCP tools, pptx-tools bridges the gap between AI reasoning and Office document creation—enabling scenarios like intelligent content extraction, data-driven slide generation, and dynamic presentation updates pulling from live data sources.
 
 ---
 
@@ -51,7 +51,7 @@ By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between
 
 - **Goal 2B:** Multi-source intelligent updates
   - Example: "Update this deck based on the newest Microsoft Extensions for AI release using the Microsoft Learn MCP and the latest .NET blog post"
-  - Compose multiple MCP servers (pptx-mcp + Microsoft Learn MCP + web browsing) to research and update presentations
+  - Compose multiple MCP servers (pptx-tools + Microsoft Learn MCP + web browsing) to research and update presentations
 
 - **Acceptance:** Agents can orchestrate complex updates pulling from multiple sources and sync presentation content
 
@@ -87,7 +87,7 @@ By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between
 ```
 ┌──────────────────┐
 │   MCP Server     │
-│  (PptxMcpServer) │
+│  (PptxToolsServer) │
 └────────┬─────────┘
          │
     ┌────▼────────────┐
@@ -109,7 +109,7 @@ By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between
 
 ### Planned Extensions
 - **Content analysis layer** (Phase 1): Tools to parse slide content, extract themes, generate summaries
-- **Multi-source orchestration** (Phase 2): Compose pptx-mcp with other MCPs to create intelligent workflows
+- **Multi-source orchestration** (Phase 2): Compose pptx-tools with other MCPs to create intelligent workflows
 - **Template library** (Future): Pre-built slide templates and formatting helpers
 
 ### Key Patterns
@@ -121,7 +121,7 @@ By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between
 
 ## Non-Goals
 
-- **GUI or interactive UI** — pptx-mcp is agent-first, not user-facing
+- **GUI or interactive UI** — pptx-tools is agent-first, not user-facing
 - **Legacy Office format support** (.ppt, .xls, .doc) — .NET OpenXML SDK only supports modern formats (.pptx)
 - **Presentation rendering or viewing** — we manipulate and read structure, not render visuals
 - **Advanced design control** — animations, transitions, and complex formatting are out of scope for Phase 1
@@ -140,7 +140,7 @@ By exposing PowerPoint operations as MCP tools, pptx-mcp bridges the gap between
 
 ### Phase 2 ✓ (Complete when)
 - [x] `pptx_update_slide_data` tool implemented: agents can update specific fields on slides
-- [ ] At least one example MCP composition (pptx-mcp + external data source) working
+- [ ] At least one example MCP composition (pptx-tools + external data source) working
 - [ ] Multi-source update scenario tested end-to-end
 - [ ] Jon validates against "Update based on live data" scenario
 
