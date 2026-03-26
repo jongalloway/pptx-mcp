@@ -272,6 +272,50 @@ public class TextFormattingToolsTests : PptxTestBase
         Assert.Contains("out of range", parsed.Message);
     }
 
+    // ── Apply action: no-op / invalid inputs ─────────────────────────────────────
+
+    [Fact]
+    public async Task Apply_NoPropertiesSpecified_ReturnsStructuredError()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        var result = await _tools.pptx_manage_text_formatting(path, TextFormattingAction.Apply,
+            slideNumber: 1, shapeName: "Target");
+
+        var parsed = JsonSerializer.Deserialize<TextFormattingResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("No formatting properties specified", parsed.Message);
+    }
+
+    [Fact]
+    public async Task Apply_InvalidHexColor_ReturnsStructuredError()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        var result = await _tools.pptx_manage_text_formatting(path, TextFormattingAction.Apply,
+            slideNumber: 1, shapeName: "Target", color: "red");
+
+        var parsed = JsonSerializer.Deserialize<TextFormattingResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("Invalid hex color", parsed.Message);
+    }
+
+    [Fact]
+    public async Task Apply_NegativeFontSize_ReturnsStructuredError()
+    {
+        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
+
+        var result = await _tools.pptx_manage_text_formatting(path, TextFormattingAction.Apply,
+            slideNumber: 1, shapeName: "Target", fontSize: -5.0);
+
+        var parsed = JsonSerializer.Deserialize<TextFormattingResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("fontSize must be a positive number", parsed.Message);
+    }
+
     // ── Unknown action ───────────────────────────────────────────────────────────
 
     [Fact]
