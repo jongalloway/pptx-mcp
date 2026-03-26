@@ -274,23 +274,14 @@ public class TextFormattingTests : PptxTestBase
 
     // ── GetTextFormatting: error handling ─────────────────────────────────────────
 
-    [Fact]
-    public void GetTextFormatting_SlideNumberOutOfRange_ReturnsFailure()
+    [Theory]
+    [InlineData(99)]
+    [InlineData(0)]
+    public void GetTextFormatting_InvalidSlideNumber_ReturnsFailure(int slideNumber)
     {
         var path = CreateMinimalPptx();
 
-        var result = Service.GetTextFormatting(path, slideNumber: 99);
-
-        Assert.False(result.Success);
-        Assert.Contains("out of range", result.Message);
-    }
-
-    [Fact]
-    public void GetTextFormatting_SlideNumberZero_ReturnsFailure()
-    {
-        var path = CreateMinimalPptx();
-
-        var result = Service.GetTextFormatting(path, slideNumber: 0);
+        var result = Service.GetTextFormatting(path, slideNumber: slideNumber);
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message);
@@ -436,28 +427,18 @@ public class TextFormattingTests : PptxTestBase
 
     // ── ApplyTextFormatting: color ────────────────────────────────────────────────
 
-    [Fact]
-    public void ApplyTextFormatting_Color_AppliedAsRgbHex()
+    [Theory]
+    [InlineData("#00FF00", "#00FF00")]
+    [InlineData("0000FF", "#0000FF")]
+    public void ApplyTextFormatting_Color_AppliedAsRgbHex(string inputColor, string expectedColor)
     {
         var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
 
-        Service.ApplyTextFormatting(path, 1, "Target", color: "#00FF00");
+        Service.ApplyTextFormatting(path, 1, "Target", color: inputColor);
 
         var readBack = Service.GetTextFormatting(path, shapeName: "Target");
         var run = Assert.Single(readBack.Formattings, f => f.ShapeName == "Target");
-        Assert.Equal("#00FF00", run.Color);
-    }
-
-    [Fact]
-    public void ApplyTextFormatting_Color_WithoutHashPrefix()
-    {
-        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
-
-        Service.ApplyTextFormatting(path, 1, "Target", color: "0000FF");
-
-        var readBack = Service.GetTextFormatting(path, shapeName: "Target");
-        var run = Assert.Single(readBack.Formattings, f => f.ShapeName == "Target");
-        Assert.Equal("#0000FF", run.Color);
+        Assert.Equal(expectedColor, run.Color);
     }
 
     [Fact]
@@ -536,53 +517,29 @@ public class TextFormattingTests : PptxTestBase
         Assert.Contains("No formatting properties specified", result.Message);
     }
 
-    [Fact]
-    public void ApplyTextFormatting_NegativeFontSize_ReturnsFailure()
+    [Theory]
+    [InlineData(-1.0)]
+    [InlineData(0.0)]
+    public void ApplyTextFormatting_InvalidFontSize_ReturnsFailure(double fontSize)
     {
         var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
 
-        var result = Service.ApplyTextFormatting(path, 1, "Target", fontSize: -1.0);
+        var result = Service.ApplyTextFormatting(path, 1, "Target", fontSize: fontSize);
 
         Assert.False(result.Success);
         Assert.Contains("fontSize must be a positive number", result.Message);
     }
 
-    [Fact]
-    public void ApplyTextFormatting_ZeroFontSize_ReturnsFailure()
-    {
-        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
-
-        var result = Service.ApplyTextFormatting(path, 1, "Target", fontSize: 0.0);
-
-        Assert.False(result.Success);
-        Assert.Contains("fontSize must be a positive number", result.Message);
-    }
-
-    [Fact]
-    public void ApplyTextFormatting_InvalidHexColor_ThrowsArgumentException()
+    [Theory]
+    [InlineData("red")]
+    [InlineData("#FFF")]
+    [InlineData("#GGGGGG")]
+    public void ApplyTextFormatting_InvalidHexColor_ThrowsArgumentException(string color)
     {
         var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
 
         Assert.Throws<ArgumentException>(() =>
-            Service.ApplyTextFormatting(path, 1, "Target", color: "red"));
-    }
-
-    [Fact]
-    public void ApplyTextFormatting_InvalidHexColor_TooShort_ThrowsArgumentException()
-    {
-        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
-
-        Assert.Throws<ArgumentException>(() =>
-            Service.ApplyTextFormatting(path, 1, "Target", color: "#FFF"));
-    }
-
-    [Fact]
-    public void ApplyTextFormatting_InvalidHexColor_InvalidCharacters_ThrowsArgumentException()
-    {
-        var path = CreateFormattedPptx(shapeName: "Target", text: "Test");
-
-        Assert.Throws<ArgumentException>(() =>
-            Service.ApplyTextFormatting(path, 1, "Target", color: "#GGGGGG"));
+            Service.ApplyTextFormatting(path, 1, "Target", color: color));
     }
 
     [Fact]
@@ -761,23 +718,14 @@ public class TextFormattingTests : PptxTestBase
         Assert.True(result.Success);
     }
 
-    [Fact]
-    public void ApplyTextFormatting_SlideNotFound_ReturnsFailure()
+    [Theory]
+    [InlineData(99)]
+    [InlineData(0)]
+    public void ApplyTextFormatting_InvalidSlideNumber_ReturnsFailure(int slideNumber)
     {
         var path = CreateMinimalPptx();
 
-        var result = Service.ApplyTextFormatting(path, 99, "AnyShape", bold: true);
-
-        Assert.False(result.Success);
-        Assert.Contains("out of range", result.Message);
-    }
-
-    [Fact]
-    public void ApplyTextFormatting_SlideNumberZero_ReturnsFailure()
-    {
-        var path = CreateMinimalPptx();
-
-        var result = Service.ApplyTextFormatting(path, 0, "AnyShape", bold: true);
+        var result = Service.ApplyTextFormatting(path, slideNumber, "AnyShape", bold: true);
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message);

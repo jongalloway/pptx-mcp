@@ -196,3 +196,16 @@
   - Tool parameter `filePath` is `string?` (nullable) — SchemaOnly works with null, other actions return structured error
 - **Build status:** 0 compilation errors, 74/76 tests passing, 2 failures from title extraction bug (spec-correct test expectations)
 - **Test count:** 1015 total (up from 939), 1013 passing
+
+### Issue #150 Test Modernization (PR #151)
+- **Scope:** Modernized test suite with parameterized tests and parallelization across 6 files
+- **Phase 1 — NullValidationTests:** 18 null/empty pairs converted to `[Theory]`, class migrated to `PptxTestBase`
+- **Phase 2 — BoundaryConditionTests:** 6 boundary-condition groups parameterized, class migrated to `PptxTestBase`
+- **Phase 3 — Parallelization:** Added `xunit.runner.json` with aggressive parallel mode; test time halved (~15s → ~7s)
+- **Phase 4 — Additional Theories:** ValidationTests (3→1), TextFormattingTests (9→4), CompareTests (3→1)
+- **Net result:** -342 lines, 1022/1022 passing, zero behavioral changes
+- **Key patterns:**
+  - `string? filePath` parameter with `[InlineData(null)]`/`[InlineData("")]` for null/empty file path pairs
+  - `bool useNull` flag for array-typed parameters (mutations, headers, updates)
+  - `PptxTestBase` provides `Service`, `CreateMinimalPptx()`, `CreatePptxWithSlides()`, `TrackTempFile()`
+  - xUnit v3 supports `[InlineData(null)]` for nullable string parameters
