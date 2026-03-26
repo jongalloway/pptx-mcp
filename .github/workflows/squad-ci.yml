@@ -1,5 +1,4 @@
 name: Squad CI
-# dotnet project — configure build/test commands below
 
 on:
   pull_request:
@@ -14,13 +13,17 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Restore dependencies
         run: dotnet restore PptxTools.slnx
@@ -29,4 +32,4 @@ jobs:
         run: dotnet build PptxTools.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --solution PptxTools.slnx --no-build --configuration Release
+        run: dotnet test --solution PptxTools.slnx --no-build --configuration Release --verbosity normal
