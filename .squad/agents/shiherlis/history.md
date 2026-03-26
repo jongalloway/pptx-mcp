@@ -129,3 +129,18 @@
   - Optional params use `string.IsNullOrWhiteSpace` or nullable types with null-coalescing logic
   - Prompts reference tool names by their MCP names (e.g., "pptx_batch_update" not "BatchUpdate")
 - **Result:** Branch `squad/123-additional-mcp-prompts` pushed with tests; full prompt template test coverage achieved (7/7 prompts tested)
+### Issue #121 Validation & Diagnostics Test Suite (2026-03-25)
+- **Scope:** 41 new tests across 2 files for pptx_validate_presentation
+- **Files created:**
+  - `tests/PptxTools.Tests/Services/ValidationTests.cs` — 30 service-level tests
+  - `tests/PptxTools.Tests/Tools/ValidationToolsTests.cs` — 11 tool-level tests
+- **Coverage:** 616/616 tests passing (up from 575)
+- **Key patterns learned:**
+  - Tool was initially named `pxtx_validate_presentation` (typo), Cheritto fixed to `pptx_validate_presentation` in follow-up commit
+  - Validation checks: DuplicateShapeId, MissingImageReference, MissingRequiredElement, OrphanedRelationship, BrokenHyperlinkTarget, CrossSlideDuplicateShapeId
+  - `ValidatePresentation(filePath, slideNumber?)` — slideNumber filter skips cross-slide check
+  - Cross-slide shape ID duplicates are Info severity (common in normal presentations)
+  - TestPptxHelper reuses shape IDs starting at 2 per slide, so multi-slide fixtures naturally produce CrossSlideDuplicateShapeId issues
+  - Corrupt fixtures created by opening valid PPTX with `PresentationDocument.Open(path, true)` and modifying XML directly
+  - Concurrent agents on same repo can switch branches — must verify branch before each operation
+- **Edge cases tested:** duplicate shape IDs (within-slide and cross-slide), missing image ref (broken blip embed rId999), missing CommonSlideData, missing ShapeTree, empty presentation (no slides), file not found, slide number filtering, severity sorting, idempotency
