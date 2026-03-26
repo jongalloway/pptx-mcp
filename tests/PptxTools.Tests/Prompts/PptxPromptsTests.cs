@@ -171,6 +171,330 @@ public class PptxPromptsTests
         Assert.Contains("pptx_get_slide_content", text);
     }
 
+    // --- BatchUpdateFromCsv ---
+
+    [Fact]
+    public void BatchUpdateFromCsv_ReturnsAtLeastOneMessage()
+    {
+        var messages = _prompts.BatchUpdateFromCsv("/path/to/deck.pptx", "/path/to/data.csv").ToList();
+        Assert.NotEmpty(messages);
+    }
+
+    [Fact]
+    public void BatchUpdateFromCsv_FirstMessageIsUserRole()
+    {
+        var messages = _prompts.BatchUpdateFromCsv("/path/to/deck.pptx", "/path/to/data.csv").ToList();
+        Assert.Equal(Role.User, messages[0].Role);
+    }
+
+    [Fact]
+    public void BatchUpdateFromCsv_ContainsFilePath()
+    {
+        const string path = "/my/presentation.pptx";
+        var messages = _prompts.BatchUpdateFromCsv(path, "/data.csv").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains(path, text);
+    }
+
+    [Fact]
+    public void BatchUpdateFromCsv_ContainsCsvPath()
+    {
+        const string csvPath = "/my/data/metrics.csv";
+        var messages = _prompts.BatchUpdateFromCsv("/deck.pptx", csvPath).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains(csvPath, text);
+    }
+
+    [Fact]
+    public void BatchUpdateFromCsv_MentionsBatchUpdateTool()
+    {
+        var messages = _prompts.BatchUpdateFromCsv("/deck.pptx", "/data.csv").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_batch_update", text);
+    }
+
+    [Fact]
+    public void BatchUpdateFromCsv_MentionsListSlidesTool()
+    {
+        var messages = _prompts.BatchUpdateFromCsv("/deck.pptx", "/data.csv").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_list_slides", text);
+    }
+
+    [Fact]
+    public void BatchUpdateFromCsv_MentionsGetSlideContentTool()
+    {
+        var messages = _prompts.BatchUpdateFromCsv("/deck.pptx", "/data.csv").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_get_slide_content", text);
+    }
+
+    // --- ExtractForBlog ---
+
+    [Fact]
+    public void ExtractForBlog_ReturnsAtLeastOneMessage()
+    {
+        var messages = _prompts.ExtractForBlog("/path/to/deck.pptx").ToList();
+        Assert.NotEmpty(messages);
+    }
+
+    [Fact]
+    public void ExtractForBlog_FirstMessageIsUserRole()
+    {
+        var messages = _prompts.ExtractForBlog("/path/to/deck.pptx").ToList();
+        Assert.Equal(Role.User, messages[0].Role);
+    }
+
+    [Fact]
+    public void ExtractForBlog_ContainsFilePath()
+    {
+        const string path = "/my/slides.pptx";
+        var messages = _prompts.ExtractForBlog(path).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains(path, text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_WithNullFormat_UsesMarkdownDefault()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx", null).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("markdown", text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_WithMarkdownFormat_IncludesFormatInText()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx", "markdown").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("markdown", text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_WithHtmlFormat_IncludesFormatInText()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx", "html").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("html", text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_WithInvalidFormat_DefaultsToMarkdown()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx", "text").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("markdown", text);
+        Assert.DoesNotContain("in text format", text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_MentionsExportMarkdownTool()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_export_markdown", text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_MentionsExtractTalkingPointsTool()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_extract_talking_points", text);
+    }
+
+    [Fact]
+    public void ExtractForBlog_MentionsListSlidesTool()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_list_slides", text);
+    }
+
+    // --- CreateSpeakerNotesOutline ---
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_ReturnsAtLeastOneMessage()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/path/to/deck.pptx").ToList();
+        Assert.NotEmpty(messages);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_FirstMessageIsUserRole()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/path/to/deck.pptx").ToList();
+        Assert.Equal(Role.User, messages[0].Role);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_ContainsFilePath()
+    {
+        const string path = "/my/presentation.pptx";
+        var messages = _prompts.CreateSpeakerNotesOutline(path).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains(path, text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_WithNullStyle_UsesBulletPointsDefault()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx", null).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("bullet-points", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_WithBulletPointsStyle_IncludesStyleInText()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx", "bullet-points").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("bullet-points", text);
+        Assert.Contains("concise bullet points", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_WithNarrativeStyle_IncludesStyleInText()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx", "narrative").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("narrative", text);
+        Assert.Contains("flowing narrative", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_WithTimingCuesStyle_IncludesStyleInText()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx", "timing-cues").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("timing-cues", text);
+        Assert.Contains("timing estimates", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_WithUnknownStyle_DefaultsToBulletPoints()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx", "unknown-style").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("bullet-points", text);
+        Assert.Contains("concise bullet points", text);
+        Assert.DoesNotContain("unknown-style", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_MentionsWriteNotesTool()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_write_notes", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_MentionsExtractTalkingPointsTool()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_extract_talking_points", text);
+    }
+
+    [Fact]
+    public void CreateSpeakerNotesOutline_MentionsListSlidesTool()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_list_slides", text);
+    }
+
+    // --- OptimizeForWeb ---
+
+    [Fact]
+    public void OptimizeForWeb_ReturnsAtLeastOneMessage()
+    {
+        var messages = _prompts.OptimizeForWeb("/path/to/deck.pptx").ToList();
+        Assert.NotEmpty(messages);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_FirstMessageIsUserRole()
+    {
+        var messages = _prompts.OptimizeForWeb("/path/to/deck.pptx").ToList();
+        Assert.Equal(Role.User, messages[0].Role);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_ContainsFilePath()
+    {
+        const string path = "/my/large-deck.pptx";
+        var messages = _prompts.OptimizeForWeb(path).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains(path, text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_WithNullTargetSize_UsesGeneralGuidance()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx", null).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("Optimize as much as possible", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_WithTargetSize_IncludesTargetInText()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx", 5.0).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("5", text);
+        Assert.Contains("MB", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_WithZeroTargetSize_UsesGeneralGuidance()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx", 0).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("Optimize as much as possible", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_WithNegativeTargetSize_UsesGeneralGuidance()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx", -1).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("Optimize as much as possible", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_MentionsAnalyzeFileSizeTool()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_analyze_file_size", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_MentionsOptimizeImagesTool()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_optimize_images", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_MentionsManageMediaTool()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_manage_media", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_MentionsManageLayoutsTool()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("pptx_manage_layouts", text);
+    }
+
     // --- Helpers ---
 
     private static string GetMessageText(PromptMessage message)
