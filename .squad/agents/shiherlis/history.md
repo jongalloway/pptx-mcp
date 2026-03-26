@@ -160,3 +160,39 @@
   - Corrupt fixtures created by opening valid PPTX with `PresentationDocument.Open(path, true)` and modifying XML directly
   - Concurrent agents on same repo can switch branches — must verify branch before each operation
 - **Edge cases tested:** duplicate shape IDs (within-slide and cross-slide), missing image ref (broken blip embed rId999), missing CommonSlideData, missing ShapeTree, empty presentation (no slides), file not found, slide number filtering, severity sorting, idempotency
+
+### Issue #133 Compare Presentations Test Suite (2026-03-25)
+- **Scope:** 62 new tests across 2 files for pptx_compare_presentations
+- **Files created:**
+  - `tests/PptxTools.Tests/Services/CompareTests.cs` — 35 service-level tests
+  - `tests/PptxTools.Tests/Tools/CompareToolsTests.cs` — 27 tool-level tests
+- **Written proactively** while Cheritto implements `PresentationService.Compare.cs` — aligned tests to expected model/service/tool signatures
+- **Expected model types:** `CompareAction { Full, SlidesOnly, TextOnly, MetadataOnly }`, `ComparisonResult` (Success, Action, SourceFile, TargetFile, AreIdentical, DifferenceCount, SlideDifferences, TextDifferences, MetadataDifferences, Message), `SlideDifference` (SlideNumber, DifferenceType, Description), `TextDifference` (SlideNumber, ShapeName, SourceText, TargetText), `MetadataDifference` (Property, SourceValue, TargetValue)
+- **Expected service signature:** `ComparePresentations(string sourceFilePath, string targetFilePath, CompareAction action)` returns `ComparisonResult`
+- **Expected tool signature:** `pptx_compare_presentations(string sourceFilePath, string targetFilePath, CompareAction action)` returns `Task<string>`
+- **Service test coverage:** identical presentations (6 tests), slide count differences (4 tests), text changes (5 tests), metadata differences (5 tests), action-specific routing for SlidesOnly/TextOnly/MetadataOnly (9 tests), error handling (3 tests), edge cases (4 tests including same-file, empty, DifferenceCount invariant, idempotency)
+- **Tool test coverage:** Full/SlidesOnly/TextOnly/MetadataOnly action routing (8 tests), file-not-found for source/target/both (4 tests), Theory for all actions on missing file (1 test), JSON structure validation (6 tests including field presence, indented output, sub-object fields)
+- **Key patterns:**
+  - Compare tool takes TWO file paths — uses custom file checking like `pptx_replace_image` pattern
+  - Metadata fixtures use `doc.PackageProperties.Title/Creator/etc.` via `PresentationDocument.Open(path, true)`
+  - `CreateIdenticalPair()` helper creates two separate but structurally identical files
+  - DifferenceCount invariant: must equal sum of SlideDifferences + TextDifferences + MetadataDifferences
+- **Build status:** 10 expected compilation errors — all reference `CompareAction`/`ComparisonResult`/`pptx_compare_presentations` which Cheritto will create. Zero syntax errors in test code.
+
+### Issue #128 Export JSON Test Suite (2026-03-25)
+- **Scope:** 76 new tests across 2 files for pptx_export_json
+- **Files created:**
+  - `tests/PptxTools.Tests/Services/ExportJsonTests.cs` — 46 service-level tests
+  - `tests/PptxTools.Tests/Tools/ExportJsonToolsTests.cs` — 30 tool-level tests
+- **Written proactively** while Cheritto implements — aligned tests to WIP model/service/tool signatures
+- **Model types:** `ExportJsonAction { Full, SlidesOnly, MetadataOnly, SchemaOnly }`, `PresentationExport` (Success, Action, FilePath, Metadata, SlideCount, Slides, Schema, Message), `SlideExport` (SlideNumber, SlideIndex, Title, SlideWidthEmu, SlideHeightEmu, Shapes, SpeakerNotes), `ShapeExport` (with embedded Table/Image/Chart optional params), `TableExportData`, `ImageExport`, `ChartExport`
+- **Service test coverage:** minimal presentation (7 tests), text shapes (4 tests), tables via ShapeExport.Table (4 tests), images via ShapeExport.Image (3 tests), speaker notes (2 tests), MetadataOnly (4 tests), SlidesOnly (5 tests), SchemaOnly (5 tests), multi-slide (2 tests), mixed content (1 test), error handling (1 test), action string Theory (1 test), metadata fields (1 test), idempotency (1 test), notes per slide (1 test), shape names (1 test), invariants (2 tests), charts (2 tests), shape types (2 tests)
+- **Tool test coverage:** Full/SlidesOnly/MetadataOnly/SchemaOnly action routing (11 tests), file-not-found (4 tests), null/empty file path validation (2 tests), JSON structure (7 tests including field presence, indented output, error fields, slide/metadata/table/image/chart JSON sub-structures)
+- **Key findings:**
+  - Cheritto's model evolved during parallel development: `SlideExport` moved from separate Tables/Images/Charts/Notes params to embedded ShapeExport sub-types + computed properties + SpeakerNotes
+  - `PresentationExport` gained `Schema` field; `ChartExport`/`ImageExport` lost `ShapeName` (embedded in ShapeExport)
+  - **Bug discovered:** `ExtractSlideTitle` in `PresentationService.ExportJson.cs` checks `PlaceholderType is "title" or "ctrTitle"` but `ShapeContent.PlaceholderType` stores the C# enum name (`"Title"` / `"CenteredTitle"`), not the XML attribute value — causes 2 test failures (title always null)
+  - SchemaOnly action bypasses file I/O entirely — `Service.ExportJson("", SchemaOnly)` is valid
+  - Tool parameter `filePath` is `string?` (nullable) — SchemaOnly works with null, other actions return structured error
+- **Build status:** 0 compilation errors, 74/76 tests passing, 2 failures from title extraction bug (spec-correct test expectations)
+- **Test count:** 1015 total (up from 939), 1013 passing

@@ -38,6 +38,14 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Export JSON tool (#128, 2026-07-25)
+- `pptx_export_json` uses consolidated action enum pattern (Full, SlidesOnly, MetadataOnly, SchemaOnly) with `[McpMeta]` attributes
+- Export models embed sub-type data in shapes: `ShapeExport` has nullable `Table`, `Image`, `Chart` properties
+- `SlideExport` exposes computed `Charts`/`Images` convenience properties that aggregate from shapes (serialized in JSON, not `[JsonIgnore]`)
+- `SchemaOnly` action returns schema description string without reading any file — tool handles null filePath gracefully
+- Reuses `GetSlideContent`, `GetPresentationMetadata`, `GetSlideNotes`, and `ExtractChartData` from existing service partial classes
+- Chart data extracted via `BuildChartLookup` keyed by shape name, then matched during shape iteration
+
 ### Completion handler expansion (#137, 2026-07-24)
 - `PptxCompletionHandler` supports two categories: static completions (just a string[] array + filter) and dynamic completions (resolve file path from contextArgs, call PresentationService, extract names)
 - Static completions added: `action`, `format`, `style`, `chartAction` — no file context needed
@@ -77,6 +85,14 @@
 - **Findings:** MCP SDK patterns match dotnet-mcp exactly; OpenXML approach is cleaner than MarpToPptx's explicit assignment
 - **Recommendations:** Low-priority polish (size checks, validation helpers, documentation updates)
 - **Result:** Phase 2 issues #15–#19 all closed, 66/66 tests passing (up from 52 end of Phase 1)
+
+### Compare presentations tool (#133)
+- `pptx_compare_presentations` is a read-only consolidated tool with `CompareAction` enum: Full, SlidesOnly, TextOnly, MetadataOnly
+- Flat result structure with three separate diff lists: `SlideDifferences`, `TextDifferences`, `MetadataDifferences` plus computed `AreIdentical` and `DifferenceCount`
+- Two-file tools can't use `ExecuteToolStructured` (single filePath) — use manual file-exists checks and try/catch in the tool method
+- MCP SDK source generator fails when enum parameters have default values (e.g. `CompareAction action = CompareAction.Full`) — make action required instead
+- Text comparison keys shapes by `Name` property and compares all shapes with non-null `Text`, not just specific ShapeTypes
+- Reuses `GetAllSlideContents` and `GetPresentationMetadata` for data extraction, keeping the compare service thin
 
 ### Batch deck refresh tool (2026-03-16)
 - `src/PptxMcp/Tools/PptxTools.cs` now exposes `pptx_batch_update(filePath, mutations)` as a thin MCP wrapper that returns structured JSON and keeps empty batches as a zero-count success case.

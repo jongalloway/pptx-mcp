@@ -796,7 +796,7 @@ public partial class PresentationService
                     Index: index,
                     Name: string.IsNullOrWhiteSpace(name) ? $"Shape {index}" : name,
                     ShapeId: drawingProperties?.Id?.Value,
-                    PlaceholderType: placeholderShape?.Type?.Value.ToString(),
+                    PlaceholderType: placeholderShape?.Type?.InnerText,
                     LayoutPlaceholderIndex: placeholderShape?.Index?.Value);
             })
             .ToList();
@@ -1101,7 +1101,7 @@ public partial class PresentationService
             Width: xfrm?.Extents?.Cx?.Value,
             Height: xfrm?.Extents?.Cy?.Value,
             IsPlaceholder: ph is not null,
-            PlaceholderType: ph?.Type?.Value.ToString(),
+            PlaceholderType: ph?.Type?.InnerText,
             PlaceholderIndex: ph?.Index?.Value,
             Text: paragraphs.Count > 0 ? string.Join("\n", paragraphs) : null,
             Paragraphs: paragraphs.Count > 0 ? paragraphs : null,
