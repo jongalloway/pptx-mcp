@@ -202,3 +202,14 @@
 - **Build:** 0 errors, 575/575 tests passing
 - **PR:** #113 on branch squad/110-rename-pptx-tools
 
+### Issue #121 — Presentation Validation and Diagnostics (2026-03-25)
+- **Implementation:** `pxtx_validate_presentation` consolidated tool with `Validate` action (read-only, idempotent)
+- **Checks:** Duplicate shape IDs (per-slide + cross-slide), missing image references (broken Blip.Embed), orphaned relationships (unreferenced parts), broken hyperlink targets (both internal slide links and external), missing required elements (CommonSlideData, ShapeTree)
+- **Pattern:** Follows established consolidated tool pattern — `ValidationAction` enum, `[McpMeta]` attributes, `ExecuteToolStructured` dispatch, structured error results
+- **Model:** `ValidationResult` record with `ValidationIssue` items carrying `SlideNumber?`, `Severity` (Error/Warning/Info), `Category`, `Description`, `Recommendation`
+- **Service:** `PresentationService.Validation.cs` partial — traverses OpenXML document structure using existing `GetSlideIds`/`GetSlidePart` helpers; `GetShapeIdAndName` helper mirrors `GetMaxShapeId` shape-type switch
+- **Files:** 3 new (model, service partial, tool partial), 429 lines
+- **Build:** 0 errors, Release config
+- **PR:** #146 on branch squad/121-validation-diagnostics
+- **Note:** Stale TextFormatting files from squad/125-text-formatting branch had to be cleaned before build; cross-slide duplicate IDs reported as Info severity since PowerPoint commonly reuses IDs across slides
+
