@@ -369,14 +369,17 @@ public class CompareTests : PptxTestBase
     // Action-specific: SlidesOnly
     // ────────────────────────────────────────────────────────
 
-    [Fact]
-    public void ComparePresentations_SlidesOnly_ReturnsActionName()
+    [Theory]
+    [InlineData(CompareAction.SlidesOnly, "SlidesOnly")]
+    [InlineData(CompareAction.TextOnly, "TextOnly")]
+    [InlineData(CompareAction.MetadataOnly, "MetadataOnly")]
+    public void ComparePresentations_ActionSpecific_ReturnsActionName(CompareAction action, string expectedName)
     {
         var (source, target) = CreateIdenticalPair();
 
-        var result = Service.ComparePresentations(source, target, CompareAction.SlidesOnly);
+        var result = Service.ComparePresentations(source, target, action);
 
-        Assert.Equal("SlidesOnly", result.Action);
+        Assert.Equal(expectedName, result.Action);
     }
 
     [Fact]
@@ -412,16 +415,6 @@ public class CompareTests : PptxTestBase
     // ────────────────────────────────────────────────────────
 
     [Fact]
-    public void ComparePresentations_TextOnly_ReturnsActionName()
-    {
-        var (source, target) = CreateIdenticalPair();
-
-        var result = Service.ComparePresentations(source, target, CompareAction.TextOnly);
-
-        Assert.Equal("TextOnly", result.Action);
-    }
-
-    [Fact]
     public void ComparePresentations_TextOnly_IdenticalText_NoDifferences()
     {
         var (source, target) = CreateIdenticalPair();
@@ -451,16 +444,6 @@ public class CompareTests : PptxTestBase
     // ────────────────────────────────────────────────────────
     // Action-specific: MetadataOnly
     // ────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ComparePresentations_MetadataOnly_ReturnsActionName()
-    {
-        var (source, target) = CreateIdenticalPair();
-
-        var result = Service.ComparePresentations(source, target, CompareAction.MetadataOnly);
-
-        Assert.Equal("MetadataOnly", result.Action);
-    }
 
     [Fact]
     public void ComparePresentations_MetadataOnly_IdenticalMetadata_NoDifferences()

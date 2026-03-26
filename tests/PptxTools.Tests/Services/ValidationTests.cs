@@ -251,31 +251,14 @@ public class ValidationTests : PptxTestBase
         Assert.Empty(crossSlideIssues);
     }
 
-    [Fact]
-    public void ValidatePresentation_SlideNumberTooHigh_ReturnsFailure()
+    [Theory]
+    [InlineData(999)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ValidatePresentation_InvalidSlideNumber_ReturnsFailure(int slideNumber)
     {
         var path = CreateMinimalPptx();
-        var result = Service.ValidatePresentation(path, slideNumber: 999);
-
-        Assert.False(result.Success);
-        Assert.Contains("out of range", result.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ValidatePresentation_SlideNumberZero_ReturnsFailure()
-    {
-        var path = CreateMinimalPptx();
-        var result = Service.ValidatePresentation(path, slideNumber: 0);
-
-        Assert.False(result.Success);
-        Assert.Contains("out of range", result.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ValidatePresentation_SlideNumberNegative_ReturnsFailure()
-    {
-        var path = CreateMinimalPptx();
-        var result = Service.ValidatePresentation(path, slideNumber: -1);
+        var result = Service.ValidatePresentation(path, slideNumber: slideNumber);
 
         Assert.False(result.Success);
         Assert.Contains("out of range", result.Message, StringComparison.OrdinalIgnoreCase);

@@ -7,278 +7,198 @@ namespace PptxTools.Tests.Services;
 /// returning descriptive error strings or structured failure results,
 /// never throwing unhandled exceptions to the caller.
 /// </summary>
-public class NullValidationTests : IDisposable
+public class NullValidationTests : PptxTestBase
 {
-    private readonly PresentationService _service = new();
     private readonly global::PptxTools.Tools.PptxTools _tools;
-    private readonly List<string> _tempFiles = [];
 
     public NullValidationTests()
     {
-        _tools = new global::PptxTools.Tools.PptxTools(_service);
-    }
-
-    public void Dispose()
-    {
-        foreach (var file in _tempFiles)
-            if (File.Exists(file)) File.Delete(file);
-    }
-
-    private string CreatePresentation(params TestSlideDefinition[] slides)
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreatePresentation(path, slides);
-        return path;
-    }
-
-    private string CreateMinimalPresentation(string? titleText = "Test Slide")
-    {
-        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
-        _tempFiles.Add(path);
-        TestPptxHelper.CreateMinimalPresentation(path, titleText);
-        return path;
+        _tools = new global::PptxTools.Tools.PptxTools(Service);
     }
 
     // ────────────────────────────────────────────────────────────────────────
     // Null / empty filePath → every tool should return an error string
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task ListSlides_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ListSlides_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_list_slides(null!);
+        var result = await _tools.pptx_list_slides(filePath!);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task ListSlides_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task GetSlideContent_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_list_slides("");
+        var result = await _tools.pptx_get_slide_content(filePath!, 0);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task GetSlideContent_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task GetSlideXml_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_get_slide_content(null!, 0);
+        var result = await _tools.pptx_get_slide_xml(filePath!, 0);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task GetSlideContent_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ExtractTalkingPoints_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_get_slide_content("", 0);
+        var result = await _tools.pptx_extract_talking_points(filePath!);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task GetSlideXml_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ExportMarkdown_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_get_slide_xml(null!, 0);
+        var result = await _tools.pptx_export_markdown(filePath!);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task GetSlideXml_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task UpdateSlideData_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_get_slide_xml("", 0);
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task ExtractTalkingPoints_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_extract_talking_points(null!);
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task ExtractTalkingPoints_EmptyFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_extract_talking_points("");
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task ExportMarkdown_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_export_markdown(null!);
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task ExportMarkdown_EmptyFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_export_markdown("");
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task UpdateSlideData_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_update_slide_data(null!, 1, "Shape", null, "text");
+        var result = await _tools.pptx_update_slide_data(filePath!, 1, "Shape", null, "text");
         var parsed = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
     }
 
-    [Fact]
-    public async Task UpdateSlideData_EmptyFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_update_slide_data("", 1, "Shape", null, "text");
-        var parsed = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-    }
-
-    [Fact]
-    public async Task BatchUpdate_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task BatchUpdate_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
         var mutations = new[] { new BatchUpdateMutation(1, "Title", "val") };
-        var result = await _tools.pptx_batch_update(null!, mutations);
+        var result = await _tools.pptx_batch_update(filePath!, mutations);
         Assert.Contains("Error", result, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task BatchUpdate_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task InsertTable_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var mutations = new[] { new BatchUpdateMutation(1, "Title", "val") };
-        var result = await _tools.pptx_batch_update("", mutations);
-        Assert.Contains("Error", result, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task InsertTable_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_insert_table(null!, 1, ["A"], [["1"]]);
+        var result = await _tools.pptx_insert_table(filePath!, 1, ["A"], [["1"]]);
         var parsed = JsonSerializer.Deserialize<TableInsertResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
     }
 
-    [Fact]
-    public async Task InsertTable_EmptyFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_insert_table("", 1, ["A"], [["1"]]);
-        var parsed = JsonSerializer.Deserialize<TableInsertResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-    }
-
-    [Fact]
-    public async Task UpdateTable_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task UpdateTable_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
         var updates = new[] { new TableCellUpdate(0, 0, "val") };
-        var result = await _tools.pptx_update_table(null!, 1, updates);
+        var result = await _tools.pptx_update_table(filePath!, 1, updates);
         var parsed = JsonSerializer.Deserialize<TableUpdateResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
     }
 
-    [Fact]
-    public async Task UpdateTable_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task InsertImage_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var updates = new[] { new TableCellUpdate(0, 0, "val") };
-        var result = await _tools.pptx_update_table("", 1, updates);
-        var parsed = JsonSerializer.Deserialize<TableUpdateResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-    }
-
-    [Fact]
-    public async Task InsertImage_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_insert_image(null!, 0, "fake.png");
+        var result = await _tools.pptx_insert_image(filePath!, 0, "fake.png");
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task InsertImage_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ReplaceImage_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_insert_image("", 0, "fake.png");
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task ReplaceImage_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_replace_image(null!, 1, "Shape", null, "fake.png");
+        var result = await _tools.pptx_replace_image(filePath!, 1, "Shape", null, "fake.png");
         var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
     }
 
-    [Fact]
-    public async Task ReplaceImage_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task WriteNotes_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_replace_image("", 1, "Shape", null, "fake.png");
-        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-    }
-
-    [Fact]
-    public async Task WriteNotes_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_write_notes(null!, 0, "notes");
+        var result = await _tools.pptx_write_notes(filePath!, 0, "notes");
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task WriteNotes_EmptyFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task MoveSlide_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_write_notes("", 0, "notes");
+        var result = await _tools.pptx_reorder_slides(filePath!, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 2);
+        Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task DeleteSlide_NullOrEmptyFilePath_ReturnsError(string? filePath)
+    {
+        var result = await _tools.pptx_delete_slide(filePath!, 1);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task MoveSlide_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ReorderSlides_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_reorder_slides(null!, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 2);
-        Assert.Contains("File not found", result);
+        var result = await _tools.pptx_reorder_slides(filePath!, ReorderSlidesAction.Reorder, newOrder: [1]);
+        Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task DeleteSlide_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ListLayouts_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_delete_slide(null!, 1);
+        var result = await _tools.pptx_list_layouts(filePath!);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task ReorderSlides_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task AddSlide_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_reorder_slides(null!, ReorderSlidesAction.Reorder, newOrder: [1]);
-        Assert.Contains("File not found", result);
+        var result = await _tools.pptx_manage_slides(filePath!, ManageSlidesAction.Add);
+        Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task ListLayouts_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ManageLayouts_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_list_layouts(null!);
-        Assert.Contains("Error", result);
+        var result = await _tools.pptx_manage_layouts(filePath!, ManageLayoutsAction.Find);
+        Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task AddSlide_NullFilePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ManageMedia_NullOrEmptyFilePath_ReturnsError(string? filePath)
     {
-        var result = await _tools.pptx_manage_slides(null!, ManageSlidesAction.Add);
-        Assert.Contains("File not found", result);
-    }
-
-    [Fact]
-    public async Task ManageLayouts_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_manage_layouts(null!, ManageLayoutsAction.Find);
-        Assert.Contains("File not found", result);
-    }
-
-    [Fact]
-    public async Task ManageMedia_NullFilePath_ReturnsError()
-    {
-        var result = await _tools.pptx_manage_media(null!, ManageMediaAction.Analyze);
-        Assert.Contains("File not found", result);
+        var result = await _tools.pptx_manage_media(filePath!, ManageMediaAction.Analyze);
+        Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -288,7 +208,7 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task UpdateSlideData_NullShapeNameAndNullIndex_ReturnsFailure()
     {
-        var path = CreateMinimalPresentation();
+        var path = CreateMinimalPptx();
         var result = await _tools.pptx_update_slide_data(path, 1, null, null, "text");
         var parsed = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
         Assert.NotNull(parsed);
@@ -299,8 +219,8 @@ public class NullValidationTests : IDisposable
     [Fact]
     public void UpdateSlideData_Service_NullShapeNameAndNullIndex_ReturnsFailure()
     {
-        var path = CreateMinimalPresentation();
-        var result = _service.UpdateSlideData(path, 1, null, null, "new text");
+        var path = CreateMinimalPptx();
+        var result = Service.UpdateSlideData(path, 1, null, null, "new text");
         Assert.False(result.Success);
         Assert.Contains("shapeName", result.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -309,11 +229,14 @@ public class NullValidationTests : IDisposable
     // Empty mutations array for batch update
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task BatchUpdate_NullMutations_ReturnsEmptyResult()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BatchUpdate_NullOrEmptyMutations_ReturnsEmptyResult(bool useNull)
     {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_batch_update(path, null!);
+        var path = CreateMinimalPptx();
+        var mutations = useNull ? null! : Array.Empty<BatchUpdateMutation>();
+        var result = await _tools.pptx_batch_update(path, mutations);
         var parsed = JsonSerializer.Deserialize<BatchUpdateResult>(result);
         Assert.NotNull(parsed);
         Assert.Equal(0, parsed.TotalMutations);
@@ -322,34 +245,14 @@ public class NullValidationTests : IDisposable
         Assert.Empty(parsed.Results);
     }
 
-    [Fact]
-    public async Task BatchUpdate_EmptyMutations_ReturnsEmptyResult()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void BatchUpdate_Service_NullOrEmptyMutations_ReturnsEmptyResult(bool useNull)
     {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_batch_update(path, []);
-        var parsed = JsonSerializer.Deserialize<BatchUpdateResult>(result);
-        Assert.NotNull(parsed);
-        Assert.Equal(0, parsed.TotalMutations);
-        Assert.Equal(0, parsed.SuccessCount);
-        Assert.Equal(0, parsed.FailureCount);
-        Assert.Empty(parsed.Results);
-    }
-
-    [Fact]
-    public void BatchUpdate_Service_NullMutations_ReturnsEmptyResult()
-    {
-        var path = CreateMinimalPresentation();
-        var result = _service.BatchUpdate(path, null!);
-        Assert.Equal(0, result.TotalMutations);
-        Assert.Equal(0, result.SuccessCount);
-        Assert.Empty(result.Results);
-    }
-
-    [Fact]
-    public void BatchUpdate_Service_EmptyMutations_ReturnsEmptyResult()
-    {
-        var path = CreateMinimalPresentation();
-        var result = _service.BatchUpdate(path, []);
+        var path = CreateMinimalPptx();
+        var mutations = useNull ? null! : Array.Empty<BatchUpdateMutation>();
+        var result = Service.BatchUpdate(path, mutations);
         Assert.Equal(0, result.TotalMutations);
         Assert.Equal(0, result.SuccessCount);
         Assert.Empty(result.Results);
@@ -359,21 +262,14 @@ public class NullValidationTests : IDisposable
     // Null headers / rows for table insert
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task InsertTable_NullHeaders_ReturnsFailure()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InsertTable_NullOrEmptyHeaders_ReturnsFailure(bool useNull)
     {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_insert_table(path, 1, null!, [["1"]]);
-        var parsed = JsonSerializer.Deserialize<TableInsertResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-    }
-
-    [Fact]
-    public async Task InsertTable_EmptyHeaders_ReturnsFailure()
-    {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_insert_table(path, 1, [], [["1"]]);
+        var path = CreateMinimalPptx();
+        var headers = useNull ? null! : Array.Empty<string>();
+        var result = await _tools.pptx_insert_table(path, 1, headers, [["1"]]);
         var parsed = JsonSerializer.Deserialize<TableInsertResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
@@ -383,7 +279,7 @@ public class NullValidationTests : IDisposable
     public async Task InsertTable_NullRows_Succeeds()
     {
         // Null rows coalesced to empty — header-only table is valid
-        var path = CreateMinimalPresentation();
+        var path = CreateMinimalPptx();
         var result = await _tools.pptx_insert_table(path, 1, ["Col1"], null!);
         var parsed = JsonSerializer.Deserialize<TableInsertResult>(result);
         Assert.NotNull(parsed);
@@ -395,22 +291,14 @@ public class NullValidationTests : IDisposable
     // Null / empty updates for table update
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task UpdateTable_NullUpdates_ReturnsFailure()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UpdateTable_NullOrEmptyUpdates_ReturnsFailure(bool useNull)
     {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_update_table(path, 1, null!);
-        var parsed = JsonSerializer.Deserialize<TableUpdateResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-        Assert.Contains("No updates provided", parsed.Message);
-    }
-
-    [Fact]
-    public async Task UpdateTable_EmptyUpdates_ReturnsFailure()
-    {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_update_table(path, 1, []);
+        var path = CreateMinimalPptx();
+        var updates = useNull ? null! : Array.Empty<TableCellUpdate>();
+        var result = await _tools.pptx_update_table(path, 1, updates);
         var parsed = JsonSerializer.Deserialize<TableUpdateResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
@@ -421,45 +309,27 @@ public class NullValidationTests : IDisposable
     // Null imagePath for image operations
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task InsertImage_NullImagePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task InsertImage_NullOrEmptyImagePath_ReturnsError(string? imagePath)
     {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_insert_image(path, 0, null!);
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_insert_image(path, 0, imagePath!);
         Assert.Contains("Error", result);
     }
 
-    [Fact]
-    public async Task InsertImage_EmptyImagePath_ReturnsError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ReplaceImage_NullOrEmptyImagePath_ReturnsFailure(string? imagePath)
     {
-        var path = CreateMinimalPresentation();
-        var result = await _tools.pptx_insert_image(path, 0, "");
-        Assert.Contains("Error", result);
-    }
-
-    [Fact]
-    public async Task ReplaceImage_NullImagePath_ReturnsFailure()
-    {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Slide",
             IncludeImage = true
         });
-        var result = await _tools.pptx_replace_image(path, 1, null, 0, null!);
-        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
-        Assert.NotNull(parsed);
-        Assert.False(parsed.Success);
-    }
-
-    [Fact]
-    public async Task ReplaceImage_EmptyImagePath_ReturnsFailure()
-    {
-        var path = CreatePresentation(new TestSlideDefinition
-        {
-            TitleText = "Slide",
-            IncludeImage = true
-        });
-        var result = await _tools.pptx_replace_image(path, 1, null, 0, "");
+        var result = await _tools.pptx_replace_image(path, 1, null, 0, imagePath!);
         var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
         Assert.NotNull(parsed);
         Assert.False(parsed.Success);
@@ -472,14 +342,14 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task ReplaceImage_NullShapeNameAndNullIndex_ReturnsFailure()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Slide",
             IncludeImage = true
         });
         // Create a real image file so we get past file-exists checks
         var imgPath = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".png");
-        _tempFiles.Add(imgPath);
+        TrackTempFile(imgPath);
         File.WriteAllBytes(imgPath, CreateMinimalPng());
 
         var result = await _tools.pptx_replace_image(path, 1, null, null, imgPath);
@@ -495,7 +365,7 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task UpdateSlideData_EmptyNewText_Succeeds()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Original Title",
             TextShapes =
@@ -517,7 +387,7 @@ public class NullValidationTests : IDisposable
     [Fact]
     public void UpdateSlideData_Service_EmptyNewText_ClearsShape()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Title",
             TextShapes =
@@ -529,11 +399,11 @@ public class NullValidationTests : IDisposable
                 }
             ]
         });
-        var result = _service.UpdateSlideData(path, 1, "Content", null, "");
+        var result = Service.UpdateSlideData(path, 1, "Content", null, "");
         Assert.True(result.Success);
 
         // Verify shape text is now empty
-        var content = _service.GetSlideContent(path, 0);
+        var content = Service.GetSlideContent(path, 0);
         var shape = content.Shapes.First(s => s.Name == "Content");
         Assert.Equal("", shape.Text);
     }
@@ -541,7 +411,7 @@ public class NullValidationTests : IDisposable
     [Fact]
     public async Task BatchUpdate_EmptyNewValue_Succeeds()
     {
-        var path = CreatePresentation(new TestSlideDefinition
+        var path = CreatePptxWithSlides(new TestSlideDefinition
         {
             TitleText = "Title",
             TextShapes =
