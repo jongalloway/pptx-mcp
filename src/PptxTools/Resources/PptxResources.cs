@@ -10,7 +10,7 @@ namespace PptxTools.Resources;
 /// absolute path to the .pptx file.
 /// </summary>
 [McpServerResourceType]
-public sealed class PptxResources
+public sealed partial class PptxResources
 {
     private readonly PresentationService _service;
 

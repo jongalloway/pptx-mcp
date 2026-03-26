@@ -202,6 +202,15 @@
 - **Build:** 0 errors, 575/575 tests passing
 - **PR:** #113 on branch squad/110-rename-pptx-tools
 
+### Issue #119 — Additional MCP Resources (2026-03-25)
+- **Implementation:** Four new MCP resources: `pptx://{file}/images`, `/presentation-metadata`, `/tables`, `/notes`
+- **Pattern:** Made PptxResources a partial class; added PptxResources.Extended.cs with four resource methods matching existing URI template pattern
+- **Service layer:** PresentationService.Resources.cs — `GetImageInfos()` extracts Picture shapes with content type/format/relationship ID via OpenXML ImagePart; `GetPresentationMetadata()` reads PackageProperties for author/title/dates/keywords
+- **Models:** ImageInfo (slide number, shape name, content type, format, relationship ID, dimensions), PresentationMetadata (title, creator, dates, subject, keywords, description, last modified by, category, slide count)
+- **Composition resources:** Tables and Notes resources compose from existing service methods (GetAllSlideContents, GetSlides) with inline LINQ — same pattern as shape-map resource
+- **Files:** 5 new/modified: ImageInfo.cs, PresentationMetadata.cs, PresentationService.Resources.cs, PptxResources.Extended.cs, PptxResources.cs
+- **Build:** 0 errors; 612/612 tests passing
+- **PR:** #142 on branch squad/119-additional-mcp-resources
 ### Issue #114 — Hyperlink Support (2026-03-27)
 - **Implementation:** `pptx_manage_hyperlinks` consolidated tool with Get/Add/Update/Remove actions
 - **OpenXML types:** `P.NonVisualDrawingProperties` (not `A.NonVisualDrawingProperties`) is the correct type for presentation shape cNvPr; use `GetFirstChild<A.HyperlinkOnClick>()` on both P.NonVisualDrawingProperties and A.RunProperties — neither exposes HyperlinkOnClick as a direct property
