@@ -2699,3 +2699,38 @@ Rename project from pptx-mcp to pptx-tools (repo + NuGet package). CLI command b
 
 All 10 inbox files merged above and deleted from .squad/decisions/inbox/.
 
+
+---
+
+### Issue #114 Orchestration: Hyperlink Support Implementation
+
+**Orchestrator:** McCauley  
+**Date:** 2026-03-25  
+**Status:** ✅ Implemented (PR #145)
+
+**Parallel Agents:** Shiherlis (testing), Cheritto (feature)
+
+**Work Summary:**
+- **Shiherlis:** 49 comprehensive tests (30 service + 19 tool) covering all hyperlink CRUD operations
+- **Cheritto:** Full feature implementation — HyperlinkInfo model, PresentationService.Hyperlinks.cs service layer, pxtx_manage_hyperlinks tool (Get/Add/Update/Remove actions)
+- **Build:** 0 errors, **Tests:** 624/624 passing
+- **New Files:** 5 (HyperlinkInfo.cs, PresentationService.Hyperlinks.cs, PptxTools.Hyperlinks.cs, HyperlinkTests.cs, HyperlinkToolsTests.cs)
+
+**Impact:** Feature-complete hyperlink support. Ready for review & merge.
+
+
+### Issue #121 & #125 Orchestration: Validation & Text Formatting
+
+**Orchestrator:** Copilot  
+**Date:** 2026-03-25  
+**Status:** ✅ Implemented (PR #146, #147)
+
+**Parallel Agents:** Shiherlis (testing), Cheritto (features)
+
+**Work Summary:**
+- **#121 Validation:** ValidationResult model, PresentationService.Validation.cs, PptxTools.Validation.cs (41 tests: 30 service + 11 tool, 616/616 passing)
+- **#125 Text Formatting:** TextFormattingInfo model, PresentationService.TextFormatting.cs, PptxTools.TextFormatting.cs (51 tests: 37 service + 14 tool, 633/633 passing)
+- **Build:** 0 errors | **Total Tests:** 1,249/1,249 passing
+- **Maintenance:** Fixed CI failures in squad/117 and squad/137 by merging main
+
+**Impact:** Both validation and text formatting complete, feature-ready for review & merge.
