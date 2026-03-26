@@ -1,5 +1,4 @@
 name: Squad Release
-# dotnet project — configure build, test, and release commands below
 
 on:
   push:
@@ -11,8 +10,12 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -30,9 +33,23 @@ jobs:
       - name: Test
         run: dotnet test --solution PptxTools.slnx --no-build --configuration Release --verbosity normal
 
-      - name: Create release
+      - name: Pack
+        run: dotnet pack src/PptxTools/PptxTools.csproj --no-build --configuration Release --output ./nupkg
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(dotnet msbuild src/PptxTools/PptxTools.csproj -getProperty:Version 2>/dev/null || \
+                    grep -oP '(?<=<Version>)[^<]+' src/PptxTools/PptxTools.csproj | head -1)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # TODO: Add your release commands here (e.g., git tag, gh release create)
-          echo "No release commands configured — update squad-release.yml"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
+          gh release create "$TAG" ./nupkg/*.nupkg \
+            --title "pptx-tools $TAG" \
+            --generate-notes \
+            --latest
