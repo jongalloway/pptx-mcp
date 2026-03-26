@@ -210,6 +210,14 @@
 - **Optional params:** `csvPath`, `format` (markdown/html), `style` (bullet-points/narrative/timing-cues), `targetSizeMb` — all with sensible defaults
 - **Build:** Main project builds clean; pre-existing test failures on main (SearchTests.cs — pptx_search_text not implemented yet) confirmed unrelated
 - **PR:** #143 on branch squad/123-additional-mcp-prompts
+### Issue #114 — Hyperlink Support (2026-03-27)
+- **Implementation:** `pptx_manage_hyperlinks` consolidated tool with Get/Add/Update/Remove actions
+- **OpenXML types:** `P.NonVisualDrawingProperties` (not `A.NonVisualDrawingProperties`) is the correct type for presentation shape cNvPr; use `GetFirstChild<A.HyperlinkOnClick>()` on both P.NonVisualDrawingProperties and A.RunProperties — neither exposes HyperlinkOnClick as a direct property
+- **Internal links:** Detected via `action` attribute containing "hlinksldjump"; target slide resolved by matching SlidePart URI against presentation SlideIdList
+- **Shape-level vs run-level:** Shape-level hyperlinks live on cNvPr; run-level hyperlinks live on a:rPr child element. Get scans both; Add sets shape-level; Update tries shape-level first then falls back to first run-level; Remove clears both
+- **Files:** 3 new (HyperlinkInfo.cs model + enum + result, PresentationService.Hyperlinks.cs, PptxTools.Hyperlinks.cs), 1 test fix (ShapeName → Name property)
+- **Build:** 0 errors; 624/624 tests passing
+- **PR:** on branch squad/114-hyperlink-support
 ### Issue #121 — Presentation Validation and Diagnostics (2026-03-25)
 - **Implementation:** `pxtx_validate_presentation` consolidated tool with `Validate` action (read-only, idempotent)
 - **Checks:** Duplicate shape IDs (per-slide + cross-slide), missing image references (broken Blip.Embed), orphaned relationships (unreferenced parts), broken hyperlink targets (both internal slide links and external), missing required elements (CommonSlideData, ShapeTree)
