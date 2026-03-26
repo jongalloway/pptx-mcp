@@ -147,9 +147,11 @@ public sealed class PptxPrompts
     [McpServerPrompt(Name = "extract-for-blog", Title = "Extract Content for Blog Post")]
     public IEnumerable<PromptMessage> ExtractForBlog(string filePath, string? format = null)
     {
-        var outputFormat = string.IsNullOrWhiteSpace(format) || format.Equals("markdown", StringComparison.OrdinalIgnoreCase)
-            ? "markdown"
-            : "html";
+        var outputFormat = format?.Trim().ToLowerInvariant() switch
+        {
+            "html" => "html",
+            _ => "markdown"
+        };
 
         yield return new PromptMessage
         {
@@ -184,7 +186,12 @@ public sealed class PptxPrompts
     [McpServerPrompt(Name = "create-speaker-notes-outline", Title = "Create Speaker Notes Outline")]
     public IEnumerable<PromptMessage> CreateSpeakerNotesOutline(string filePath, string? style = null)
     {
-        var notesStyle = string.IsNullOrWhiteSpace(style) ? "bullet-points" : style.ToLowerInvariant();
+        var notesStyle = style?.Trim().ToLowerInvariant() switch
+        {
+            "narrative" => "narrative",
+            "timing-cues" => "timing-cues",
+            _ => "bullet-points"
+        };
         var styleDescription = notesStyle switch
         {
             "narrative" => "flowing narrative paragraphs that tell the story of each slide",
@@ -222,8 +229,9 @@ public sealed class PptxPrompts
     [McpServerPrompt(Name = "optimize-for-web", Title = "Optimize Presentation for Web/Email")]
     public IEnumerable<PromptMessage> OptimizeForWeb(string filePath, double? targetSizeMb = null)
     {
-        var targetGuidance = targetSizeMb.HasValue
-            ? $"The target file size is {targetSizeMb.Value} MB. Continue optimizing until this target is reached or no further optimizations are possible."
+        var validatedTargetSizeMb = targetSizeMb.HasValue && targetSizeMb.Value > 0 ? targetSizeMb : null;
+        var targetGuidance = validatedTargetSizeMb.HasValue
+            ? $"The target file size is {validatedTargetSizeMb.Value} MB. Continue optimizing until this target is reached or no further optimizations are possible."
             : "Optimize as much as possible while maintaining visual quality.";
 
         yield return new PromptMessage

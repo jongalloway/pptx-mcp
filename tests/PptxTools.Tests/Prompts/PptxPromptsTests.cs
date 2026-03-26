@@ -279,6 +279,15 @@ public class PptxPromptsTests
     }
 
     [Fact]
+    public void ExtractForBlog_WithInvalidFormat_DefaultsToMarkdown()
+    {
+        var messages = _prompts.ExtractForBlog("/deck.pptx", "text").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("markdown", text);
+        Assert.DoesNotContain("in text format", text);
+    }
+
+    [Fact]
     public void ExtractForBlog_MentionsExportMarkdownTool()
     {
         var messages = _prompts.ExtractForBlog("/deck.pptx").ToList();
@@ -363,6 +372,16 @@ public class PptxPromptsTests
     }
 
     [Fact]
+    public void CreateSpeakerNotesOutline_WithUnknownStyle_DefaultsToBulletPoints()
+    {
+        var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx", "unknown-style").ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("bullet-points", text);
+        Assert.Contains("concise bullet points", text);
+        Assert.DoesNotContain("unknown-style", text);
+    }
+
+    [Fact]
     public void CreateSpeakerNotesOutline_MentionsWriteNotesTool()
     {
         var messages = _prompts.CreateSpeakerNotesOutline("/deck.pptx").ToList();
@@ -426,6 +445,22 @@ public class PptxPromptsTests
         var text = GetMessageText(messages[0]);
         Assert.Contains("5", text);
         Assert.Contains("MB", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_WithZeroTargetSize_UsesGeneralGuidance()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx", 0).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("Optimize as much as possible", text);
+    }
+
+    [Fact]
+    public void OptimizeForWeb_WithNegativeTargetSize_UsesGeneralGuidance()
+    {
+        var messages = _prompts.OptimizeForWeb("/deck.pptx", -1).ToList();
+        var text = GetMessageText(messages[0]);
+        Assert.Contains("Optimize as much as possible", text);
     }
 
     [Fact]
