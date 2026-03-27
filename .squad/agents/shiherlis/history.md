@@ -209,3 +209,20 @@
   - `bool useNull` flag for array-typed parameters (mutations, headers, updates)
   - `PptxTestBase` provides `Service`, `CreateMinimalPptx()`, `CreatePptxWithSlides()`, `TrackTempFile()`
   - xUnit v3 supports `[InlineData(null)]` for nullable string parameters
+### Issue #135 Table Structure Test Suite (2026-03-26)
+- **Scope:** 66 new tests across 2 files for pptx_table_structure (AddRow, DeleteRow, AddColumn, DeleteColumn, MergeCells)
+- **Files created:**
+  - `tests/PptxTools.Tests/Services/TableStructureTests.cs` — 47 service-level tests
+  - `tests/PptxTools.Tests/Tools/TableStructureToolsTests.cs` — 19 tool-level tests
+- **Coverage:** 1088/1088 tests passing (up from 1022)
+- **Written in parallel** with Cheritto implementing `PresentationService.TableStructure.cs` — waited for implementation files to appear before verifying tests compile
+- **Service test coverage:** AddRow (append, insert at index, with values, padding, prepend), DeleteRow (first/last/middle, single-row-fails), AddColumn (append, insert, all-rows-get-cell, grid-update), DeleteColumn (first/last/middle, single-col-fails, grid-update), MergeCells (2x2, entire-row, entire-column, invalid-range), edge cases (wrong slide, bad table name, OOB indices, no table, file not found), data preservation, roundtrip, OpenXML validation
+- **Tool test coverage:** JSON deserialization per action, file-not-found across all 5 actions, empty file path, missing required params (rowIndex/columnIndex/merge coords), service errors surfaced as structured JSON (last-row/last-col), invalid slide number
+- **Key patterns learned:**
+  - Merge attributes (GridSpan, RowSpan, HorizontalMerge, VerticalMerge) are on `A.TableCell` directly, NOT on `A.TableCellProperties`
+  - `FindTableOnSlide` throws `InvalidOperationException` when no table found, table name not found, or multiple tables without disambiguation
+  - `NormalizeCellValues` pads with empty strings when fewer values provided than columns — does not truncate
+  - `TableStructureResult.Action` uses `nameof(TableStructureAction.X)` (e.g. "AddRow" not "Add Row")
+  - `pptx_table_structure` tool uses `ExecuteToolStructured` pattern — file-not-found returns structured JSON failure, not exception
+  - Delete operations throw `InvalidOperationException` on last remaining row/column
+  - Row/column indices are 0-based; slide numbers are 1-based
