@@ -281,3 +281,13 @@
 - **Build:** 0 errors; 1022/1022 tests passing
 - **PR:** #152 on branch squad/135-extended-table-ops
 
+### Issue #130 — Extend batch operations (2026-07-25)
+- **Implementation:** New `pptx_batch_execute` MCP tool for mixed operation batches — text, table cells, shape properties, image replacement in one open/save cycle
+- **Models:** `BatchOperation` (discriminated union via `BatchOperationType` enum) + `BatchOperationResult`/`BatchOperationOutcome` for per-op tracking
+- **Service:** `PresentationService.BatchOps.cs` — dispatch by type, reuses existing `UpdateSlideData` for text, extracted `UpdateTableCellText` helper from UpdateTable pattern, shape property changes handle Shape/Picture/GraphicFrame transform variants
+- **Atomic mode:** File-level backup/restore via `.bak` copy; rollback on any failure before save; cleanup on success
+- **GraphicFrame transform:** `GraphicFrame.Transform` (P.Transform) is separate from `ShapeProperties.Transform2D` (A.Transform2D) — shape property updates handle both paths
+- **Backward compat:** Existing `pptx_batch_update` tool + models completely untouched
+- **Build:** 0 errors; pre-existing warnings only
+- **PR:** #153 on branch squad/130-extend-batch-operations
+
