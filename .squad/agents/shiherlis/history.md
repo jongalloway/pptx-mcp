@@ -226,3 +226,27 @@
   - `pptx_table_structure` tool uses `ExecuteToolStructured` pattern — file-not-found returns structured JSON failure, not exception
   - Delete operations throw `InvalidOperationException` on last remaining row/column
   - Row/column indices are 0-based; slide numbers are 1-based
+
+### Issue #130 Batch Execute Test Suite (2026-03-25)
+- **Scope:** 44 new tests across 2 files for pptx_batch_execute (extended batch operations)
+- **Files created:**
+  - `tests/PptxTools.Tests/Services/BatchExecuteTests.cs` — 30 service-level tests
+  - `tests/PptxTools.Tests/Tools/BatchExecuteToolsTests.cs` — 14 tool-level tests
+- **Coverage:** 1132/1132 tests passing (up from 1088), zero regressions
+- **Written in parallel** with Cheritto's implementation of `PresentationService.BatchOps.cs` + `PptxTools.BatchOps.cs`
+- **Test categories:**
+  - UpdateText backward compat (2 tests): batch text updates via new BatchExecute, mixed success/failure
+  - UpdateTableCell (6 tests): single cell, multi-cell, invalid row/col bounds, table not found, missing row/col params, no tables on slide
+  - UpdateShapeProperties (6 tests): position, size, rotation, partial update (X only), shape not found, no properties specified
+  - ReplaceImage (4 tests): happy path, file not found, non-picture target, missing ImagePath
+  - Mixed operations (4 tests): all succeed + verify persistence, partial failure, correct types reported, presentation compatibility
+  - Atomic/Transaction (4 tests): all succeed → persisted, one fails → file reverted + RolledBack=true, non-atomic partial persist, backup cleanup
+  - Edge cases (4 tests): empty ops, all same slide, non-existent slide, null ops, result ordering
+  - Tool-level JSON (14 tests): structured result deserialization, per-type JSON shape, file not found, empty/null ops, atomic flag in output
+- **Key findings:**
+  - `BatchOperationType` enum serializes as integer in JSON (not string) — tool tests must use `.GetInt32()` not `.GetString()`
+  - Atomic mode uses file-copy backup (`.bak`) with best-effort restore — backup always cleaned up
+  - `ExecuteOperation` catches exceptions per-op, so one bad slide index doesn't abort the batch
+  - Table cell coordinates are 0-based; shape lookup is case-insensitive across Shape, Picture, and GraphicFrame elements
+  - `UpdateShapeProperties` requires at least one property — returns error if all X/Y/W/H/Rotation are null
+  - `ReplaceImage` reuses `ResolvePictureTarget` and `GetPictureTargets` from image replace service
