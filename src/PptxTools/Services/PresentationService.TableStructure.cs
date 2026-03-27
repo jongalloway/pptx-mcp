@@ -66,7 +66,7 @@ public partial class PresentationService
 
         if (rowIndex < 0 || rowIndex >= tableRows.Count)
             throw new ArgumentOutOfRangeException(nameof(rowIndex),
-                $"Row index {rowIndex} is out of range. Table has {tableRows.Count} row(s).");
+                $"Row index {rowIndex} is out of range. Table has {tableRows.Count} row(s), valid range: 0-{tableRows.Count - 1}.");
 
         tableRows[rowIndex].Remove();
         slidePart.Slide.Save();
@@ -160,7 +160,7 @@ public partial class PresentationService
 
         if (columnIndex < 0 || columnIndex >= currentColumnCount)
             throw new ArgumentOutOfRangeException(nameof(columnIndex),
-                $"Column index {columnIndex} is out of range. Table has {currentColumnCount} column(s).");
+                $"Column index {columnIndex} is out of range. Table has {currentColumnCount} column(s), valid range: 0-{currentColumnCount - 1}.");
 
         // 1. Remove GridColumn
         gridColumns[columnIndex].Remove();
@@ -264,6 +264,7 @@ public partial class PresentationService
         int? tableIndex)
     {
         var slideIds = GetSlideIds(doc);
+        ValidationHelpers.ValidateSlideNumber(slideNumber, slideIds.Count);
         var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
         var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
 
@@ -290,14 +291,14 @@ public partial class PresentationService
                     tables.Select((gf, i) =>
                         $"{i}:{gf.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties?.Name?.Value ?? "(unnamed)"}"));
                 throw new InvalidOperationException(
-                    $"No table named '{tableName}' found on slide {slideNumber}. Available tables: {available}");
+                    $"No table named '{tableName}' found on slide {slideNumber}. Found {tables.Count} table(s). Available tables: {available}");
             }
         }
         else if (tableIndex.HasValue)
         {
             if (tableIndex.Value < 0 || tableIndex.Value >= tables.Count)
                 throw new ArgumentOutOfRangeException(nameof(tableIndex),
-                    $"Table index {tableIndex.Value} is out of range. Slide {slideNumber} has {tables.Count} table(s).");
+                    $"Table index {tableIndex.Value} is out of range. Slide {slideNumber} has {tables.Count} table(s), valid range: 0-{tables.Count - 1}.");
             targetFrame = tables[tableIndex.Value];
         }
         else

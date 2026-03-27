@@ -358,6 +358,12 @@ public partial class PresentationService
 
     public void InsertImage(string filePath, int slideIndex, string imagePath, long x, long y, long width, long height)
     {
+        ValidationHelpers.ValidateImagePath(imagePath);
+        ValidationHelpers.ValidateEmuValue(x, nameof(x));
+        ValidationHelpers.ValidateEmuValue(y, nameof(y));
+        ValidationHelpers.ValidateEmuValue(width, nameof(width));
+        ValidationHelpers.ValidateEmuValue(height, nameof(height));
+
         using var doc = PresentationDocument.Open(filePath, true);
         var slidePart = GetSlidePart(doc, slideIndex);
 
@@ -404,8 +410,14 @@ public partial class PresentationService
         long width = 7315200,
         long height = 1371600)
     {
+        ValidationHelpers.ValidateEmuValue(x, nameof(x));
+        ValidationHelpers.ValidateEmuValue(y, nameof(y));
+        ValidationHelpers.ValidateEmuValue(width, nameof(width));
+        ValidationHelpers.ValidateEmuValue(height, nameof(height));
+
         using var doc = PresentationDocument.Open(filePath, true);
         var slideIds = GetSlideIds(doc);
+        ValidationHelpers.ValidateSlideNumber(slideNumber, slideIds.Count);
         var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
         var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
 
@@ -488,6 +500,7 @@ public partial class PresentationService
     {
         using var doc = PresentationDocument.Open(filePath, true);
         var slideIds = GetSlideIds(doc);
+        ValidationHelpers.ValidateSlideNumber(slideNumber, slideIds.Count);
         var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
         var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
 
@@ -627,7 +640,7 @@ public partial class PresentationService
             CellsUpdated: cellsUpdated,
             CellsSkipped: cellsSkipped,
             Message: $"Updated {cellsUpdated} cell(s) in table '{resolvedName}' on slide {slideNumber}."
-                + (cellsSkipped > 0 ? $" {cellsSkipped} update(s) skipped (out of range)." : ""));
+                + (cellsSkipped > 0 ? $" {cellsSkipped} update(s) skipped (out of range). Table has {tableRows.Count} row(s) and {table.TableGrid!.Elements<A.GridColumn>().Count()} column(s)." : ""));
     }
 
     private static A.TableRow BuildTableRow(string[] cellValues, long rowHeight)
@@ -683,10 +696,7 @@ public partial class PresentationService
 
     private static SlidePart GetSlidePart(PresentationDocument doc, IReadOnlyList<SlideId> slideIds, int slideIndex)
     {
-        if (slideIds.Count == 0)
-            throw new InvalidOperationException("Presentation has no slides.");
-        if (slideIndex < 0 || slideIndex >= slideIds.Count)
-            throw new ArgumentOutOfRangeException(nameof(slideIndex), $"Slide index {slideIndex} is out of range. Presentation has {slideIds.Count} slide(s).");
+        ValidationHelpers.ValidateSlideIndex(slideIndex, slideIds.Count);
         return (SlidePart)doc.PresentationPart!.GetPartById(slideIds[slideIndex].RelationshipId!.Value!);
     }
 
@@ -717,7 +727,8 @@ public partial class PresentationService
             return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, "Presentation has no slides.");
 
         if (slideNumber > slideIds.Count)
-            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText, $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+            return CreateSlideDataUpdateFailure(slideNumber, shapeName, placeholderIndex, newText,
+                $"Slide {slideNumber} does not exist — out of range. Valid range: 1-{slideIds.Count}. Presentation has {slideIds.Count} slide(s).");
 
         var slidePart = GetSlidePart(doc, slideIds, slideNumber - 1);
         if (slidePart.Slide is null)
@@ -1660,8 +1671,7 @@ public partial class PresentationService
 
         if (count == 1)
             throw new InvalidOperationException("Cannot delete the only slide in a presentation.");
-        if (slideNumber < 1 || slideNumber > count)
-            throw new ArgumentOutOfRangeException(nameof(slideNumber), $"slideNumber {slideNumber} is out of range. Presentation has {count} slide(s).");
+        ValidationHelpers.ValidateSlideNumber(slideNumber, count);
 
         var slideId = slideIds[slideNumber - 1];
         var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
@@ -1714,14 +1724,16 @@ public partial class PresentationService
         var slideIds = GetSlideIds(doc);
 
         if (slideNumber <= 0)
-            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, "slideNumber must be 1 or greater.");
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText,
+                "slideNumber must be 1 or greater.");
 
         if (slideIds.Count == 0)
-            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, "Presentation has no slides.");
+            return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText,
+                "Presentation has no slides.");
 
         if (slideNumber > slideIds.Count)
             return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText,
-                $"slideNumber {slideNumber} is out of range. Presentation has {slideIds.Count} slide(s).");
+                $"Slide {slideNumber} does not exist — out of range. Valid range: 1-{slideIds.Count}.");
 
         if (string.IsNullOrWhiteSpace(shapeName) && shapeIndex is null)
             return new ImageReplaceResult(false, slideNumber, null, null, null, null, altText, "Provide either shapeName or shapeIndex.");
