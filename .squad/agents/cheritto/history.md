@@ -291,3 +291,17 @@
 - **Build:** 0 errors; pre-existing warnings only
 - **PR:** #153 on branch squad/130-extend-batch-operations
 
+
+### Validation helpers (#140, 2026-03-26)
+- Created `src/PptxTools/Services/ValidationHelpers.cs` as centralized validation utility with methods for slide numbers, slide indices, EMU values, file paths, image paths, color formats, and shape/table not-found messages
+- Applied `ValidateSlideNumber` to `InsertTable`, `UpdateTable`, `DeleteSlide`, and `FindTableOnSlide` (TableStructure) — all 1-based slide number entry points now validate consistently
+- Applied `ValidateSlideIndex` in `GetSlidePart` — all 0-based slide index entry points now get actionable messages with valid range
+- Applied `ValidateImagePath` and `ValidateEmuValue` in `InsertImage` and `InsertTable` — catches bad image formats and negative EMU values early
+- Enhanced `UpdateSlideData` slide range message to include valid range (`Valid range: 1-N`)
+- Enhanced `ReplaceImage` slide range message with same pattern
+- Enhanced `UpdateTable` skip message to include table dimensions when cells are out of range
+- Enhanced `FindTableOnSlide` (TableStructure) table-not-found message to include table count
+- Enhanced `DeleteTableRow`/`DeleteTableColumn` range messages to include valid range
+- All error messages preserved backward-compatible keywords (`out of range`, `not found`, `must be 1 or greater`) that existing tests assert on
+- No method signatures or return types changed; no tool layer files touched
+- 1227 tests pass, 0 failures
