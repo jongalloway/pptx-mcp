@@ -271,3 +271,13 @@
 - **PR:** #146 on branch squad/121-validation-diagnostics
 - **Note:** Stale TextFormatting files from squad/125-text-formatting branch had to be cleaned before build; cross-slide duplicate IDs reported as Info severity since PowerPoint commonly reuses IDs across slides
 
+### Issue #135 — Extended Table Operations (2026-07-25)
+- **Implementation:** `pptx_table_structure` consolidated tool with AddRow, DeleteRow, AddColumn, DeleteColumn, MergeCells actions
+- **Architecture:** 3 new files — `TableStructureResult.cs` (enum + record), `PresentationService.TableStructure.cs` (5 service methods + `FindTableOnSlide` helper), `PptxTools.TableStructure.cs` (tool dispatch)
+- **FindTableOnSlide:** Extracted reusable table lookup by name/index from existing `UpdateTable` pattern — returns `(SlidePart, GraphicFrame, A.Table, string?)` tuple
+- **Column ops:** Must update both `A.TableGrid` (add/remove `GridColumn`) AND every `A.TableRow` (add/remove `TableCell`) to maintain structural consistency
+- **Cell merge:** `GridSpan`, `RowSpan`, `HorizontalMerge`, `VerticalMerge` are properties on `A.TableCell` directly, NOT on `A.TableCellProperties` — the implementation map was slightly misleading here
+- **Safety:** Prevents deletion of last row or last column to maintain valid table structure
+- **Build:** 0 errors; 1022/1022 tests passing
+- **PR:** #152 on branch squad/135-extended-table-ops
+
