@@ -250,3 +250,24 @@
   - Table cell coordinates are 0-based; shape lookup is case-insensitive across Shape, Picture, and GraphicFrame elements
   - `UpdateShapeProperties` requires at least one property — returns error if all X/Y/W/H/Rotation are null
   - `ReplaceImage` reuses `ResolvePictureTarget` and `GetPictureTargets` from image replace service
+
+### Issue #140 ValidationHelpers Test Suite (2026-03-26)
+- **Scope:** 95 new tests in `tests/PptxTools.Tests/Services/ValidationHelperTests.cs` for centralized validation
+- **Written in parallel** with Cheritto's `ValidationHelpers.cs` implementation — polled for file existence before starting
+- **Coverage:** 1227/1227 tests passing, zero regressions
+- **Methods tested (all public static on ValidationHelpers):**
+  - `ValidateSlideNumber`: range validation (1-based), zero-total-slides → InvalidOperationException, context parameter appended
+  - `ValidateSlideIndex`: range validation (0-based), same zero-total pattern
+  - `ValidateEmuValue`: negative → ArgumentOutOfRangeException with EMU hint (914400), zero/positive accepted
+  - `ValidateFilePath`: null/empty, file not found, non-.pptx extension, valid .pptx
+  - `ValidateImagePath`: null/empty, file not found, unsupported extensions (.txt/.pdf/.docx/.pptx), all 9 supported formats
+  - `ValidateColorFormat`: invalid formats (words, short hex, bad chars), valid 6-digit hex, '#' prefix is stripped (accepted), null/empty silently accepted
+  - `BuildShapeNotFoundMessage`: includes shape name + available list, empty list → "no shapes"
+  - `BuildTableNotFoundMessage`: by name (includes count), by index (includes valid range), neither (generic)
+  - `ValidateRowIndex`/`ValidateColumnIndex`: out-of-range with table name in message, valid range accepted
+- **Integration tests:** 7 tests verifying validation flows through service methods (InsertTable/UpdateTable/DeleteSlide slide numbers, InsertImage EMU/extension, UpdateSlideData shape/range messages)
+- **Key findings:**
+  - `ValidateColorFormat` accepts '#' prefix by stripping it — differs from initial spec which expected rejection
+  - `ValidateColorFormat` returns silently on null/empty (optional color parameter pattern)
+  - Parallel agent work required polling for file existence before writing tests
+  - Cheritto's commit included the test file (committed whole working tree) — no separate test commit needed
