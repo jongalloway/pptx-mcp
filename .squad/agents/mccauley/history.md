@@ -12,6 +12,22 @@
 
 ## Learnings
 
+### Notable State Review Process (2026-04-10)
+- McCauley identified critical config.json path mismatch during squad state audit
+- Scribe processed recommendations: wrote orchestration log, session log, merged decisions, updated agent history
+- config.json fix unblocks next agent spawn and restores coordinator path resolution
+- Squad state review workflow: audit → document → merge → cross-update → commit
+
+## Recent Updates
+
+📌 **2026-04-10 (2346Z):** Notable state review completed
+- McCauley's recommendations processed: config.json fix + now.md refresh tracked
+- Orchestration log: `.squad/orchestration-log/2026-04-10T23-46-16Z-mccauley-notable-state-review.md`
+- Session log: `.squad/log/2026-04-10T23-46-16Z-notable-state-recommendations.md`
+- Decisions merged: `mccauley-recommend-notable-state.md` integrated into decisions.md
+- Config fix: teamRoot corrected (D: → C:), path resolution functional
+- Status: ✅ Complete, ready for next agent spawn
+
 ### Phase 4 Wave Decomposition & Sequencing (2026-03-24)
 - **3-Tier Wave Strategy:** Wave 1 (Core analysis: #80, #81, #82), Wave 2 (Enhancement & consolidation), Wave 3 (Polish & documentation)
 - **Squad Reassignments:** Cheritto → 3-tool implementation sprint (wave 1), Shiherlis → 92-test parallel validation, Nate → OpenXML research/skill capture, Coordinator → PR review & docs
@@ -60,4 +76,9 @@
 - **Dependency chain:** #19 → #17 → #15 + #18 → #16 (docs closes last)
 - All issues routed to appropriate team members; all assigned to "Phase 2 — Content Writing & Updates" milestone
 - Non-duplication verified: Phase 1 issues #6–#14 are independent; no overlap with Phase 2
+
+### Squad Configuration Review (2026-03-27)
+- **Item 1 (now.md):** Stale since bootstrap (2026-03-16). Generic "Initial setup" still in place; empty active_issues. **Low risk** — informational only, doesn't affect coordinator. Recommend refresh at next planning cycle to surface current focus (feature waves #115, #116, #121, #125) and improve squad orientation.
+- **Item 2 (config.json):** CRITICAL mismatch — `teamRoot` points to `D:\Users\Jon\Documents\GitHub\pptx-tools` but repo is at `C:\Users\Jon\...`. Coordinator uses this path to resolve `.squad/*` references. **Active blocker** — agents spawning will fail soft on charter/decisions resolution if not fixed. Fix immediately before next squad work.
+- **Coordinator impact:** config.json mismatch causes path resolution failures; agents degrade to reduced context (missing charter, team routing broken).
 

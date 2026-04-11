@@ -2,6 +2,59 @@
 
 ## Active Decisions
 
+### Decision: Fix config.json teamRoot Mismatch (2026-04-10)
+
+**Owner:** Scribe (on behalf of Jon Galloway)  
+**Status:** ✅ Complete  
+**Priority:** 🔴 Critical  
+
+**Problem:** `.squad/config.json` had `teamRoot` pointing to `D:\Users\Jon\Documents\GitHub\pptx-tools` but actual repo is at `C:\Users\Jon\Documents\GitHub\pptx-tools`. This broke coordinator path resolution for `.squad/*` files (charters, decisions, skills).
+
+**Solution:** Updated config.json to correct path:
+```json
+{
+  "version": 1,
+  "teamRoot": "C:\\Users\\Jon\\Documents\\GitHub\\pptx-tools"
+}
+```
+
+**Validation:**
+- Confirmed `.squad/` directory exists at corrected path
+- Spot-checked `.squad/agents/mccauley/charter.md` is readable at new path
+- `git rev-parse --show-toplevel` confirms repo root matches
+
+**Impact:** Coordinator path resolution now functional. Next agent spawn will have full context (charter, team routing, decisions).
+
+**Prevents Regression:** Added to squad bootstrap checklist; future setups will verify machine/path before use.
+
+---
+
+### Recommendation: Refresh `.squad/identity/now.md` (2026-04-10)
+
+**Owner:** Coordinator (Jon Galloway)  
+**Status:** 🟡 Pending  
+**Priority:** Medium  
+
+**Problem:** `.squad/identity/now.md` stale since 2026-03-16T05:17:26.912Z (25 days). Still shows generic template with empty active_issues.
+
+**Current Content:**
+```yaml
+updated_at: 2026-03-16T05:17:26.912Z
+focus_area: Initial setup
+active_issues: []
+```
+
+**Recommendation:**
+1. Update `focus_area` to reflect current work (e.g., "Feature waves #115–#125, PR integration & consolidation")
+2. Populate `active_issues` with current sprint issues (e.g., #115, #116, #121, #125)
+3. Update timestamp to current date
+
+**Rationale:** `.squad/identity/now.md` is first thing new agents read at spawn. Stale content reduces squad orientation and context clarity. Refresh at next planning cycle.
+
+**Next Action:** Coordinator to execute at next squad planning sync.
+
+---
+
 ### Decision: Safe Working Tree Cleanup (2026-03-27)
 
 **Owner:** McCauley (Lead)  
