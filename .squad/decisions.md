@@ -29,6 +29,38 @@
 
 ---
 
+### Decision: Squad State Cleanup — Final Pass (2026-04-11)
+
+**Owner:** McCauley (Lead)  
+**Status:** ✅ Complete  
+**Priority:** 🟢 Low (informational refresh)
+
+**Context:** Prior notable-state review (2026-04-10) identified two squad metadata items: 1) config.json — Critical path mismatch (fixed by Scribe), 2) now.md — Stale focus area (pending refresh).
+
+**Decisions Made:**
+
+1. **Verified config.json — No Action Needed**
+   - `teamRoot` correctly points to `C:\Users\Jon\Documents\GitHub\pptx-tools`
+   - Coordinator path resolution functional; no regression
+
+2. **Refreshed now.md — Updated to Current State**
+   - `updated_at`: 2026-03-16 → 2026-04-11
+   - `focus_area`: "Initial setup" → "Advanced feature waves & test modernization (waves #125–#150)"
+   - `active_issues`: [] → [125, 135, 140, 150]
+   - Rationale: Stale since bootstrap (26 days); reflects work already shipped to main
+
+3. **Audit for Additional Stale Metadata — No Further Items**
+   - Audited identity/wisdom.md, casting configs, agent histories, routing/team
+   - Result: No additional tightly-coupled, clearly stale, low-risk items found
+
+**Impact:** Squad metadata now current and accurate. Coordinator and agent spawning fully functional. No blocking items.
+
+**Files Modified:**
+- `.squad/identity/now.md` — Updated focus_area, active_issues, timestamp
+- `.squad/agents/mccauley/history.md` — Added session completion notes
+
+---
+
 ### Recommendation: Refresh `.squad/identity/now.md` (2026-04-10)
 
 **Owner:** Coordinator (Jon Galloway)  

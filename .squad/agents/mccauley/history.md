@@ -20,6 +20,14 @@
 
 ## Recent Updates
 
+📌 **2026-04-11 (0000Z):** Squad state cleanup final pass completed
+- McCauley verified config.json (still good), refreshed now.md (focus_area + active_issues updated)
+- Audit: No additional tightly-coupled stale metadata found
+- Orchestration log: `.squad/orchestration-log/2026-04-11-000010-mccauley-squad-state-cleanup.md`
+- Session log: `.squad/log/2026-04-11-000010-squad-state-cleanup.md`
+- Decisions merged: `mccauley-squad-state-cleanup.md` integrated into decisions.md
+- Status: ✅ Complete, squad metadata now current and accurate
+
 📌 **2026-04-10 (2346Z):** Notable state review completed
 - McCauley's recommendations processed: config.json fix + now.md refresh tracked
 - Orchestration log: `.squad/orchestration-log/2026-04-10T23-46-16Z-mccauley-notable-state-review.md`
