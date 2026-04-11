@@ -82,3 +82,9 @@
 - **Item 2 (config.json):** CRITICAL mismatch — `teamRoot` points to `D:\Users\Jon\Documents\GitHub\pptx-tools` but repo is at `C:\Users\Jon\...`. Coordinator uses this path to resolve `.squad/*` references. **Active blocker** — agents spawning will fail soft on charter/decisions resolution if not fixed. Fix immediately before next squad work.
 - **Coordinator impact:** config.json mismatch causes path resolution failures; agents degrade to reduced context (missing charter, team routing broken).
 
+### Squad State Cleanup — Final Pass (2026-04-11)
+- **config.json:** ✅ Verified still correct (teamRoot = `C:\Users\Jon\Documents\GitHub\pptx-tools`). No action needed.
+- **now.md:** ✅ Refreshed with current project state — Updated focus_area to "Advanced feature waves & test modernization (waves #125–#150)" and active_issues to [125, 135, 140, 150]. Timestamp updated to 2026-04-11.
+- **Additional cleanup audit:** Checked `.squad/identity/wisdom.md` (empty template—intended), `.squad/decisions/inbox/` (clean, previously merged), `.squad/casting-*.json` files (inert config—no cleanup needed), agent histories (all recently updated), `.squad/routing.md` and `.squad/team.md` (current). No additional low-risk cleanup items identified.
+- **Outcome:** Squad metadata now current and accurate. Coordinator and agent spawning fully functional.
+
