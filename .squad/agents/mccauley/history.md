@@ -20,6 +20,12 @@
 
 ## Recent Updates
 
+📌 **2026-04-11:** Issue triage — #94 (CLI Research) and #138 (Docs)
+- **#94 verdict: CLOSE.** All 5 acceptance criteria satisfied. Research done (Nate: dual-mode GO), CLI fully implemented via #98–#104 (all closed). Only #105 (NuGet packaging) remains as separate distribution work. Parent issue is stale — recommend close.
+- **#138 verdict: PROMOTE from `go:no` to `go:yes`.** CLI shipped with zero user docs — README only covers MCP mode. Expanded scope recommendation adds CLI usage docs as P0 priority. Assigned @copilot.
+- **Key gap found:** 7 CLI command groups implemented but undocumented. Biggest usability hole in the project right now.
+- Decision document: `.squad/decisions/inbox/mccauley-cli-94-status.md`
+
 📌 **2026-04-11 (0000Z):** Squad state cleanup final pass completed
 - McCauley verified config.json (still good), refreshed now.md (focus_area + active_issues updated)
 - Audit: No additional tightly-coupled stale metadata found
