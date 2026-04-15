@@ -38,8 +38,18 @@
 - **Pattern:** Analysis tool testing emphasizes edge cases (empty presentations, corrupted packages, large media counts) + real-file round-trip validation
 - **Quality:** Stream bug discovery demonstrates value of comprehensive test coverage; PR-ready with zero regressions
 
-### Phase 2 Completion (2026-03-16)
-- **Issues #17 & #15:** Completed and merged (PR #32 & #31)
+### Issue #138: Documentation Complete (2026-04-15)
+- **Status:** ✅ Complete and shipped
+- **Deliverables:** 4 new guides + README update
+  - EMU_GUIDE.md (5.5 KB) — English Metric Unit reference, precision, tool coverage
+  - SHAPE_RESOLUTION_GUIDE.md (11.2 KB) — Target shapes by name/index/placeholder, discovery methods, scenarios
+  - TROUBLESHOOTING.md (13.2 KB) — 10 category sections (installation, files, format, shapes, text, charts, layouts, performance, testing, CI/CD), quick reference
+  - CONTRIBUTING.md (18.7 KB) — Development guide with 5-step "add new tool" example, project structure, test patterns, CI/CD, code style
+  - README.md updated (+7 lines) — Added "Guides" section linking to new docs, updated "Contributing / Dev Setup" section
+- **Quality:** All 1,227 tests pass, zero regressions, examples verified copy-pasteable, internal links checked, voice consistent across guides
+- **McCauley's companion finding:** CLI shipped but undocumented; #138 fills 4 knowledge gaps but README still needs explicit CLI quick-start section as P0 priority
+- **Decision:** Merged `.squad/decisions/inbox/shiherlis-docs-138.md` into `.squad/decisions.md`
+- **Orchestration log:** `.squad/orchestration-log/2026-04-15T15-11-07Z-shiherlis.md`
 - **Testing scope:** Issue #17 (tool testing) + Issue #15 (E2E scenario)
 - **Test cases:** 7 integration tests (edge cases, format preservation, Unicode)
 - **E2E scenario:** 4-slide KPI dashboard, dual targeting (shapeName + placeholderIndex), format fidelity verification
@@ -48,3 +58,31 @@
 - **Dependency satisfaction:** Both issues unblocked by #19 (Cheritto's tool) and #18 (Copilot's docs)
 - **Result:** Phase 2 testing complete, validates PowerPoint compatibility and multi-source composition pattern
 
+### Issue #138 Documentation Audit & Implementation (2026-04-15)
+
+**Author:** Shiherlis (Tester)  
+**Assigned:** Issue #138 (Docs: EMU calculator guide, troubleshooting guide, contributing guide) + #94 context
+
+**Status:** ✅ Complete
+
+**Work Summary:**
+- **Audit:** Reviewed existing docs (README, TOOL_REFERENCE, QUICKSTART, PRD, EXAMPLES) and identified gaps in user/contributor guidance
+- **Created 4 comprehensive guides** (2,442 total lines):
+  1. `docs/EMU_GUIDE.md` (280 lines) — EMU conversion reference with quick lookup tables, standard slide dimensions, formula, positioning scenarios, troubleshooting
+  2. `docs/SHAPE_RESOLUTION_GUIDE.md` (560 lines) — Shape targeting methods (by name/index/placeholder), discovery via resources, comparison matrix, real scenarios with code examples
+  3. `docs/TROUBLESHOOTING.md` (660 lines) — Comprehensive issue reference: setup/file/format/shape/text/chart/layout/performance/test/CI issues, each with causes and solutions
+  4. `docs/CONTRIBUTING.md` (935 lines) — Development guide: setup, project structure, architecture pattern (Models→Services→Tools→MCP), example tool implementation walkthrough, test patterns, CI/CD, code style, PR process
+- **Updated:** README.md with guide links, improved Contributing section callout
+- **Decision:** Documented in `.squad/decisions/inbox/shiherlis-docs-138.md` for maintainer reference
+- **Testing:** All 1,227 tests passing, no regressions
+- **Quality:** Commands verified against actual CI workflow (e.g., `dotnet test --solution PptxTools.slnx --configuration Release --no-build`), internal links validated, accuracy cross-checked
+
+**Key decisions made:**
+- Used existing docs structure; no unnecessary layout changes
+- Test commands match CI exactly (important for contributor documentation accuracy)
+- Included runnable code examples in CONTRIBUTING.md (new tool walkthrough, test templates)
+- Organized by use case: EMU/Shape for users with tooling questions; TROUBLESHOOTING for error resolution; CONTRIBUTING for developers
+
+**Impact:** Fully resolved issue #138. Lowered barrier to entry for both users (EMU/Shape guides) and contributors (CONTRIBUTING guide). Comprehensive troubleshooting reference reduces friction for support. All test patterns documented for consistency.
+
+**Also addresses:** Issue #94 research scope — test patterns and CI/CD documented in CONTRIBUTING.md for future CLI interface work.

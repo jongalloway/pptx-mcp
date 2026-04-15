@@ -20,11 +20,19 @@
 
 ## Recent Updates
 
-📌 **2026-04-11:** Issue triage — #94 (CLI Research) and #138 (Docs)
+📌 **2026-04-15:** Session complete — Issue triage #94 & #138 closure
 - **#94 verdict: CLOSE.** All 5 acceptance criteria satisfied. Research done (Nate: dual-mode GO), CLI fully implemented via #98–#104 (all closed). Only #105 (NuGet packaging) remains as separate distribution work. Parent issue is stale — recommend close.
-- **#138 verdict: PROMOTE from `go:no` to `go:yes`.** CLI shipped with zero user docs — README only covers MCP mode. Expanded scope recommendation adds CLI usage docs as P0 priority. Assigned @copilot.
-- **Key gap found:** 7 CLI command groups implemented but undocumented. Biggest usability hole in the project right now.
-- Decision document: `.squad/decisions/inbox/mccauley-cli-94-status.md`
+- **#138 verdict: SHIPPED.** Shiherlis completed all 4 documentation guides:
+  - EMU_GUIDE.md (5.5 KB) — English Metric Unit conversions, precision, tool reference
+  - SHAPE_RESOLUTION_GUIDE.md (11.2 KB) — Target shapes by name/index/placeholder, discovery methods, real-world scenarios
+  - TROUBLESHOOTING.md (13.2 KB) — 10 categories, quick reference for users/developers
+  - CONTRIBUTING.md (18.7 KB) — 5-step example for new tools, test patterns, CI/CD, code style
+  - README.md updated (+7 lines) with links to guides
+  - All 1,227 tests pass, zero regressions
+- **Gap closure:** CLI is now documented. Recommend README companion PR adding CLI quick-start (dual-mode intro, command examples) to close remaining visibility gap.
+- Decision documents merged: `.squad/decisions/inbox/` → `.squad/decisions.md` (both #94 and #138 decisions)
+- Orchestration logs written: `.squad/orchestration-log/2026-04-15T15-11-07Z-mccauley.md`, `.squad/orchestration-log/2026-04-15T15-11-07Z-shiherlis.md`
+- Session log written: `.squad/log/2026-04-15T15-11-07Z-issues-94-138.md`
 
 📌 **2026-04-11 (0000Z):** Squad state cleanup final pass completed
 - McCauley verified config.json (still good), refreshed now.md (focus_area + active_issues updated)
