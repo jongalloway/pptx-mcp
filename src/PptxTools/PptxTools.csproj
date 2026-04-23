@@ -27,7 +27,7 @@
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.2.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.6" />
     <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
-    <PackageReference Include="SharpMP4" Version="0.2.2" />
+    <PackageReference Include="SharpMP4" Version="0.3.0" />
     <PackageReference Include="System.CommandLine" Version="3.0.0-preview.2.26159.112" />
   </ItemGroup>
 </Project>
