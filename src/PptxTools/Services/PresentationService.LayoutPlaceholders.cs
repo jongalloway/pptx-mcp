@@ -97,7 +97,8 @@ public partial class PresentationService
                 Message: $"Layout '{layoutName}' has no shape tree.");
         }
 
-        var placeholders = shapeTree.ChildElements
+        var placeholders = shapeTree.Descendants<OpenXmlElement>()
+            .Where(e => e is Shape or Picture or GraphicFrame)
             .Select(GetLayoutPlaceholderShape)
             .Where(ph => ph is not null)
             .Cast<PlaceholderShape>()
@@ -203,6 +204,31 @@ public partial class PresentationService
                 Cx: cx,
                 Cy: cy,
                 Message: $"Layout '{layoutName}' has no shape tree.");
+        }
+
+        var existingIdxValues = shapeTree.Descendants<OpenXmlElement>()
+            .Where(e => e is Shape or Picture or GraphicFrame)
+            .Select(GetLayoutPlaceholderShape)
+            .Where(ph => ph is not null)
+            .Cast<PlaceholderShape>()
+            .Select(ph => ph.Index?.Value)
+            .Where(i => i.HasValue)
+            .Select(i => (uint)i!.Value)
+            .ToHashSet();
+
+        if (existingIdxValues.Contains((uint)idx))
+        {
+            return new AddLayoutPlaceholderResult(
+                Success: false,
+                FilePath: filePath,
+                LayoutName: layoutName,
+                Type: type,
+                Idx: idx,
+                X: x,
+                Y: y,
+                Cx: cx,
+                Cy: cy,
+                Message: $"A placeholder with idx={idx} already exists on layout '{layoutName}'.");
         }
 
         var newShapeId = GetMaxShapeId(shapeTree) + 1;

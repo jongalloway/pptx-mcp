@@ -206,6 +206,29 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
+    public async Task pptx_manage_layouts_AddPlaceholder_RejectsDuplicateIdx()
+    {
+        var path = CreateTemplatePptx();
+
+        // idx=1 already exists on TitleBodyLayoutName layout
+        var result = await _tools.pptx_manage_layouts(
+            path,
+            ManageLayoutsAction.AddPlaceholder,
+            layoutName: TemplateDeckHelper.TitleBodyLayoutName,
+            type: "body",
+            idx: 1,
+            x: 0,
+            y: 0,
+            cx: 1000000,
+            cy: 1000000);
+        var parsed = JsonSerializer.Deserialize<AddLayoutPlaceholderResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("idx=1", parsed.Message);
+    }
+
+    [Fact]
     public async Task pptx_list_masters_ReturnsMasterMetadata()
     {
         var path = CreateMinimalPptx();
