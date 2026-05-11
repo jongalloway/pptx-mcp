@@ -1133,6 +1133,64 @@ Error: File not found: /path/to/presentation.pptx
 
 ---
 
+## pptx_list_masters
+
+**Description:** List slide masters with theme, layout, shape, and background metadata.
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | string | ✅ Required | Absolute or relative path to the .pptx file. |
+
+### Returns
+
+A JSON array of slide master objects, each with:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Index` | integer | Zero-based master index. |
+| `Name` | string | Master name from `CommonSlideData.Name`, or a generated fallback. |
+| `ThemeName` | string \| null | Name of the associated theme when available. |
+| `LayoutCount` | integer | Number of layouts attached to the master. |
+| `LayoutNames` | string[] | Layout names attached to the master. |
+| `ShapeCount` | integer | Number of top-level `Shape` elements in the master shape tree. |
+| `BackgroundFill` | string \| null | Background fill summary (`solid`, `gradient`, `image`, etc.) when available. |
+
+On error:
+```
+Error: File not found: /path/to/presentation.pptx
+```
+
+### Example
+
+**Request:**
+```json
+{
+  "name": "pptx_list_masters",
+  "arguments": {
+    "filePath": "/presentations/template.pptx"
+  }
+}
+```
+
+**Response:**
+```json
+[
+  {
+    "Index": 0,
+    "Name": "dotnet-dark",
+    "ThemeName": "dotnet-dark",
+    "LayoutCount": 14,
+    "LayoutNames": ["Title Slide", "Content", "Section Header"],
+    "ShapeCount": 5,
+    "BackgroundFill": "solid #1F1E32"
+  }
+]
+```
+
+---
+
 ## pptx_list_slides
 
 **Description:** List all slides in a PowerPoint presentation with metadata including title, notes, and placeholder count.

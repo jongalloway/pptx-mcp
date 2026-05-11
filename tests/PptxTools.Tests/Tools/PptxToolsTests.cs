@@ -29,6 +29,7 @@ public class PptxToolsTests : PptxTestBase
     [Theory]
     [InlineData("pptx_list_slides")]
     [InlineData("pptx_list_layouts")]
+    [InlineData("pptx_list_masters")]
     [InlineData("pptx_get_slide_content")]
     [InlineData("pptx_extract_talking_points")]
     [InlineData("pptx_write_notes")]
@@ -40,6 +41,7 @@ public class PptxToolsTests : PptxTestBase
         {
             "pptx_list_slides" => await _tools.pptx_list_slides(fakePath),
             "pptx_list_layouts" => await _tools.pptx_list_layouts(fakePath),
+            "pptx_list_masters" => await _tools.pptx_list_masters(fakePath),
             "pptx_get_slide_content" => await _tools.pptx_get_slide_content(fakePath, 0),
             "pptx_extract_talking_points" => await _tools.pptx_extract_talking_points(fakePath),
             "pptx_write_notes" => await _tools.pptx_write_notes(fakePath, 0, "notes"),
@@ -81,6 +83,21 @@ public class PptxToolsTests : PptxTestBase
         var path = CreateMinimalPptx();
         var result = await _tools.pptx_list_layouts(path);
         Assert.Contains("Name", result);
+    }
+
+    [Fact]
+    public async Task pptx_list_masters_ReturnsMasterMetadata()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_list_masters(path);
+        var masters = JsonSerializer.Deserialize<SlideMasterInfo[]>(result);
+
+        Assert.NotNull(masters);
+        Assert.Single(masters);
+        Assert.Equal(0, masters[0].Index);
+        Assert.Equal(1, masters[0].LayoutCount);
+        Assert.Single(masters[0].LayoutNames);
+        Assert.Equal("Title Slide", masters[0].LayoutNames[0]);
     }
 
     [Fact]

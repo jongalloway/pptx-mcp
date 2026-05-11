@@ -490,6 +490,7 @@ Once connected, the following MCP tools are available:
 |------|-------------|
 | `pptx_list_slides` | List all slides with metadata |
 | `pptx_list_layouts` | List available slide layouts |
+| `pptx_list_masters` | List slide masters with theme, layout, shape, and background metadata |
 | `pptx_get_slide_content` | Get structured content (shapes, text, positions) for a slide |
 | `pptx_get_slide_xml` | Get the raw XML of a slide (advanced) |
 | `pptx_add_slide` | Add a new slide with a specified layout |
