@@ -110,3 +110,10 @@
 - **Additional cleanup audit:** Checked `.squad/identity/wisdom.md` (empty template—intended), `.squad/decisions/inbox/` (clean, previously merged), `.squad/casting-*.json` files (inert config—no cleanup needed), agent histories (all recently updated), `.squad/routing.md` and `.squad/team.md` (current). No additional low-risk cleanup items identified.
 - **Outcome:** Squad metadata now current and accurate. Coordinator and agent spawning fully functional.
 
+### Copilot PR Merge Review (2026-05-11)
+- **PR #182 (ModifyPlaceholder/AddPlaceholder):** Merged via squash. CI green, code clean, review feedback addressed. Adds layout placeholder editing to `pptx_manage_layouts`.
+- **PR #183 (Delete/DeleteAll slides):** Left open — still draft. Code solid but needs review cycle. `DeleteAllSlides` producing zero-slide presentations should be validated. Cheritto owns any service fixes, Shiherlis owns test expansion.
+- **Local push:** Rebased 7 squad-metadata commits + 1 doc commit onto origin/main (which had diverged significantly with PRs #176–#182 merged remotely). README merge conflict resolved.
+- **Pattern:** When local main diverges from origin due to Copilot-assigned issues merging remotely, always fetch+rebase before pushing local squad commits. Stash working tree changes first.
+- **Key files touched:** `src/PptxTools/Services/PresentationService.LayoutPlaceholders.cs` (new partial class for placeholder ops), `src/PptxTools/Tools/PptxTools.ManageSlides.cs` (Delete/DeleteAll routing), `docs/CONTRIBUTING.md`, `docs/EMU_GUIDE.md`, `docs/SHAPE_RESOLUTION_GUIDE.md`, `docs/TROUBLESHOOTING.md`.
+
