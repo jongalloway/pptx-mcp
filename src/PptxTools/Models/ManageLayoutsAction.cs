@@ -7,5 +7,8 @@ public enum ManageLayoutsAction
     Find,
 
     /// <summary>Remove unused slide layouts and orphaned masters from the presentation.</summary>
-    Remove
+    Remove,
+
+    /// <summary>Set the semantic type attribute on a named slide layout.</summary>
+    SetType
 }
