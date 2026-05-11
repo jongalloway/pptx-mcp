@@ -33,6 +33,18 @@ public class PresentationServiceTests : PptxTestBase
     }
 
     [Fact]
+    public void GetSlides_FileOpenByAnotherProcessWithReadWriteShare_Succeeds()
+    {
+        var path = CreateMinimalPptx("Hello World");
+        using var lockStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+
+        var slides = Service.GetSlides(path);
+
+        Assert.Single(slides);
+        Assert.Equal("Hello World", slides[0].Title);
+    }
+
+    [Fact]
     public void GetLayouts_ReturnsLayouts()
     {
         var path = CreateMinimalPptx();
@@ -46,6 +58,17 @@ public class PresentationServiceTests : PptxTestBase
         var path = CreateMinimalPptx();
         var layouts = Service.GetLayouts(path);
         Assert.All(layouts, layout => Assert.NotNull(layout.Name));
+    }
+
+    [Fact]
+    public void GetLayouts_FileOpenByAnotherProcessWithReadWriteShare_Succeeds()
+    {
+        var path = CreateMinimalPptx();
+        using var lockStream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+
+        var layouts = Service.GetLayouts(path);
+
+        Assert.NotEmpty(layouts);
     }
 
     [Fact]
