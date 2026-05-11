@@ -86,3 +86,25 @@
 **Impact:** Fully resolved issue #138. Lowered barrier to entry for both users (EMU/Shape guides) and contributors (CONTRIBUTING guide). Comprehensive troubleshooting reference reduces friction for support. All test patterns documented for consistency.
 
 **Also addresses:** Issue #94 research scope — test patterns and CI/CD documented in CONTRIBUTING.md for future CLI interface work.
+
+### Local Docs Review and PR Merge (2026-05-11)
+
+**Task:** Review local uncommitted docs changes, check for conflicts with PR #182/#183, merge PRs if ready, push docs if valid.
+
+**Finding:** 
+- Local docs changes (issue #138) were already committed by Scribe (commit ce970c5) and pushed to origin
+- PR #182 (ModifyPlaceholder/AddPlaceholder actions) — already merged
+- PR #183 (Delete/DeleteAll slides) — open, draft status, all checks passing
+- No conflicts: PRs #182/#183 touch only Models/Services/Tools/Tests; docs changes touch only README and docs/ directory
+
+**Actions taken:**
+- Verified test suite: 1,227/1,227 tests passing ✅
+- Checked content quality: all references use correct project name (PptxTools), test commands match CI
+- Marked PR #183 ready for review (removed draft status)
+- Merged PR #183 with squash merge
+- Pulled merged changes to local main
+- Verified all changes synced to origin/main
+
+**Decision recorded:** `.squad/decisions/inbox/shiherlis-local-docs-review.md` — docs changes valid, no conflicts, safe to merge.
+
+**Result:** Both Copilot PRs merged, docs changes already on main, issue #138 ready to close.
