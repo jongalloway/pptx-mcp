@@ -2696,3 +2696,44 @@ Rename project from pptx-mcp to pptx-tools (repo + NuGet package). CLI command b
 
 ---
 
+
+---
+
+## Archived Decision (2026-03-17): Feasibility — Issues #115 & #116
+
+**Author:** Nate (Consulting Dev)  
+**Date:** 2026-03-17T06:15Z  
+**Status:** READY FOR GREENLIGHTING  
+
+Two high-complexity features researched and ready for prioritization:
+
+| Issue | Feature | Verdict | Effort | Timeline |
+|-------|---------|---------|--------|----------|
+| **#115** | Shape creation | 🟢 GO:YES | L–XL | 5–8 weeks (MVP) |
+| **#116a** | Slide transitions | 🟢 GO:YES | L–M | 1–2 weeks |
+| **#116b** | Shape animations | 🟡 GO:CONDITIONAL | H–XL | 4–6 weeks (Phase 2) |
+
+Key finding: Both shape creation and transitions have excellent OpenXML support and proven patterns from MarpToPptx. Animations deliberately deferred due to complexity.
+
+**Decision:** Approve #115 (Shape creation) and #116a (Transitions) for development. Conditional approval for #116b (Animations) pending user demand validation.
+
+**Deliverables:** Feasibility report with technical patterns, history update for Nate, team-visible rationale.
+
+---
+
+## Archived Orchestrations (2026-03-25): Issues #114, #121, #125
+
+**Date:** 2026-03-25
+
+### Issue #114: Hyperlink Support Implementation
+- **Status:** ✅ Implemented (PR #145)
+- **Agents:** McCauley (orchestrator), Shiherlis (testing), Cheritto (feature)
+- **Work:** 49 tests, full CRUD implementation, 5 new files, 624/624 tests passing
+- **Impact:** Feature-complete hyperlink support
+
+### Issues #121 & #125: Validation & Text Formatting
+- **Status:** ✅ Implemented (PRs #146, #147)
+- **Agents:** Copilot (orchestrator), Shiherlis (testing), Cheritto (features)
+- **Work:** Validation (41 tests) + Text Formatting (51 tests), 1,249/1,249 tests passing
+- **Impact:** Both features complete and feature-ready
+

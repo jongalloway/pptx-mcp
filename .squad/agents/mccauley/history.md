@@ -117,3 +117,11 @@
 - **Pattern:** When local main diverges from origin due to Copilot-assigned issues merging remotely, always fetch+rebase before pushing local squad commits. Stash working tree changes first.
 - **Key files touched:** `src/PptxTools/Services/PresentationService.LayoutPlaceholders.cs` (new partial class for placeholder ops), `src/PptxTools/Tools/PptxTools.ManageSlides.cs` (Delete/DeleteAll routing), `docs/CONTRIBUTING.md`, `docs/EMU_GUIDE.md`, `docs/SHAPE_RESOLUTION_GUIDE.md`, `docs/TROUBLESHOOTING.md`.
 
+
+
+### PR Review Session (2026-05-11)
+- Reviewed PRs #182 (ModifyPlaceholder/AddPlaceholder) and #183 (Delete/DeleteAll slides)
+- **Decision:** Merged PR #182 squash. Code clean, addresses prior feedback, 531 additions, tests included.
+- **Decision:** Left PR #183 open (draft state). CI green, code solid, but needs review cycle and verification of zero-slide presentation validity.
+- **Decision:** Confirmed local docs (Issue #138) ready to merge. No conflicts with concurrent PRs, 1,227/1,227 tests passing.
+- **Output:** Documented PR review decision, identified PR #183 rebase recommendation for post-merge.
