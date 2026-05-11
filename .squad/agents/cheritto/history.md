@@ -46,3 +46,21 @@
 - Reuses `GetSlideContent`, `GetPresentationMetadata`, `GetSlideNotes`, and `ExtractChartData` from existing service partial classes
 - Chart data extracted via `BuildChartLookup` keyed by shape name, then matched during shape iteration
 
+### MCP tool descriptions (2026-05-11)
+- ModelContextProtocol tool descriptions are populated from XML documentation comments only when `src/PptxTools/PptxTools.csproj` emits the XML doc file (`<GenerateDocumentationFile>true</GenerateDocumentationFile>`).
+- Without the generated `src/PptxTools/bin/Release/net10.0/PptxTools.xml`, reflected MCP tools advertise empty descriptions even when the tool methods have `<summary>` comments.
+- This affects consolidated tool partials such as `src/PptxTools/Tools/PptxTools.ManageMedia.cs`, `PptxTools.ManageSlides.cs`, `PptxTools.Optimization.cs`, and `PptxTools.Hyperlinks.cs`.
+
+### MCP Tool Description Fix Implementation (2026-05-11)
+
+**Task:** Fix MCP startup warning — `[warning] Tool pptx_manage_media does not have a description`
+
+**Solution:** Enabled `<GenerateDocumentationFile>true</GenerateDocumentationFile>` in `src/PptxTools/PptxTools.csproj`
+
+**Verification:** Shiherlis confirmed fix effective (fresh rebuild, clean startup, 1261/1261 tests passing)
+
+**Decision recorded:** `.squad/decisions.md` — "Enable XML Documentation for MCP Tool Descriptions (2026-05-11)"
+
+**Outcome:** ✅ Complete. Minimal change preserves pattern of tool descriptions in XML comments. Fixes `pptx_manage_media` and sibling tools.
+
+

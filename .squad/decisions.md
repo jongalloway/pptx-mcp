@@ -39,6 +39,53 @@
 
 ---
 
+### Decision: Enable XML Documentation for MCP Tool Descriptions (2026-05-11)
+
+**Authors:** Cheritto (Backend), Shiherlis (Tester)  
+**Date:** 2026-05-11  
+**Status:** ✅ Implemented & Verified
+
+## Problem
+
+MCP startup warning: `[warning] Tool pptx_manage_media does not have a description. Tools must be accurately described to be called`
+
+## Root Cause
+
+ModelContextProtocol runtime reads tool descriptions from compiled XML documentation sidecar file (`PptxTools.xml`). Without this file, XML `<summary>` comments on tool methods are not surfaced in MCP tool metadata advertisements, even though the comments exist in source code.
+
+## Solution
+
+Enabled XML documentation file generation in `src/PptxTools/PptxTools.csproj`:
+
+```xml
+<GenerateDocumentationFile>true</GenerateDocumentationFile>
+```
+
+## Implementation (Cheritto)
+
+- Minimal change preserves existing pattern of keeping tool descriptions in XML comments
+- Build now emits `PptxTools.xml` sidecar alongside executable
+- Fixes warning for `pptx_manage_media` and sibling tools (`pptx_manage_slides`, `pptx_manage_layouts`, `pptx_optimize_images`, `pptx_manage_hyperlinks`)
+
+## Verification (Shiherlis)
+
+- Fresh Debug rebuild: `PptxTools.xml` generated correctly
+- `dotnet run --project .\src\PptxTools -- --stdio`: Started cleanly, no warning
+- Release build: ✅ Complete
+- Test suite: ✅ 1261/1261 passing, zero regressions
+
+## Risk Assessment
+
+- **Operational Hazard:** Tool descriptions now depend on `PptxTools.xml` being emitted and shipped beside executable
+- **Reflection Analysis:** All 32 tools still have null `McpServerToolAttribute.Description` at runtime; descriptions depend on XML sidecar
+- **Mitigation:** If warning reappears, investigate build/output packaging first before changing source code
+
+## Outcome
+
+✅ **Complete** — Warning resolved. Solution accepted as effective for reported symptom. Operational dependency documented for future reference.
+
+---
+
 ### Decision: Merge Local Docs Changes (Issue #138) (2026-05-11)
 
 **Owner:** Shiherlis (Tester)  

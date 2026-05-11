@@ -115,3 +115,29 @@
 - **Finding:** All 1,227 tests passing (zero regressions), content accurate, project name correct
 - **Decision:** Confirmed docs ready to merge immediately. Gap from #94 CLI implementation now filled.
 - **Output:** Documented validation findings, ready for Issue #138 closure.
+
+### MCP Description Warning Verification (2026-05-11)
+- Fresh Debug rebuild regenerated `src/PptxTools/bin/Debug/net10.0/PptxTools.xml`; after that, `dotnet run --project .\src\PptxTools -- --stdio` started clean with no startup warning reproduced locally.
+- `src/PptxTools/Tools/PptxTools.ManageMedia.cs` already carries the expected XML `<summary>` text for `pptx_manage_media`, and the generated XML doc sidecar includes that summary. The warning is therefore broader than ManageMedia alone and is most likely tied to stale or missing XML doc output, not missing source comments.
+- Reflection still shows all 32 `McpServerToolAttribute.Description` properties as null, so MCP description quality in this repo still depends on the emitted XML documentation file being present beside the built assembly.
+- Validation run on main: `dotnet build .\PptxTools.slnx --configuration Release` succeeded with warnings only; `dotnet test --solution .\PptxTools.slnx --configuration Release --no-build` passed 1261/1261.
+
+### MCP Tool Description Warning — Formal Verification (2026-05-11)
+
+**Task:** Verify Cheritto's XML documentation fix is effective
+
+**Approach:**
+1. Reproduce current state with fresh Debug rebuild
+2. Validate XML sidecar generation
+3. Run existing test suite validation
+
+**Findings:**
+- ✅ Fresh rebuild generates XML doc sidecar correctly
+- ✅ Clean startup with no warning after rebuild
+- ✅ All 1261 tests passing, zero regressions
+- ⚠️ Operational hazard: Tool descriptions depend on XML sidecar being shipped
+
+**Decision recorded:** `.squad/decisions.md` — "Enable XML Documentation for MCP Tool Descriptions (2026-05-11)" (joint decision with Cheritto)
+
+**Outcome:** ✅ Complete. Implementation accepted as effective. Documented operational dependency for future reference.
+
