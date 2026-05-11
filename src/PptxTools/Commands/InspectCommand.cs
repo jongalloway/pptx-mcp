@@ -13,6 +13,7 @@ public static class InspectCommand
         command.Add(CreateContentCommand(service));
         command.Add(CreateXmlCommand(service));
         command.Add(CreateLayoutsCommand(service));
+        command.Add(CreateThemeCommand(service));
         return command;
     }
 
@@ -177,6 +178,64 @@ public static class InspectCommand
             foreach (var layout in layouts)
             {
                 Console.WriteLine($"  {layout.Index + 1}. {layout.Name}");
+            }
+        });
+
+        return cmd;
+    }
+
+    private static Command CreateThemeCommand(PresentationService service)
+    {
+        var fileArg = new Argument<string>("file") { Description = "Path to the .pptx file" };
+        var jsonOption = new Option<bool>("--json") { Description = "Output as JSON" };
+
+        var cmd = new Command("theme") { Description = "Inspect theme colors and fonts" };
+        cmd.Add(fileArg);
+        cmd.Add(jsonOption);
+
+        cmd.SetAction(parseResult =>
+        {
+            var filePath = parseResult.GetValue(fileArg)!;
+            var asJson = parseResult.GetValue(jsonOption);
+
+            if (!File.Exists(filePath))
+            {
+                Console.Error.WriteLine($"Error: File not found: {filePath}");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            var result = service.GetThemeInfo(filePath);
+
+            if (asJson)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+                return;
+            }
+
+            Console.WriteLine($"Themes ({result.ThemeCount}):");
+            Console.WriteLine();
+            foreach (var theme in result.Themes)
+            {
+                Console.WriteLine($"  Master {theme.MasterIndex}: {theme.ThemeName ?? "(unnamed)"}");
+
+                if (theme.ColorScheme is { } cs)
+                {
+                    Console.WriteLine($"    Color Scheme: {cs.Name ?? "(unnamed)"}");
+                    Console.WriteLine($"      Dark1={cs.Dark1}  Light1={cs.Light1}");
+                    Console.WriteLine($"      Dark2={cs.Dark2}  Light2={cs.Light2}");
+                    Console.WriteLine($"      Accent1={cs.Accent1}  Accent2={cs.Accent2}  Accent3={cs.Accent3}");
+                    Console.WriteLine($"      Accent4={cs.Accent4}  Accent5={cs.Accent5}  Accent6={cs.Accent6}");
+                    Console.WriteLine($"      Hyperlink={cs.Hyperlink}  FollowedHyperlink={cs.FollowedHyperlink}");
+                }
+
+                if (theme.FontScheme is { } fs)
+                {
+                    Console.WriteLine($"    Font Scheme: {fs.Name ?? "(unnamed)"}");
+                    Console.WriteLine($"      MajorFont={fs.MajorFont}  MinorFont={fs.MinorFont}");
+                }
+
+                Console.WriteLine();
             }
         });
 
