@@ -30,7 +30,7 @@ public partial class PresentationService
             ["objOnly"] = SlideLayoutValues.ObjectOnly,
             ["obj"]     = SlideLayoutValues.Object,
             ["txAndMedia"] = SlideLayoutValues.TextAndMedia,
-            ["mediaAndTx"] = SlideLayoutValues.MidiaAndText,  // SDK enum member name has a typo ("Midia"); this is intentional
+            ["mediaAndTx"] = SlideLayoutValues.MidiaAndText,  // "MidiaAndText" is a known typo in the OpenXML SDK for "MediaAndText"; this is intentional
             ["objOverTx"] = SlideLayoutValues.ObjectOverText,
             ["txOverObj"] = SlideLayoutValues.TextOverObject,
             ["txAndTwoObj"] = SlideLayoutValues.TextAndTwoObjects,
