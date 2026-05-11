@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using PptxTools.Models;
 
@@ -121,6 +122,87 @@ public class PptxToolsTests : PptxTestBase
         // Consistency: TotalShapeCount = PlaceholderCount + NonPlaceholderShapeCount
         foreach (var layout in layouts)
             Assert.Equal(layout.TotalShapeCount, layout.PlaceholderCount + layout.NonPlaceholderShapeCount);
+    }
+
+    [Fact]
+    public async Task pptx_manage_layouts_ModifyPlaceholder_UpdatesTypeAndIdx()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_manage_layouts(
+            path,
+            ManageLayoutsAction.ModifyPlaceholder,
+            layoutName: TemplateDeckHelper.TitleBodyLayoutName,
+            placeholderIndex: 1,
+            newType: "obj",
+            newIdx: 7);
+        var parsed = JsonSerializer.Deserialize<ModifyLayoutPlaceholderResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+
+        using var doc = PresentationDocument.Open(path, false);
+        var layout = doc.PresentationPart!.SlideMasterParts
+            .SelectMany(master => master.SlideLayoutParts)
+            .Single(lp => lp.SlideLayout?.CommonSlideData?.Name?.Value == TemplateDeckHelper.TitleBodyLayoutName);
+
+        var placeholders = layout.SlideLayout!.CommonSlideData!.ShapeTree!.ChildElements
+            .Select(child => child switch
+            {
+                Shape shape => shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                Picture picture => picture.NonVisualPictureProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                GraphicFrame frame => frame.NonVisualGraphicFrameProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                _ => null
+            })
+            .Where(ph => ph is not null)
+            .Cast<PlaceholderShape>()
+            .ToList();
+
+        Assert.Equal(PlaceholderValues.Object, placeholders[1].Type?.Value);
+        Assert.Equal(7U, placeholders[1].Index?.Value);
+    }
+
+    [Fact]
+    public async Task pptx_manage_layouts_AddPlaceholder_AppendsPlaceholderShape()
+    {
+        var path = CreateTemplatePptx();
+        const long x = 1088058;
+        const long y = 3000000;
+        const long cx = 22100000;
+        const long cy = 10000000;
+
+        var result = await _tools.pptx_manage_layouts(
+            path,
+            ManageLayoutsAction.AddPlaceholder,
+            layoutName: TemplateDeckHelper.TitleBodyLayoutName,
+            type: "body",
+            idx: 5,
+            x: x,
+            y: y,
+            cx: cx,
+            cy: cy);
+        var parsed = JsonSerializer.Deserialize<AddLayoutPlaceholderResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+
+        using var doc = PresentationDocument.Open(path, false);
+        var layout = doc.PresentationPart!.SlideMasterParts
+            .SelectMany(master => master.SlideLayoutParts)
+            .Single(lp => lp.SlideLayout?.CommonSlideData?.Name?.Value == TemplateDeckHelper.TitleBodyLayoutName);
+
+        var appendedShape = Assert.Single(layout.SlideLayout!.CommonSlideData!.ShapeTree!.Elements<Shape>(),
+            shape => shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape?.Index?.Value == 5U);
+
+        var placeholder = appendedShape.NonVisualShapeProperties!.ApplicationNonVisualDrawingProperties!.PlaceholderShape!;
+        Assert.Equal(PlaceholderValues.Body, placeholder.Type?.Value);
+
+        var transform = appendedShape.ShapeProperties?.GetFirstChild<DocumentFormat.OpenXml.Drawing.Transform2D>();
+        Assert.NotNull(transform);
+        Assert.Equal(x, transform.Offset!.X!.Value);
+        Assert.Equal(y, transform.Offset!.Y!.Value);
+        Assert.Equal(cx, transform.Extents!.Cx!.Value);
+        Assert.Equal(cy, transform.Extents!.Cy!.Value);
     }
 
     [Fact]
