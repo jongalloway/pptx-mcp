@@ -13,8 +13,9 @@ public partial class PresentationService
     {
         using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var doc = PresentationDocument.Open(stream, false);
-        var presentation = doc.PresentationPart!.Presentation;
-        var layoutIndexLookup = BuildLayoutIndexLookup(doc.PresentationPart);
+        var presentationPart = doc.PresentationPart!;
+        var presentation = presentationPart.Presentation;
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
         var slideIdList = presentation.SlideIdList;
         if (slideIdList is null) return [];
 
@@ -22,7 +23,7 @@ public partial class PresentationService
         int index = 0;
         foreach (SlideId slideId in slideIdList.Elements<SlideId>())
         {
-            var slidePart = (SlidePart)doc.PresentationPart.GetPartById(slideId.RelationshipId!.Value!);
+            var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
             var slide = slidePart.Slide;
 
             string? title = GetSlideTitle(slide);
