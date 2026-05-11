@@ -11,7 +11,8 @@ public partial class PresentationService
 {
     public IReadOnlyList<SlideInfo> GetSlides(string filePath)
     {
-        using var doc = PresentationDocument.Open(filePath, false);
+        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var doc = PresentationDocument.Open(stream, false);
         var presentation = doc.PresentationPart!.Presentation;
         var slideIdList = presentation.SlideIdList;
         if (slideIdList is null) return [];
@@ -95,7 +96,8 @@ public partial class PresentationService
 
     public IReadOnlyList<SlideLayoutInfo> GetLayouts(string filePath)
     {
-        using var doc = PresentationDocument.Open(filePath, false);
+        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var doc = PresentationDocument.Open(stream, false);
         var result = new List<SlideLayoutInfo>();
         int index = 0;
         foreach (var masterPart in doc.PresentationPart!.SlideMasterParts)
@@ -1931,5 +1933,4 @@ public partial class PresentationService
 
     private record PictureTarget(Picture Picture, int Index, string Name, uint? ShapeId);
 }
-
 
