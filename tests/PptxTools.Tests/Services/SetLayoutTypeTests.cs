@@ -223,7 +223,9 @@ public class SetLayoutTypeTests : PptxTestBase
     // ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Creates a minimal PPTX with one layout per name, each starting without a type.
+    /// Creates a minimal PPTX with one layout per name, each initialized with
+    /// <see cref="SlideLayoutValues.Title"/> as a starting type (suitable for overwrite tests).
+    /// Use <see cref="CreatePptxWithUntypedLayout"/> to test the no-type-attribute case.
     /// </summary>
     private string CreatePptxWithNamedLayouts(params string[] names)
     {
