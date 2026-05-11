@@ -19,7 +19,7 @@ public partial class PptxTools
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
     /// <param name="action">The slide management operation to perform: Add, AddFromLayout, Duplicate, Delete, or DeleteAll.</param>
     /// <param name="layoutName">Layout name. Required for AddFromLayout. Optional for Add (defaults to first available layout). Use pptx_list_layouts to discover available values.</param>
-    /// <param name="slideNumber">1-based slide number to duplicate or delete. Required for Duplicate action when slideNumbers is not provided.</param>
+    /// <param name="slideNumber">1-based slide number to duplicate or delete. Required for Duplicate action. Optional for Delete when slideNumbers is not provided.</param>
     /// <param name="slideNumbers">Optional 1-based slide numbers to delete in a single operation. Used by Delete action.</param>
     /// <param name="placeholderValues">Optional placeholder text values keyed by semantic type with optional :index suffix (e.g. Title, Body:1, Picture:2). Used by AddFromLayout and Duplicate actions.</param>
     /// <param name="insertAt">Optional 1-based insertion position. Applies to AddFromLayout and Duplicate only. Defaults to end of deck for AddFromLayout, or after the source slide for Duplicate.</param>
