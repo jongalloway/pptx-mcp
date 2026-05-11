@@ -12,7 +12,7 @@ namespace PptxTools.Models;
 /// <param name="Accent4">Accent4 color in #RRGGBB format.</param>
 /// <param name="Accent5">Accent5 color in #RRGGBB format.</param>
 /// <param name="Accent6">Accent6 color in #RRGGBB format.</param>
-/// <param name="Hyperlink">Hyperlink (followed link) color in #RRGGBB format.</param>
+/// <param name="Hyperlink">Hyperlink color in #RRGGBB format.</param>
 /// <param name="FollowedHyperlink">Followed hyperlink color in #RRGGBB format.</param>
 public record ThemeColorScheme(
     string? Name,

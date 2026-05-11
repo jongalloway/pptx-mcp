@@ -26,7 +26,7 @@ public class ThemeToolsTests : PptxTestBase
     [Fact]
     public async Task InspectTheme_FileNotFound_ReturnsError()
     {
-        var fakePath = @"C:\does-not-exist\missing.pptx";
+        var fakePath = Path.Combine(Path.GetTempPath(), "does-not-exist", "missing.pptx");
 
         var result = await _tools.pptx_inspect_theme(fakePath);
 
