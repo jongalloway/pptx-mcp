@@ -38,22 +38,30 @@ public partial class PptxTools
     ];
 
     /// <summary>
-    /// Manage unused slide layouts and masters in a PowerPoint presentation.
+    /// Manage slide layouts in a PowerPoint presentation.
     /// Available actions:
     /// - Find: Identify unused layouts and masters with estimated space savings (read-only).
     /// - Remove: Remove unused layouts and orphaned masters, with OpenXML validation before and after.
-    /// Natural workflow: Find (diagnostic) → Remove (action).
+    /// - SetType: Set the semantic type attribute (e.g. "title", "obj", "secHead") on a named layout.
+    /// Natural workflow: Find (diagnostic) → Remove (action) or SetType (correction).
     /// </summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    /// <param name="action">The layout management operation to perform: Find or Remove.</param>
+    /// <param name="action">The layout management operation to perform: Find, Remove, or SetType.</param>
     /// <param name="layoutUris">Optional array of layout URIs to remove. Only used with Remove action. Omit to auto-detect all unused layouts.</param>
+    /// <param name="layoutName">Display name of the layout to update. Required for SetType action.</param>
+    /// <param name="layoutType">
+    /// Semantic type to assign to the layout. Required for SetType action.
+    /// Common values: title, tx, obj, twoObj, secHead, blank, picTx, tbl, chart, titleOnly, cust.
+    /// </param>
     [McpServerTool(Title = "Manage Layouts")]
     [McpMeta("consolidatedTool", true)]
-    [McpMeta("actions", JsonValue = """["Find","Remove"]""")]
+    [McpMeta("actions", JsonValue = """["Find","Remove","SetType"]""")]
     public partial Task<string> pptx_manage_layouts(
         string filePath,
         ManageLayoutsAction action,
-        string[]? layoutUris = null)
+        string[]? layoutUris = null,
+        string? layoutName = null,
+        string? layoutType = null)
     {
         return action switch
         {
@@ -84,8 +92,24 @@ public partial class PptxTools
                     Validation: new ValidationStatus(0, 0, false),
                     Message: error)),
 
+            ManageLayoutsAction.SetType => ExecuteToolStructured(filePath,
+                () =>
+                {
+                    if (string.IsNullOrWhiteSpace(layoutName))
+                        throw new ArgumentException("layoutName is required for the SetType action.");
+                    if (string.IsNullOrWhiteSpace(layoutType))
+                        throw new ArgumentException("layoutType is required for the SetType action.");
+                    return _service.SetLayoutType(filePath, layoutName, layoutType);
+                },
+                error => new SetLayoutTypeResult(
+                    Success: false,
+                    FilePath: filePath,
+                    LayoutName: layoutName,
+                    LayoutType: layoutType,
+                    Message: error)),
+
             _ => Task.FromResult(JsonSerializer.Serialize(
-                new { Success = false, Message = $"Unknown action: {action}. Valid actions: Find, Remove." },
+                new { Success = false, Message = $"Unknown action: {action}. Valid actions: Find, Remove, SetType." },
                 IndentedJson))
         };
     }
