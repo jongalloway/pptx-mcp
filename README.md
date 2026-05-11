@@ -129,6 +129,11 @@ pptx-tools supports argument auto-completion for:
 
 → Full parameter docs and examples: [docs/TOOL_REFERENCE.md](docs/TOOL_REFERENCE.md)
 
+**Guides:**
+- [EMU Calculator Guide](docs/EMU_GUIDE.md) — Understanding EMU coordinates, conversions, common sizes
+- [Shape Resolution Guide](docs/SHAPE_RESOLUTION_GUIDE.md) — Targeting shapes by name, index, or placeholder type
+- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) — Common issues and solutions
+
 ---
 
 ## Use Cases
@@ -155,9 +160,13 @@ Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download)
 dotnet build PptxTools.slnx --configuration Release
 
 # Test
-dotnet test PptxTools.slnx --configuration Release
+dotnet test --solution PptxTools.slnx --configuration Release
 ```
 
-Architecture overview and internal docs live in [docs/PRD.md](docs/PRD.md).
+**First time contributing?** Start with [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — setup, project structure, how to add tools, and test patterns.
+
+**Need help?** Check [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues.
+
+**Architecture & design docs:** [docs/PRD.md](docs/PRD.md)
 
 Contributions are welcome—open an issue or a PR.
