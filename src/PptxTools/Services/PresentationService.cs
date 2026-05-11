@@ -63,8 +63,7 @@ public partial class PresentationService
         int? layoutIndex = layoutIndexLookup.TryGetValue(layoutPart, out var index)
             ? index
             : null;
-        var layoutName = layoutPart.SlideLayout?.CommonSlideData?.Name?.Value
-            ?? (layoutIndex.HasValue ? $"Layout {layoutIndex.Value}" : null);
+        var layoutName = layoutPart.SlideLayout?.CommonSlideData?.Name?.Value;
 
         return (layoutName, layoutIndex);
     }
@@ -1093,7 +1092,9 @@ public partial class PresentationService
             throw new ArgumentOutOfRangeException(nameof(topN), "topN must be greater than zero.");
 
         using var doc = PresentationDocument.Open(filePath, false);
-        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        var presentationPart = doc.PresentationPart!;
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
+        var slideIdList = presentationPart.Presentation.SlideIdList;
         if (slideIdList is null)
             return [];
 
@@ -1104,7 +1105,7 @@ public partial class PresentationService
             var slidePart = GetSlidePart(doc, slideIndex);
             try
             {
-                var slideContent = GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+                var slideContent = GetSlideContent(presentationPart, slidePart, slideIndex, layoutIndexLookup);
                 var title = GetSlideTitle(slidePart.Slide);
                 var points = RankTalkingPoints(slideContent, topN);
                 talkingPoints.Add(new SlideTalkingPoints(slideIndex, title, points));
@@ -1172,12 +1173,6 @@ public partial class PresentationService
         File.WriteAllText(resolvedOutputPath, markdown);
 
         return new MarkdownExportResult(resolvedOutputPath, markdown, slideIds.Count, imageCount);
-    }
-
-    private static SlideContent GetSlideContent(PresentationPart presentationPart, SlidePart slidePart, int slideIndex)
-    {
-        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
-        return GetSlideContent(presentationPart, slidePart, slideIndex, layoutIndexLookup);
     }
 
     private static SlideContent GetSlideContent(
