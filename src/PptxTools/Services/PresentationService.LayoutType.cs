@@ -13,6 +13,7 @@ public partial class PresentationService
     private static readonly IReadOnlyDictionary<string, SlideLayoutValues> LayoutTypeMap =
         new Dictionary<string, SlideLayoutValues>(StringComparer.OrdinalIgnoreCase)
         {
+
             ["title"]   = SlideLayoutValues.Title,
             ["tx"]      = SlideLayoutValues.Text,
             ["twoColTx"] = SlideLayoutValues.TwoColumnText,
@@ -50,6 +51,12 @@ public partial class PresentationService
             ["objTx"]   = SlideLayoutValues.ObjectText,
             ["picTx"]   = SlideLayoutValues.PictureText,
         };
+
+    /// <summary>
+    /// Reverse of <see cref="LayoutTypeMap"/>: maps <see cref="SlideLayoutValues"/> → OOXML attribute string.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<SlideLayoutValues, string> LayoutTypeReverseMap =
+        LayoutTypeMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
     /// <summary>
     /// Set the semantic <c>type</c> attribute on the named slide layout in a PPTX file.

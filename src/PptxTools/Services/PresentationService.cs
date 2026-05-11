@@ -148,9 +148,10 @@ public partial class PresentationService
                     ? SlideLayoutValueToString(sdkVal)
                     : null;
 
-                // Gather shape info from all shape-like elements in the tree
+                // Gather shape info from all shape-like elements in the tree (including those
+                // nested inside GroupShape) by traversing all descendants.
                 var shapeTree = layout.CommonSlideData?.ShapeTree;
-                var allElements = shapeTree?.Elements<OpenXmlElement>()
+                var allElements = shapeTree?.Descendants<OpenXmlElement>()
                     .Where(e => e is Shape or Picture or P.GraphicFrame)
                     .ToList() ?? [];
                 int totalShapeCount = allElements.Count;
@@ -200,46 +201,8 @@ public partial class PresentationService
         return result;
     }
 
-    private static string SlideLayoutValueToString(SlideLayoutValues value)
-    {
-        if (value == SlideLayoutValues.Title) return "title";
-        if (value == SlideLayoutValues.Text) return "tx";
-        if (value == SlideLayoutValues.TwoColumnText) return "twoColTx";
-        if (value == SlideLayoutValues.Table) return "tbl";
-        if (value == SlideLayoutValues.TextAndChart) return "txAndChart";
-        if (value == SlideLayoutValues.ChartAndText) return "chartAndTx";
-        if (value == SlideLayoutValues.Diagram) return "dgm";
-        if (value == SlideLayoutValues.Chart) return "chart";
-        if (value == SlideLayoutValues.TextAndClipArt) return "txAndClipArt";
-        if (value == SlideLayoutValues.ClipArtAndText) return "clipArtAndTx";
-        if (value == SlideLayoutValues.TitleOnly) return "titleOnly";
-        if (value == SlideLayoutValues.Blank) return "blank";
-        if (value == SlideLayoutValues.TextAndObject) return "txAndObj";
-        if (value == SlideLayoutValues.ObjectAndText) return "objAndTx";
-        if (value == SlideLayoutValues.ObjectOnly) return "objOnly";
-        if (value == SlideLayoutValues.Object) return "obj";
-        if (value == SlideLayoutValues.TextAndMedia) return "txAndMedia";
-        if (value == SlideLayoutValues.MidiaAndText) return "mediaAndTx";
-        if (value == SlideLayoutValues.ObjectOverText) return "objOverTx";
-        if (value == SlideLayoutValues.TextOverObject) return "txOverObj";
-        if (value == SlideLayoutValues.TextAndTwoObjects) return "txAndTwoObj";
-        if (value == SlideLayoutValues.TwoObjectsAndText) return "twoObjAndTx";
-        if (value == SlideLayoutValues.TwoObjectsOverText) return "twoObjOverTx";
-        if (value == SlideLayoutValues.FourObjects) return "fourObj";
-        if (value == SlideLayoutValues.VerticalText) return "vertTx";
-        if (value == SlideLayoutValues.ClipArtAndVerticalText) return "clipArtAndVertTx";
-        if (value == SlideLayoutValues.VerticalTitleAndText) return "vertTitleAndTx";
-        if (value == SlideLayoutValues.VerticalTitleAndTextOverChart) return "vertTitleAndTxOverChart";
-        if (value == SlideLayoutValues.TwoObjects) return "twoObj";
-        if (value == SlideLayoutValues.ObjectAndTwoObjects) return "objAndTwoObj";
-        if (value == SlideLayoutValues.TwoObjectsAndObject) return "twoObjAndObj";
-        if (value == SlideLayoutValues.Custom) return "cust";
-        if (value == SlideLayoutValues.SectionHeader) return "secHead";
-        if (value == SlideLayoutValues.TwoTextAndTwoObjects) return "twoTxTwoObj";
-        if (value == SlideLayoutValues.ObjectText) return "objTx";
-        if (value == SlideLayoutValues.PictureText) return "picTx";
-        return value.ToString() ?? string.Empty;
-    }
+    private static string SlideLayoutValueToString(SlideLayoutValues value) =>
+        LayoutTypeReverseMap.TryGetValue(value, out var s) ? s : (value.ToString() ?? string.Empty);
 
     /// <summary>
     /// Converts a <see cref="PlaceholderShape"/> to its canonical OOXML type string.

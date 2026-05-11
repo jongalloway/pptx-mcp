@@ -97,10 +97,8 @@ public class PptxToolsTests : PptxTestBase
         Assert.NotNull(layouts);
         Assert.Equal(2, layouts.Length);
 
-        // "Title and Body" layout: Index=0, 3 placeholders (title + 2 body), 0 non-placeholder shapes
-        var titleBody = layouts[0];
-        Assert.Equal(0, titleBody.Index);
-        Assert.Equal(TemplateDeckHelper.TitleBodyLayoutName, titleBody.Name);
+        // Locate layouts by name — enumeration order of SlideLayoutParts is not guaranteed
+        var titleBody = layouts.Single(l => l.Name == TemplateDeckHelper.TitleBodyLayoutName);
         Assert.NotNull(titleBody.MasterName);
         Assert.Equal(3, titleBody.PlaceholderCount);
         Assert.Equal(3, titleBody.PlaceholderTypes.Count);
@@ -112,10 +110,8 @@ public class PptxToolsTests : PptxTestBase
         Assert.True(titleBody.HasBodyPlaceholder);
         Assert.False(titleBody.HasPicturePlaceholder);
 
-        // "Picture Caption" layout: Index=1, 3 placeholders (title + pic + body)
-        var pictureCaption = layouts[1];
-        Assert.Equal(1, pictureCaption.Index);
-        Assert.Equal(TemplateDeckHelper.PictureCaptionLayoutName, pictureCaption.Name);
+        // "Picture Caption" layout: 3 placeholders (title + pic + body)
+        var pictureCaption = layouts.Single(l => l.Name == TemplateDeckHelper.PictureCaptionLayoutName);
         Assert.Equal(3, pictureCaption.PlaceholderCount);
         Assert.Contains("pic", pictureCaption.PlaceholderTypes);
         Assert.True(pictureCaption.HasTitlePlaceholder);
