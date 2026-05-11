@@ -33,6 +33,15 @@ public class PresentationServiceTests : PptxTestBase
     }
 
     [Fact]
+    public void GetSlides_SlideHasLayoutMetadata()
+    {
+        var path = CreateMinimalPptx();
+        var slides = Service.GetSlides(path);
+        Assert.Equal("Title Slide", slides[0].LayoutName);
+        Assert.Equal(0, slides[0].LayoutIndex);
+    }
+
+    [Fact]
     public void GetSlides_FileOpenByAnotherProcessWithReadWriteShare_Succeeds()
     {
         var path = CreateMinimalPptx("Hello World");
@@ -240,6 +249,15 @@ public class PresentationServiceTests : PptxTestBase
         var path = CreateMinimalPptx();
         var content = Service.GetSlideContent(path, 0);
         Assert.Equal(0, content.SlideIndex);
+    }
+
+    [Fact]
+    public void GetSlideContent_ReturnsLayoutMetadata()
+    {
+        var path = CreateMinimalPptx();
+        var content = Service.GetSlideContent(path, 0);
+        Assert.Equal("Title Slide", content.LayoutName);
+        Assert.Equal(0, content.LayoutIndex);
     }
 
     [Fact]

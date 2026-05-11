@@ -48,7 +48,11 @@ public class PptxResourcesTests : PptxTestBase
         var slide = doc.RootElement[0];
         Assert.True(slide.TryGetProperty("Index", out _));
         Assert.True(slide.TryGetProperty("Title", out var titleProp));
+        Assert.True(slide.TryGetProperty("LayoutName", out var layoutNameProp));
+        Assert.True(slide.TryGetProperty("LayoutIndex", out var layoutIndexProp));
         Assert.Equal("Slide One", titleProp.GetString());
+        Assert.Equal("Title Slide", layoutNameProp.GetString());
+        Assert.Equal(0, layoutIndexProp.GetInt32());
     }
 
     [Fact]

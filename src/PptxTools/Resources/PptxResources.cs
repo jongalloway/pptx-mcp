@@ -21,7 +21,7 @@ public sealed partial class PptxResources
 
     /// <summary>
     /// Browse all slides in a PowerPoint presentation as a JSON resource.
-    /// Returns an array of slide objects with index, title, notes, and placeholder count.
+    /// Returns an array of slide objects with index, title, notes, placeholder count, and layout metadata.
     /// </summary>
     [McpServerResource(UriTemplate = "pptx://{file}/slides", Name = "slides", Title = "Slides", MimeType = "application/json")]
     public TextResourceContents GetSlides(string file)

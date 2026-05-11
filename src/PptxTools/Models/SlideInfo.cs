@@ -1,3 +1,3 @@
 namespace PptxTools.Models;
 
-public record SlideInfo(int Index, string? Title, string? Notes, int PlaceholderCount);
+public record SlideInfo(int Index, string? Title, string? Notes, int PlaceholderCount, string? LayoutName, int? LayoutIndex);
