@@ -781,6 +781,8 @@ A JSON object with the following structure:
 ```json
 {
   "SlideIndex": 0,
+  "LayoutName": "Title Slide",
+  "LayoutIndex": 0,
   "SlideWidthEmu": 9144000,
   "SlideHeightEmu": 5143500,
   "Shapes": [
@@ -827,6 +829,8 @@ Error: File not found: /path/to/presentation.pptx
 ```json
 {
   "SlideIndex": 0,
+  "LayoutName": "Title Slide",
+  "LayoutIndex": 0,
   "SlideWidthEmu": 9144000,
   "SlideHeightEmu": 5143500,
   "Shapes": [
@@ -1193,7 +1197,7 @@ Error: File not found: /path/to/presentation.pptx
 
 ## pptx_list_slides
 
-**Description:** List all slides in a PowerPoint presentation with metadata including title, notes, and placeholder count.
+**Description:** List all slides in a PowerPoint presentation with metadata including title, notes, placeholder count, and layout mapping.
 
 ### Parameters
 
@@ -1211,6 +1215,8 @@ A JSON array of slide objects, each with:
 | `Title` | string \| null | Slide title text, if a title placeholder is present. |
 | `Notes` | string \| null | Speaker notes text, if any. |
 | `PlaceholderCount` | integer | Number of placeholders on the slide. |
+| `LayoutName` | string \| null | Slide layout name from the linked slide layout part, when available. |
+| `LayoutIndex` | integer \| null | Zero-based layout index matching `pptx_list_layouts`, when available. |
 
 On error:
 ```
@@ -1236,19 +1242,25 @@ Error: File not found: /path/to/presentation.pptx
     "Index": 0,
     "Title": "Q1 2025 Business Review",
     "Notes": "Welcome attendees and introduce the agenda.",
-    "PlaceholderCount": 2
+    "PlaceholderCount": 2,
+    "LayoutName": "Title Slide",
+    "LayoutIndex": 0
   },
   {
     "Index": 1,
     "Title": "Revenue Summary",
     "Notes": null,
-    "PlaceholderCount": 3
+    "PlaceholderCount": 3,
+    "LayoutName": "Title and Content",
+    "LayoutIndex": 1
   },
   {
     "Index": 2,
     "Title": null,
     "Notes": "Use this slide to show the product roadmap image.",
-    "PlaceholderCount": 1
+    "PlaceholderCount": 1,
+    "LayoutName": "Section Header",
+    "LayoutIndex": 2
   }
 ]
 ```

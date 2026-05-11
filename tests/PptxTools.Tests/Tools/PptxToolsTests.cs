@@ -75,6 +75,8 @@ public class PptxToolsTests : PptxTestBase
         var path = CreateMinimalPptx();
         var result = await _tools.pptx_list_slides(path);
         Assert.Contains("Index", result);
+        Assert.Contains("LayoutName", result);
+        Assert.Contains("LayoutIndex", result);
     }
 
     [Fact]
@@ -303,6 +305,8 @@ public class PptxToolsTests : PptxTestBase
         var path = CreateMinimalPptx();
         var result = await _tools.pptx_get_slide_content(path, 0);
         Assert.Contains("SlideIndex", result);
+        Assert.Contains("LayoutName", result);
+        Assert.Contains("LayoutIndex", result);
         Assert.Contains("Shapes", result);
     }
 

@@ -64,18 +64,23 @@ public partial class PresentationService
         PresentationPart presentationPart,
         List<SlideId> slideIds)
     {
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
         var slides = new List<SlideExport>(slideIds.Count);
         for (int i = 0; i < slideIds.Count; i++)
         {
             var slidePart = GetSlidePart(doc, slideIds, i);
-            slides.Add(BuildSlideExport(presentationPart, slidePart, i));
+            slides.Add(BuildSlideExport(presentationPart, slidePart, i, layoutIndexLookup));
         }
         return slides;
     }
 
-    private SlideExport BuildSlideExport(PresentationPart presentationPart, SlidePart slidePart, int slideIndex)
+    private SlideExport BuildSlideExport(
+        PresentationPart presentationPart,
+        SlidePart slidePart,
+        int slideIndex,
+        IReadOnlyDictionary<SlideLayoutPart, int> layoutIndexLookup)
     {
-        var content = GetSlideContent(presentationPart, slidePart, slideIndex);
+        var content = GetSlideContent(presentationPart, slidePart, slideIndex, layoutIndexLookup);
         var title = ExtractSlideTitle(content);
         var notes = GetSlideNotes(slidePart);
 

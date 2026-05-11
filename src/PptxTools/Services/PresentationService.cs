@@ -13,7 +13,9 @@ public partial class PresentationService
     {
         using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var doc = PresentationDocument.Open(stream, false);
-        var presentation = doc.PresentationPart!.Presentation;
+        var presentationPart = doc.PresentationPart!;
+        var presentation = presentationPart.Presentation;
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
         var slideIdList = presentation.SlideIdList;
         if (slideIdList is null) return [];
 
@@ -21,17 +23,50 @@ public partial class PresentationService
         int index = 0;
         foreach (SlideId slideId in slideIdList.Elements<SlideId>())
         {
-            var slidePart = (SlidePart)doc.PresentationPart.GetPartById(slideId.RelationshipId!.Value!);
+            var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
             var slide = slidePart.Slide;
 
             string? title = GetSlideTitle(slide);
             string? notes = GetSlideNotes(slidePart);
             int placeholderCount = GetPlaceholderCount(slide);
+            var (layoutName, layoutIndex) = GetSlideLayoutMetadata(slidePart, layoutIndexLookup);
 
-            result.Add(new SlideInfo(index, title, notes, placeholderCount));
+            result.Add(new SlideInfo(index, title, notes, placeholderCount, layoutName, layoutIndex));
             index++;
         }
         return result;
+    }
+
+    private static Dictionary<SlideLayoutPart, int> BuildLayoutIndexLookup(PresentationPart presentationPart)
+    {
+        var layoutIndexLookup = new Dictionary<SlideLayoutPart, int>();
+        var index = 0;
+        foreach (var masterPart in presentationPart.SlideMasterParts)
+        {
+            foreach (var layoutPart in masterPart.SlideLayoutParts)
+            {
+                layoutIndexLookup[layoutPart] = index;
+                index++;
+            }
+        }
+
+        return layoutIndexLookup;
+    }
+
+    private static (string? LayoutName, int? LayoutIndex) GetSlideLayoutMetadata(
+        SlidePart slidePart,
+        IReadOnlyDictionary<SlideLayoutPart, int> layoutIndexLookup)
+    {
+        var layoutPart = slidePart.SlideLayoutPart;
+        if (layoutPart is null)
+            return (null, null);
+
+        int? layoutIndex = layoutIndexLookup.TryGetValue(layoutPart, out var index)
+            ? index
+            : null;
+        var layoutName = layoutPart.SlideLayout?.CommonSlideData?.Name?.Value;
+
+        return (layoutName, layoutIndex);
     }
 
     private static string? GetSlideTitle(Slide slide)
@@ -1058,7 +1093,9 @@ public partial class PresentationService
             throw new ArgumentOutOfRangeException(nameof(topN), "topN must be greater than zero.");
 
         using var doc = PresentationDocument.Open(filePath, false);
-        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        var presentationPart = doc.PresentationPart!;
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
+        var slideIdList = presentationPart.Presentation.SlideIdList;
         if (slideIdList is null)
             return [];
 
@@ -1069,7 +1106,7 @@ public partial class PresentationService
             var slidePart = GetSlidePart(doc, slideIndex);
             try
             {
-                var slideContent = GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+                var slideContent = GetSlideContent(presentationPart, slidePart, slideIndex, layoutIndexLookup);
                 var title = GetSlideTitle(slidePart.Slide);
                 var points = RankTalkingPoints(slideContent, topN);
                 talkingPoints.Add(new SlideTalkingPoints(slideIndex, title, points));
@@ -1086,14 +1123,18 @@ public partial class PresentationService
     public SlideContent GetSlideContent(string filePath, int slideIndex)
     {
         using var doc = PresentationDocument.Open(filePath, false);
+        var presentationPart = doc.PresentationPart!;
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
         var slidePart = GetSlidePart(doc, slideIndex);
-        return GetSlideContent(doc.PresentationPart!, slidePart, slideIndex);
+        return GetSlideContent(presentationPart, slidePart, slideIndex, layoutIndexLookup);
     }
 
     public IReadOnlyList<SlideContent> GetAllSlideContents(string filePath)
     {
         using var doc = PresentationDocument.Open(filePath, false);
-        var slideIdList = doc.PresentationPart!.Presentation.SlideIdList;
+        var presentationPart = doc.PresentationPart!;
+        var layoutIndexLookup = BuildLayoutIndexLookup(presentationPart);
+        var slideIdList = presentationPart.Presentation.SlideIdList;
         if (slideIdList is null)
             return [];
 
@@ -1102,7 +1143,7 @@ public partial class PresentationService
         for (int i = 0; i < slideIds.Count; i++)
         {
             var slidePart = GetSlidePart(doc, i);
-            result.Add(GetSlideContent(doc.PresentationPart!, slidePart, i));
+            result.Add(GetSlideContent(presentationPart, slidePart, i, layoutIndexLookup));
         }
         return result;
     }
@@ -1135,8 +1176,14 @@ public partial class PresentationService
         return new MarkdownExportResult(resolvedOutputPath, markdown, slideIds.Count, imageCount);
     }
 
-    private static SlideContent GetSlideContent(PresentationPart presentationPart, SlidePart slidePart, int slideIndex)
+    private static SlideContent GetSlideContent(
+        PresentationPart presentationPart,
+        SlidePart slidePart,
+        int slideIndex,
+        IReadOnlyDictionary<SlideLayoutPart, int> layoutIndexLookup)
     {
+        var (layoutName, layoutIndex) = GetSlideLayoutMetadata(slidePart, layoutIndexLookup);
+
         // Slide dimensions from the presentation-level SlideSize element
         var slideSize = presentationPart.Presentation.SlideSize;
         long slideWidth = slideSize?.Cx?.Value ?? 9144000;
@@ -1154,7 +1201,7 @@ public partial class PresentationService
             }
         }
 
-        return new SlideContent(slideIndex, slideWidth, slideHeight, shapes);
+        return new SlideContent(slideIndex, layoutName, layoutIndex, slideWidth, slideHeight, shapes);
     }
 
     private static ShapeContent? ExtractShape(DocumentFormat.OpenXml.OpenXmlElement element)
@@ -2013,4 +2060,3 @@ public partial class PresentationService
 
     private record PictureTarget(Picture Picture, int Index, string Name, uint? ShapeId);
 }
-
