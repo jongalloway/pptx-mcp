@@ -213,7 +213,7 @@ public partial class PresentationService
             .Cast<PlaceholderShape>()
             .Select(ph => ph.Index?.Value)
             .Where(i => i.HasValue)
-            .Select(i => (uint)i!.Value)
+            .Select(i => (uint)i.Value)
             .ToHashSet();
 
         if (existingIdxValues.Contains((uint)idx))
