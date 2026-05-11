@@ -39,7 +39,8 @@ public class ThemeToolsTests : PptxTestBase
     }
 
     // ────────────────────────────────────────────────────────
-    // No theme part: still returns success with zero themes
+    // No theme part: returns success with one entry per master,
+    // ThemeName/ColorScheme/FontScheme all null
     // ────────────────────────────────────────────────────────
 
     [Fact]
