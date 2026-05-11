@@ -137,14 +137,136 @@ public partial class PresentationService
         int index = 0;
         foreach (var masterPart in doc.PresentationPart!.SlideMasterParts)
         {
+            var masterName = masterPart.SlideMaster?.CommonSlideData?.Name?.Value ?? "Master";
             foreach (var layoutPart in masterPart.SlideLayoutParts)
             {
-                var name = layoutPart.SlideLayout.CommonSlideData?.Name?.Value ?? $"Layout {index}";
-                result.Add(new SlideLayoutInfo(index, name));
+                var layout = layoutPart.SlideLayout;
+                var name = layout.CommonSlideData?.Name?.Value ?? $"Layout {index}";
+
+                // Layout type attribute (e.g. "title", "obj", "blank", etc.)
+                var layoutType = layout.Type?.Value is { } sdkVal
+                    ? SlideLayoutValueToString(sdkVal)
+                    : null;
+
+                // Gather shape info from all shape-like elements in the tree
+                var shapeTree = layout.CommonSlideData?.ShapeTree;
+                var allElements = shapeTree?.Elements<OpenXmlElement>()
+                    .Where(e => e is Shape or Picture or P.GraphicFrame)
+                    .ToList() ?? [];
+                int totalShapeCount = allElements.Count;
+
+                var placeholderTypes = new List<string>();
+                int nonPlaceholderCount = 0;
+
+                foreach (var element in allElements)
+                {
+                    var ph = element switch
+                    {
+                        Shape sp => sp.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                        Picture pic => pic.NonVisualPictureProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                        P.GraphicFrame gf => gf.NonVisualGraphicFrameProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                        _ => null
+                    };
+
+                    if (ph is null)
+                    {
+                        nonPlaceholderCount++;
+                    }
+                    else
+                    {
+                        placeholderTypes.Add(PlaceholderTypeToString(ph));
+                    }
+                }
+
+                bool hasTitlePlaceholder = placeholderTypes.Any(t => t is "title" or "ctrTitle");
+                bool hasBodyPlaceholder = placeholderTypes.Any(t => t is "body" or "subTitle");
+                bool hasPicturePlaceholder = placeholderTypes.Contains("pic");
+
+                result.Add(new SlideLayoutInfo(
+                    Index: index,
+                    Name: name,
+                    LayoutType: layoutType,
+                    MasterName: masterName,
+                    PlaceholderCount: placeholderTypes.Count,
+                    PlaceholderTypes: placeholderTypes,
+                    NonPlaceholderShapeCount: nonPlaceholderCount,
+                    TotalShapeCount: totalShapeCount,
+                    HasTitlePlaceholder: hasTitlePlaceholder,
+                    HasBodyPlaceholder: hasBodyPlaceholder,
+                    HasPicturePlaceholder: hasPicturePlaceholder));
                 index++;
             }
         }
         return result;
+    }
+
+    private static string SlideLayoutValueToString(SlideLayoutValues value)
+    {
+        if (value == SlideLayoutValues.Title) return "title";
+        if (value == SlideLayoutValues.Text) return "tx";
+        if (value == SlideLayoutValues.TwoColumnText) return "twoColTx";
+        if (value == SlideLayoutValues.Table) return "tbl";
+        if (value == SlideLayoutValues.TextAndChart) return "txAndChart";
+        if (value == SlideLayoutValues.ChartAndText) return "chartAndTx";
+        if (value == SlideLayoutValues.Diagram) return "dgm";
+        if (value == SlideLayoutValues.Chart) return "chart";
+        if (value == SlideLayoutValues.TextAndClipArt) return "txAndClipArt";
+        if (value == SlideLayoutValues.ClipArtAndText) return "clipArtAndTx";
+        if (value == SlideLayoutValues.TitleOnly) return "titleOnly";
+        if (value == SlideLayoutValues.Blank) return "blank";
+        if (value == SlideLayoutValues.TextAndObject) return "txAndObj";
+        if (value == SlideLayoutValues.ObjectAndText) return "objAndTx";
+        if (value == SlideLayoutValues.ObjectOnly) return "objOnly";
+        if (value == SlideLayoutValues.Object) return "obj";
+        if (value == SlideLayoutValues.TextAndMedia) return "txAndMedia";
+        if (value == SlideLayoutValues.MidiaAndText) return "mediaAndTx";
+        if (value == SlideLayoutValues.ObjectOverText) return "objOverTx";
+        if (value == SlideLayoutValues.TextOverObject) return "txOverObj";
+        if (value == SlideLayoutValues.TextAndTwoObjects) return "txAndTwoObj";
+        if (value == SlideLayoutValues.TwoObjectsAndText) return "twoObjAndTx";
+        if (value == SlideLayoutValues.TwoObjectsOverText) return "twoObjOverTx";
+        if (value == SlideLayoutValues.FourObjects) return "fourObj";
+        if (value == SlideLayoutValues.VerticalText) return "vertTx";
+        if (value == SlideLayoutValues.ClipArtAndVerticalText) return "clipArtAndVertTx";
+        if (value == SlideLayoutValues.VerticalTitleAndText) return "vertTitleAndTx";
+        if (value == SlideLayoutValues.VerticalTitleAndTextOverChart) return "vertTitleAndTxOverChart";
+        if (value == SlideLayoutValues.TwoObjects) return "twoObj";
+        if (value == SlideLayoutValues.ObjectAndTwoObjects) return "objAndTwoObj";
+        if (value == SlideLayoutValues.TwoObjectsAndObject) return "twoObjAndObj";
+        if (value == SlideLayoutValues.Custom) return "cust";
+        if (value == SlideLayoutValues.SectionHeader) return "secHead";
+        if (value == SlideLayoutValues.TwoTextAndTwoObjects) return "twoTxTwoObj";
+        if (value == SlideLayoutValues.ObjectText) return "objTx";
+        if (value == SlideLayoutValues.PictureText) return "picTx";
+        return value.ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Converts a <see cref="PlaceholderShape"/> to its canonical OOXML type string.
+    /// Typeless placeholders (those with only an index) are treated as "body".
+    /// </summary>
+    private static string PlaceholderTypeToString(PlaceholderShape ph)
+    {
+        var phTypeValue = ph.Type?.Value;
+        if (phTypeValue is null)
+            return "body"; // typeless placeholder (idx-only) treated as body
+
+        if (phTypeValue == PlaceholderValues.Title) return "title";
+        if (phTypeValue == PlaceholderValues.CenteredTitle) return "ctrTitle";
+        if (phTypeValue == PlaceholderValues.SubTitle) return "subTitle";
+        if (phTypeValue == PlaceholderValues.Body) return "body";
+        if (phTypeValue == PlaceholderValues.Picture) return "pic";
+        if (phTypeValue == PlaceholderValues.Chart) return "chart";
+        if (phTypeValue == PlaceholderValues.Table) return "tbl";
+        if (phTypeValue == PlaceholderValues.ClipArt) return "clipArt";
+        if (phTypeValue == PlaceholderValues.Diagram) return "dgm";
+        if (phTypeValue == PlaceholderValues.Media) return "media";
+        if (phTypeValue == PlaceholderValues.SlideNumber) return "sldNum";
+        if (phTypeValue == PlaceholderValues.DateAndTime) return "dt";
+        if (phTypeValue == PlaceholderValues.Footer) return "ftr";
+        if (phTypeValue == PlaceholderValues.Header) return "hdr";
+        if (phTypeValue == PlaceholderValues.Object) return "obj";
+        return phTypeValue.ToString() ?? "body";
     }
 
     public IReadOnlyList<SlideMasterInfo> GetMasters(string filePath)

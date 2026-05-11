@@ -88,6 +88,46 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
+    public async Task pptx_list_layouts_ReturnsRichMetadata()
+    {
+        var path = CreateTemplatePptx();
+        var result = await _tools.pptx_list_layouts(path);
+        var layouts = JsonSerializer.Deserialize<SlideLayoutInfo[]>(result);
+
+        Assert.NotNull(layouts);
+        Assert.Equal(2, layouts.Length);
+
+        // "Title and Body" layout: Index=0, 3 placeholders (title + 2 body), 0 non-placeholder shapes
+        var titleBody = layouts[0];
+        Assert.Equal(0, titleBody.Index);
+        Assert.Equal(TemplateDeckHelper.TitleBodyLayoutName, titleBody.Name);
+        Assert.NotNull(titleBody.MasterName);
+        Assert.Equal(3, titleBody.PlaceholderCount);
+        Assert.Equal(3, titleBody.PlaceholderTypes.Count);
+        Assert.Contains("title", titleBody.PlaceholderTypes);
+        Assert.Contains("body", titleBody.PlaceholderTypes);
+        Assert.Equal(0, titleBody.NonPlaceholderShapeCount);
+        Assert.Equal(3, titleBody.TotalShapeCount);
+        Assert.True(titleBody.HasTitlePlaceholder);
+        Assert.True(titleBody.HasBodyPlaceholder);
+        Assert.False(titleBody.HasPicturePlaceholder);
+
+        // "Picture Caption" layout: Index=1, 3 placeholders (title + pic + body)
+        var pictureCaption = layouts[1];
+        Assert.Equal(1, pictureCaption.Index);
+        Assert.Equal(TemplateDeckHelper.PictureCaptionLayoutName, pictureCaption.Name);
+        Assert.Equal(3, pictureCaption.PlaceholderCount);
+        Assert.Contains("pic", pictureCaption.PlaceholderTypes);
+        Assert.True(pictureCaption.HasTitlePlaceholder);
+        Assert.True(pictureCaption.HasBodyPlaceholder);
+        Assert.True(pictureCaption.HasPicturePlaceholder);
+
+        // Consistency: TotalShapeCount = PlaceholderCount + NonPlaceholderShapeCount
+        foreach (var layout in layouts)
+            Assert.Equal(layout.TotalShapeCount, layout.PlaceholderCount + layout.NonPlaceholderShapeCount);
+    }
+
+    [Fact]
     public async Task pptx_list_masters_ReturnsMasterMetadata()
     {
         var path = CreateMinimalPptx();
