@@ -13,7 +13,6 @@ public partial class PresentationService
     private static readonly IReadOnlyDictionary<string, SlideLayoutValues> LayoutTypeMap =
         new Dictionary<string, SlideLayoutValues>(StringComparer.OrdinalIgnoreCase)
         {
-
             ["title"]   = SlideLayoutValues.Title,
             ["tx"]      = SlideLayoutValues.Text,
             ["twoColTx"] = SlideLayoutValues.TwoColumnText,
