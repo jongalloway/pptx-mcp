@@ -55,12 +55,13 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for a full walkthrough.
 
 ## What You Can Do
 
-### Tools (21)
+### Tools (22)
 
 | Tool | What it does |
 |---|---|
 | `pptx_list_slides` | List all slides with metadata |
 | `pptx_list_layouts` | List available slide layouts |
+| `pptx_list_masters` | List slide masters with theme, layout, shape, and background metadata |
 | `pptx_get_slide_content` | Extract structured content from a slide (shapes, text, tables) |
 | `pptx_get_slide_xml` | Get the raw XML for a slide (power users) |
 | `pptx_manage_slides` | Create slides: Add (blank), AddFromLayout (template + placeholders), or Duplicate (clone + overrides) |

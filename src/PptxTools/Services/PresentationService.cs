@@ -112,6 +112,86 @@ public partial class PresentationService
         return result;
     }
 
+    public IReadOnlyList<SlideMasterInfo> GetMasters(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, false);
+        var result = new List<SlideMasterInfo>();
+        int masterIndex = 0;
+        foreach (var masterPart in doc.PresentationPart!.SlideMasterParts)
+        {
+            var slideMaster = masterPart.SlideMaster;
+            var name = slideMaster?.CommonSlideData?.Name?.Value ?? $"Master {masterIndex}";
+
+            var layoutNames = masterPart.SlideLayoutParts
+                .Select((layoutPart, layoutIndex) => layoutPart.SlideLayout?.CommonSlideData?.Name?.Value ?? $"Layout {layoutIndex}")
+                .ToArray();
+
+            var shapeTree = slideMaster?.CommonSlideData?.ShapeTree;
+            int shapeCount = shapeTree?.Elements<Shape>().Count() ?? 0;
+
+            var themeName = masterPart.ThemePart?.Theme?.Name?.Value
+                ?? masterPart.ThemePart?.Theme?.ThemeElements?.ColorScheme?.Name?.Value;
+
+            var backgroundFill = DescribeBackgroundFill(slideMaster?.CommonSlideData?.Background);
+
+            result.Add(new SlideMasterInfo(
+                Index: masterIndex,
+                Name: name,
+                ThemeName: themeName,
+                LayoutCount: layoutNames.Length,
+                LayoutNames: layoutNames,
+                ShapeCount: shapeCount,
+                BackgroundFill: backgroundFill));
+            masterIndex++;
+        }
+
+        return result;
+    }
+
+    private static string? DescribeBackgroundFill(Background? background)
+    {
+        var properties = background?.BackgroundProperties;
+        if (properties is null)
+            return null;
+
+        if (properties.GetFirstChild<A.NoFill>() is not null)
+            return "none";
+
+        if (properties.GetFirstChild<A.SolidFill>() is { } solidFill)
+            return $"solid {DescribeSolidColor(solidFill)}";
+
+        if (properties.GetFirstChild<A.GradientFill>() is not null)
+            return "gradient";
+
+        if (properties.GetFirstChild<A.PatternFill>() is not null)
+            return "pattern";
+
+        if (properties.GetFirstChild<A.BlipFill>() is not null)
+            return "image";
+
+        if (properties.GetFirstChild<A.GroupFill>() is not null)
+            return "group";
+
+        return null;
+    }
+
+    private static string DescribeSolidColor(A.SolidFill solidFill)
+    {
+        if (solidFill.GetFirstChild<A.RgbColorModelHex>() is { Val.HasValue: true } rgb)
+            return $"#{rgb.Val!.Value}";
+
+        if (solidFill.GetFirstChild<A.SchemeColor>() is { Val.HasValue: true } scheme)
+            return $"theme {scheme.Val!.Value}";
+
+        if (solidFill.GetFirstChild<A.PresetColor>() is { Val.HasValue: true } preset)
+            return $"preset {preset.Val!.Value}";
+
+        if (solidFill.GetFirstChild<A.SystemColor>() is { Val.HasValue: true } system)
+            return $"system {system.Val!.Value}";
+
+        return "unknown";
+    }
+
     public int AddSlide(string filePath, string? layoutName)
     {
         using var doc = PresentationDocument.Open(filePath, true);

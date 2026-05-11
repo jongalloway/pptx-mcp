@@ -76,6 +76,12 @@ public sealed partial class PptxTools
     public Task<string> pptx_list_layouts(string filePath) =>
         ExecuteToolJson(filePath, () => _service.GetLayouts(filePath));
 
+    /// <summary>List all slide masters in a PowerPoint presentation with associated metadata.</summary>
+    /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
+    [McpServerTool(Title = "List Masters", ReadOnly = true, Idempotent = true)]
+    public Task<string> pptx_list_masters(string filePath) =>
+        ExecuteToolJson(filePath, () => _service.GetMasters(filePath));
+
     /// <summary>
     /// Update a named slide shape with replacement text while preserving the shape's existing formatting.
     /// Prefer shapeName from pptx_get_slide_content; placeholderIndex is a zero-based fallback across text-capable shapes on the slide.
@@ -358,5 +364,4 @@ public sealed partial class PptxTools
         }
     }
 }
-
 
