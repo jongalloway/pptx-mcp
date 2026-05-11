@@ -10,5 +10,11 @@ public enum ManageSlidesAction
     AddFromLayout,
 
     /// <summary>Duplicate an existing slide with optional placeholder overrides.</summary>
-    Duplicate
+    Duplicate,
+
+    /// <summary>Delete one or more slides by slide number.</summary>
+    Delete,
+
+    /// <summary>Delete all slides from the presentation.</summary>
+    DeleteAll
 }

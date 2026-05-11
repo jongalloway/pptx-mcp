@@ -1890,10 +1890,73 @@ public partial class PresentationService
         var slideId = slideIds[slideNumber - 1];
         var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
 
+        if (slidePart.NotesSlidePart is not null)
+            slidePart.DeletePart(slidePart.NotesSlidePart);
+
         slideId.Remove();
         presentationPart.DeletePart(slidePart);
 
         presentationPart.Presentation.Save();
+    }
+
+    public int DeleteSlides(string filePath, IReadOnlyCollection<int> slideNumbers)
+    {
+        ArgumentNullException.ThrowIfNull(slideNumbers);
+        if (slideNumbers.Count == 0)
+            throw new ArgumentException("At least one slide number is required.", nameof(slideNumbers));
+
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        int count = slideIds.Count;
+
+        if (count == 1 && slideNumbers.Count == 1 && slideNumbers.Contains(1))
+            throw new InvalidOperationException("Cannot delete the only slide in a presentation.");
+
+        var uniqueSlideNumbers = slideNumbers.Distinct().OrderByDescending(n => n).ToList();
+        foreach (var slideNumber in uniqueSlideNumbers)
+            ValidationHelpers.ValidateSlideNumber(slideNumber, count);
+
+        foreach (var slideNumber in uniqueSlideNumbers)
+        {
+            var slideId = slideIds[slideNumber - 1];
+            var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
+
+            if (slidePart.NotesSlidePart is not null)
+                slidePart.DeletePart(slidePart.NotesSlidePart);
+
+            slideId.Remove();
+            presentationPart.DeletePart(slidePart);
+        }
+
+        presentationPart.Presentation.Save();
+        return uniqueSlideNumbers.Count;
+    }
+
+    public int DeleteAllSlides(string filePath)
+    {
+        using var doc = PresentationDocument.Open(filePath, true);
+        var presentationPart = doc.PresentationPart!;
+        var slideIdList = presentationPart.Presentation.SlideIdList
+            ?? throw new InvalidOperationException("Presentation has no slides.");
+
+        var slideIds = slideIdList.Elements<SlideId>().ToList();
+        foreach (var slideId in slideIds)
+        {
+            var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!.Value!);
+
+            if (slidePart.NotesSlidePart is not null)
+                slidePart.DeletePart(slidePart.NotesSlidePart);
+
+            slideId.Remove();
+            presentationPart.DeletePart(slidePart);
+        }
+
+        presentationPart.Presentation.Save();
+        return slideIds.Count;
     }
 
     public void ReorderSlides(string filePath, int[] newOrder)

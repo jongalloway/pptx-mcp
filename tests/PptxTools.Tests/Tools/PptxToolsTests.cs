@@ -201,6 +201,61 @@ public class PptxToolsTests : PptxTestBase
     }
 
     [Fact]
+    public async Task pptx_manage_slides_DeleteSingle_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" });
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Delete, slideNumber: 2);
+        var deleteResult = JsonSerializer.Deserialize<DeleteSlidesResult>(result);
+
+        Assert.NotNull(deleteResult);
+        Assert.True(deleteResult.Success);
+        Assert.Equal(1, deleteResult.DeletedCount);
+        Assert.Equal([2], deleteResult.DeletedSlideNumbers);
+        Assert.Equal(["A", "C"], Service.GetSlides(path).Select(slide => slide.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_DeleteBatch_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" },
+            new TestSlideDefinition { TitleText = "D" },
+            new TestSlideDefinition { TitleText = "E" });
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Delete, slideNumbers: [1, 3, 5]);
+        var deleteResult = JsonSerializer.Deserialize<DeleteSlidesResult>(result);
+
+        Assert.NotNull(deleteResult);
+        Assert.True(deleteResult.Success);
+        Assert.Equal(3, deleteResult.DeletedCount);
+        Assert.Equal([1, 3, 5], deleteResult.DeletedSlideNumbers);
+        Assert.Equal(["B", "D"], Service.GetSlides(path).Select(slide => slide.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_DeleteAll_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" });
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.DeleteAll);
+        var deleteResult = JsonSerializer.Deserialize<DeleteSlidesResult>(result);
+
+        Assert.NotNull(deleteResult);
+        Assert.True(deleteResult.Success);
+        Assert.Equal(3, deleteResult.DeletedCount);
+        Assert.Empty(Service.GetSlides(path));
+    }
+
+    [Fact]
     public async Task pptx_update_slide_data_ReturnsStructuredJson()
     {
         var path = CreatePptxWithSlides(
