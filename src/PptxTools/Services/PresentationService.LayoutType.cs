@@ -52,6 +52,12 @@ public partial class PresentationService
         };
 
     /// <summary>
+    /// Reverse of <see cref="LayoutTypeMap"/>: maps <see cref="SlideLayoutValues"/> → OOXML attribute string.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<SlideLayoutValues, string> LayoutTypeReverseMap =
+        LayoutTypeMap.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
+    /// <summary>
     /// Set the semantic <c>type</c> attribute on the named slide layout in a PPTX file.
     /// </summary>
     /// <param name="filePath">Path to the .pptx file to modify.</param>

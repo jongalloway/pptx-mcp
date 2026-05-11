@@ -1097,12 +1097,37 @@ A JSON object with the following fields:
 
 ### Returns
 
-A JSON array of layout objects, each with an `Index` (zero-based) and `Name`.
+A JSON array of layout objects with rich metadata about each layout's structure and placeholder composition.
+
+| Field | Type | Description |
+|---|---|---|
+| `Index` | integer | Zero-based index across all masters. |
+| `Name` | string | Display name of the layout. |
+| `LayoutType` | string \| null | OOXML semantic type string (e.g. `"title"`, `"obj"`, `"blank"`, `"secHead"`), or `null` when not set. |
+| `MasterName` | string | Display name of the parent slide master. |
+| `PlaceholderCount` | integer | Number of placeholder shapes on this layout. |
+| `PlaceholderTypes` | string[] | List of placeholder type strings (e.g. `"title"`, `"body"`, `"pic"`). Typeless placeholders appear as `"body"`. |
+| `NonPlaceholderShapeCount` | integer | Number of shapes that are not placeholders. |
+| `TotalShapeCount` | integer | Total shapes on this layout (`PlaceholderCount + NonPlaceholderShapeCount`). |
+| `HasTitlePlaceholder` | boolean | `true` when the layout contains a `title` or `ctrTitle` placeholder. |
+| `HasBodyPlaceholder` | boolean | `true` when the layout contains a `body` or `subTitle` placeholder. |
+| `HasPicturePlaceholder` | boolean | `true` when the layout contains a `pic` placeholder. |
 
 ```json
 [
-  { "Index": 0, "Name": "Title Slide" },
-  { "Index": 1, "Name": "Title and Content" }
+  {
+    "Index": 0,
+    "Name": "Title Slide",
+    "LayoutType": "title",
+    "MasterName": "Office Theme",
+    "PlaceholderCount": 2,
+    "PlaceholderTypes": ["title", "subTitle"],
+    "NonPlaceholderShapeCount": 0,
+    "TotalShapeCount": 2,
+    "HasTitlePlaceholder": true,
+    "HasBodyPlaceholder": true,
+    "HasPicturePlaceholder": false
+  }
 ]
 ```
 
@@ -1126,12 +1151,71 @@ Error: File not found: /path/to/presentation.pptx
 **Response:**
 ```json
 [
-  { "Index": 0, "Name": "Title Slide" },
-  { "Index": 1, "Name": "Title and Content" },
-  { "Index": 2, "Name": "Title Only" },
-  { "Index": 3, "Name": "Blank" },
-  { "Index": 4, "Name": "Content with Caption" },
-  { "Index": 5, "Name": "Picture with Caption" }
+  {
+    "Index": 0,
+    "Name": "Title Slide",
+    "LayoutType": "title",
+    "MasterName": "Office Theme",
+    "PlaceholderCount": 2,
+    "PlaceholderTypes": ["title", "subTitle"],
+    "NonPlaceholderShapeCount": 0,
+    "TotalShapeCount": 2,
+    "HasTitlePlaceholder": true,
+    "HasBodyPlaceholder": true,
+    "HasPicturePlaceholder": false
+  },
+  {
+    "Index": 1,
+    "Name": "Title and Content",
+    "LayoutType": "obj",
+    "MasterName": "Office Theme",
+    "PlaceholderCount": 2,
+    "PlaceholderTypes": ["title", "body"],
+    "NonPlaceholderShapeCount": 0,
+    "TotalShapeCount": 2,
+    "HasTitlePlaceholder": true,
+    "HasBodyPlaceholder": true,
+    "HasPicturePlaceholder": false
+  },
+  {
+    "Index": 2,
+    "Name": "Title Only",
+    "LayoutType": "titleOnly",
+    "MasterName": "Office Theme",
+    "PlaceholderCount": 1,
+    "PlaceholderTypes": ["title"],
+    "NonPlaceholderShapeCount": 0,
+    "TotalShapeCount": 1,
+    "HasTitlePlaceholder": true,
+    "HasBodyPlaceholder": false,
+    "HasPicturePlaceholder": false
+  },
+  {
+    "Index": 3,
+    "Name": "Blank",
+    "LayoutType": "blank",
+    "MasterName": "Office Theme",
+    "PlaceholderCount": 0,
+    "PlaceholderTypes": [],
+    "NonPlaceholderShapeCount": 0,
+    "TotalShapeCount": 0,
+    "HasTitlePlaceholder": false,
+    "HasBodyPlaceholder": false,
+    "HasPicturePlaceholder": false
+  },
+  {
+    "Index": 4,
+    "Name": "Picture with Caption",
+    "LayoutType": "picTx",
+    "MasterName": "Office Theme",
+    "PlaceholderCount": 3,
+    "PlaceholderTypes": ["title", "pic", "body"],
+    "NonPlaceholderShapeCount": 0,
+    "TotalShapeCount": 3,
+    "HasTitlePlaceholder": true,
+    "HasBodyPlaceholder": true,
+    "HasPicturePlaceholder": true
+  }
 ]
 ```
 
