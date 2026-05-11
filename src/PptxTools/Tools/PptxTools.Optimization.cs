@@ -43,25 +43,45 @@ public partial class PptxTools
     /// - Find: Identify unused layouts and masters with estimated space savings (read-only).
     /// - Remove: Remove unused layouts and orphaned masters, with OpenXML validation before and after.
     /// - SetType: Set the semantic type attribute (e.g. "title", "obj", "secHead") on a named layout.
-    /// Natural workflow: Find (diagnostic) → Remove (action) or SetType (correction).
+    /// - ModifyPlaceholder: Update placeholder type/index on a layout placeholder by ordinal.
+    /// - AddPlaceholder: Add a placeholder shape to a layout with explicit bounds and placeholder metadata.
+    /// Natural workflow: Find (diagnostic) → Remove (action) or SetType/ModifyPlaceholder/AddPlaceholder (correction).
     /// </summary>
     /// <param name="filePath">Absolute or relative path to the .pptx file.</param>
-    /// <param name="action">The layout management operation to perform: Find, Remove, or SetType.</param>
+    /// <param name="action">The layout management operation to perform: Find, Remove, SetType, ModifyPlaceholder, or AddPlaceholder.</param>
     /// <param name="layoutUris">Optional array of layout URIs to remove. Only used with Remove action. Omit to auto-detect all unused layouts.</param>
     /// <param name="layoutName">Display name of the layout to update. Required for SetType action.</param>
     /// <param name="layoutType">
     /// Semantic type to assign to the layout. Required for SetType action.
     /// Common values: title, tx, obj, twoObj, secHead, blank, picTx, tbl, chart, titleOnly, cust.
     /// </param>
+    /// <param name="placeholderIndex">0-based placeholder ordinal to modify. Required for ModifyPlaceholder action.</param>
+    /// <param name="newType">New placeholder type (e.g. title, ctrTitle, subTitle, body, pic, obj, chart, ftr, dt, sldNum). Required for ModifyPlaceholder action.</param>
+    /// <param name="newIdx">Optional replacement placeholder idx value. Used by ModifyPlaceholder action.</param>
+    /// <param name="type">Placeholder type to add. Required for AddPlaceholder action.</param>
+    /// <param name="idx">Placeholder idx value to add. Required for AddPlaceholder action.</param>
+    /// <param name="x">Placeholder X position in EMU. Required for AddPlaceholder action.</param>
+    /// <param name="y">Placeholder Y position in EMU. Required for AddPlaceholder action.</param>
+    /// <param name="cx">Placeholder width in EMU. Required for AddPlaceholder action.</param>
+    /// <param name="cy">Placeholder height in EMU. Required for AddPlaceholder action.</param>
     [McpServerTool(Title = "Manage Layouts")]
     [McpMeta("consolidatedTool", true)]
-    [McpMeta("actions", JsonValue = """["Find","Remove","SetType"]""")]
+    [McpMeta("actions", JsonValue = """["Find","Remove","SetType","ModifyPlaceholder","AddPlaceholder"]""")]
     public partial Task<string> pptx_manage_layouts(
         string filePath,
         ManageLayoutsAction action,
         string[]? layoutUris = null,
         string? layoutName = null,
-        string? layoutType = null)
+        string? layoutType = null,
+        int? placeholderIndex = null,
+        string? newType = null,
+        int? newIdx = null,
+        string? type = null,
+        int? idx = null,
+        long? x = null,
+        long? y = null,
+        long? cx = null,
+        long? cy = null)
     {
         return action switch
         {
@@ -108,8 +128,53 @@ public partial class PptxTools
                     LayoutType: layoutType,
                     Message: error)),
 
+            ManageLayoutsAction.ModifyPlaceholder => ExecuteToolStructured(filePath,
+                () =>
+                {
+                    if (string.IsNullOrWhiteSpace(layoutName))
+                        throw new ArgumentException("layoutName is required for the ModifyPlaceholder action.");
+                    if (placeholderIndex is null)
+                        throw new ArgumentException("placeholderIndex is required for the ModifyPlaceholder action.");
+                    if (string.IsNullOrWhiteSpace(newType))
+                        throw new ArgumentException("newType is required for the ModifyPlaceholder action.");
+                    return _service.ModifyLayoutPlaceholder(filePath, layoutName, placeholderIndex.Value, newType, newIdx);
+                },
+                error => new ModifyLayoutPlaceholderResult(
+                    Success: false,
+                    FilePath: filePath,
+                    LayoutName: layoutName,
+                    PlaceholderIndex: placeholderIndex,
+                    NewType: newType,
+                    NewIdx: newIdx,
+                    Message: error)),
+
+            ManageLayoutsAction.AddPlaceholder => ExecuteToolStructured(filePath,
+                () =>
+                {
+                    if (string.IsNullOrWhiteSpace(layoutName))
+                        throw new ArgumentException("layoutName is required for the AddPlaceholder action.");
+                    if (string.IsNullOrWhiteSpace(type))
+                        throw new ArgumentException("type is required for the AddPlaceholder action.");
+                    if (idx is null)
+                        throw new ArgumentException("idx is required for the AddPlaceholder action.");
+                    if (x is null || y is null || cx is null || cy is null)
+                        throw new ArgumentException("x, y, cx, and cy are required for the AddPlaceholder action.");
+                    return _service.AddLayoutPlaceholder(filePath, layoutName, type, idx.Value, x.Value, y.Value, cx.Value, cy.Value);
+                },
+                error => new AddLayoutPlaceholderResult(
+                    Success: false,
+                    FilePath: filePath,
+                    LayoutName: layoutName,
+                    Type: type,
+                    Idx: idx,
+                    X: x,
+                    Y: y,
+                    Cx: cx,
+                    Cy: cy,
+                    Message: error)),
+
             _ => Task.FromResult(JsonSerializer.Serialize(
-                new { Success = false, Message = $"Unknown action: {action}. Valid actions: Find, Remove, SetType." },
+                new { Success = false, Message = $"Unknown action: {action}. Valid actions: Find, Remove, SetType, ModifyPlaceholder, AddPlaceholder." },
                 IndentedJson))
         };
     }

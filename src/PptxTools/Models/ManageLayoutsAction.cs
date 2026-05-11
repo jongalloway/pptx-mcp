@@ -10,5 +10,11 @@ public enum ManageLayoutsAction
     Remove,
 
     /// <summary>Set the semantic type attribute on a named slide layout.</summary>
-    SetType
+    SetType,
+
+    /// <summary>Modify the type/index of an existing placeholder on a named slide layout.</summary>
+    ModifyPlaceholder,
+
+    /// <summary>Add a new placeholder shape to a named slide layout.</summary>
+    AddPlaceholder
 }
