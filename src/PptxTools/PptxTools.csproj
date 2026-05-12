@@ -27,7 +27,7 @@
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.13.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
-    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+    <PackageReference Include="ModelContextProtocol" Version="1.3.0" />
     <PackageReference Include="SharpMP4" Version="0.3.0" />
     <PackageReference Include="System.CommandLine" Version="3.0.0-preview.3.26207.106" />
   </ItemGroup>
