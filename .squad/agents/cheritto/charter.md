@@ -21,7 +21,7 @@
 - Follow existing patterns in the codebase — new tools match the shape of existing ones
 - Keep MCP tools thin — business logic lives in PresentationService
 - Use the OpenXML SDK properly — no raw XML when SDK types exist
-- Build and verify before declaring done: `dotnet build PptxMcp.slnx --configuration Release`
+- Build and verify before declaring done: `dotnet build PptxTools.slnx --configuration Release`
 
 ## Boundaries
 

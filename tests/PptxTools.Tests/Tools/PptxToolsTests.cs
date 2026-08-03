@@ -1,0 +1,810 @@
+using System.Text.Json;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Presentation;
+using PptxTools.Models;
+
+namespace PptxTools.Tests.Tools;
+
+[Trait("Category", "Integration")]
+public class PptxToolsTests : PptxTestBase
+{
+    private readonly global::PptxTools.Tools.PptxTools _tools;
+
+    public PptxToolsTests()
+    {
+        _tools = new global::PptxTools.Tools.PptxTools(Service);
+    }
+
+    private string CreateTemplatePptx()
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        TrackTempFile(path);
+        TemplateDeckHelper.CreateTemplatePresentation(path);
+        return path;
+    }
+
+    // ────────────────────────────────────────────────────────
+    // File-not-found: tools that return "Error:" prefix
+    // ────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("pptx_list_slides")]
+    [InlineData("pptx_list_layouts")]
+    [InlineData("pptx_list_masters")]
+    [InlineData("pptx_get_slide_content")]
+    [InlineData("pptx_extract_talking_points")]
+    [InlineData("pptx_write_notes")]
+    [InlineData("pptx_delete_slide")]
+    public async Task FileNotFound_ReturnsError(string toolName)
+    {
+        var fakePath = "C:\\does-not-exist\\file.pptx";
+        var result = toolName switch
+        {
+            "pptx_list_slides" => await _tools.pptx_list_slides(fakePath),
+            "pptx_list_layouts" => await _tools.pptx_list_layouts(fakePath),
+            "pptx_list_masters" => await _tools.pptx_list_masters(fakePath),
+            "pptx_get_slide_content" => await _tools.pptx_get_slide_content(fakePath, 0),
+            "pptx_extract_talking_points" => await _tools.pptx_extract_talking_points(fakePath),
+            "pptx_write_notes" => await _tools.pptx_write_notes(fakePath, 0, "notes"),
+            "pptx_delete_slide" => await _tools.pptx_delete_slide(fakePath, 1),
+            _ => throw new ArgumentException($"Unknown tool: {toolName}")
+        };
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Theory]
+    [InlineData("Move")]
+    [InlineData("Reorder")]
+    public async Task FileNotFound_ReorderSlides_ReturnsStructuredError(string actionName)
+    {
+        var fakePath = "C:\\does-not-exist\\file.pptx";
+        var result = actionName switch
+        {
+            "Move" => await _tools.pptx_reorder_slides(fakePath, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 2),
+            "Reorder" => await _tools.pptx_reorder_slides(fakePath, ReorderSlidesAction.Reorder, newOrder: [1, 2]),
+            _ => throw new ArgumentException($"Unknown action: {actionName}")
+        };
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("File not found", parsed.Message);
+    }
+
+    [Fact]
+    public async Task pptx_list_slides_ReturnsJson()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_list_slides(path);
+        Assert.Contains("Index", result);
+        Assert.Contains("LayoutName", result);
+        Assert.Contains("LayoutIndex", result);
+    }
+
+    [Fact]
+    public async Task pptx_list_layouts_ReturnsJson()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_list_layouts(path);
+        Assert.Contains("Name", result);
+    }
+
+    [Fact]
+    public async Task pptx_list_layouts_ReturnsRichMetadata()
+    {
+        var path = CreateTemplatePptx();
+        var result = await _tools.pptx_list_layouts(path);
+        var layouts = JsonSerializer.Deserialize<SlideLayoutInfo[]>(result);
+
+        Assert.NotNull(layouts);
+        Assert.Equal(2, layouts.Length);
+
+        // Locate layouts by name — enumeration order of SlideLayoutParts is not guaranteed
+        var titleBody = layouts.Single(l => l.Name == TemplateDeckHelper.TitleBodyLayoutName);
+        Assert.NotNull(titleBody.MasterName);
+        Assert.Equal(3, titleBody.PlaceholderCount);
+        Assert.Equal(3, titleBody.PlaceholderTypes.Count);
+        Assert.Contains("title", titleBody.PlaceholderTypes);
+        Assert.Contains("body", titleBody.PlaceholderTypes);
+        Assert.Equal(0, titleBody.NonPlaceholderShapeCount);
+        Assert.Equal(3, titleBody.TotalShapeCount);
+        Assert.True(titleBody.HasTitlePlaceholder);
+        Assert.True(titleBody.HasBodyPlaceholder);
+        Assert.False(titleBody.HasPicturePlaceholder);
+
+        // "Picture Caption" layout: 3 placeholders (title + pic + body)
+        var pictureCaption = layouts.Single(l => l.Name == TemplateDeckHelper.PictureCaptionLayoutName);
+        Assert.Equal(3, pictureCaption.PlaceholderCount);
+        Assert.Contains("pic", pictureCaption.PlaceholderTypes);
+        Assert.True(pictureCaption.HasTitlePlaceholder);
+        Assert.True(pictureCaption.HasBodyPlaceholder);
+        Assert.True(pictureCaption.HasPicturePlaceholder);
+
+        // Consistency: TotalShapeCount = PlaceholderCount + NonPlaceholderShapeCount
+        foreach (var layout in layouts)
+            Assert.Equal(layout.TotalShapeCount, layout.PlaceholderCount + layout.NonPlaceholderShapeCount);
+    }
+
+    [Fact]
+    public async Task pptx_manage_layouts_ModifyPlaceholder_UpdatesTypeAndIdx()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_manage_layouts(
+            path,
+            ManageLayoutsAction.ModifyPlaceholder,
+            layoutName: TemplateDeckHelper.TitleBodyLayoutName,
+            placeholderIndex: 1,
+            newType: "obj",
+            newIdx: 7);
+        var parsed = JsonSerializer.Deserialize<ModifyLayoutPlaceholderResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+
+        using var doc = PresentationDocument.Open(path, false);
+        var layout = doc.PresentationPart!.SlideMasterParts
+            .SelectMany(master => master.SlideLayoutParts)
+            .Single(lp => lp.SlideLayout?.CommonSlideData?.Name?.Value == TemplateDeckHelper.TitleBodyLayoutName);
+
+        var placeholders = layout.SlideLayout!.CommonSlideData!.ShapeTree!.ChildElements
+            .Select(child => child switch
+            {
+                Shape shape => shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                Picture picture => picture.NonVisualPictureProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                GraphicFrame frame => frame.NonVisualGraphicFrameProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape,
+                _ => null
+            })
+            .Where(ph => ph is not null)
+            .Cast<PlaceholderShape>()
+            .ToList();
+
+        Assert.Equal(PlaceholderValues.Object, placeholders[1].Type?.Value);
+        Assert.Equal(7U, placeholders[1].Index?.Value);
+    }
+
+    [Fact]
+    public async Task pptx_manage_layouts_AddPlaceholder_AppendsPlaceholderShape()
+    {
+        var path = CreateTemplatePptx();
+        const long x = 1088058;
+        const long y = 3000000;
+        const long cx = 22100000;
+        const long cy = 10000000;
+
+        var result = await _tools.pptx_manage_layouts(
+            path,
+            ManageLayoutsAction.AddPlaceholder,
+            layoutName: TemplateDeckHelper.TitleBodyLayoutName,
+            type: "body",
+            idx: 5,
+            x: x,
+            y: y,
+            cx: cx,
+            cy: cy);
+        var parsed = JsonSerializer.Deserialize<AddLayoutPlaceholderResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+
+        using var doc = PresentationDocument.Open(path, false);
+        var layout = doc.PresentationPart!.SlideMasterParts
+            .SelectMany(master => master.SlideLayoutParts)
+            .Single(lp => lp.SlideLayout?.CommonSlideData?.Name?.Value == TemplateDeckHelper.TitleBodyLayoutName);
+
+        var appendedShape = Assert.Single(layout.SlideLayout!.CommonSlideData!.ShapeTree!.Elements<Shape>(),
+            shape => shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.PlaceholderShape?.Index?.Value == 5U);
+
+        var placeholder = appendedShape.NonVisualShapeProperties!.ApplicationNonVisualDrawingProperties!.PlaceholderShape!;
+        Assert.Equal(PlaceholderValues.Body, placeholder.Type?.Value);
+
+        var transform = appendedShape.ShapeProperties?.GetFirstChild<DocumentFormat.OpenXml.Drawing.Transform2D>();
+        Assert.NotNull(transform);
+        Assert.Equal(x, transform.Offset!.X!.Value);
+        Assert.Equal(y, transform.Offset!.Y!.Value);
+        Assert.Equal(cx, transform.Extents!.Cx!.Value);
+        Assert.Equal(cy, transform.Extents!.Cy!.Value);
+    }
+
+    [Fact]
+    public async Task pptx_manage_layouts_AddPlaceholder_RejectsDuplicateIdx()
+    {
+        var path = CreateTemplatePptx();
+
+        // idx=1 already exists on TitleBodyLayoutName layout
+        var result = await _tools.pptx_manage_layouts(
+            path,
+            ManageLayoutsAction.AddPlaceholder,
+            layoutName: TemplateDeckHelper.TitleBodyLayoutName,
+            type: "body",
+            idx: 1,
+            x: 0,
+            y: 0,
+            cx: 1000000,
+            cy: 1000000);
+        var parsed = JsonSerializer.Deserialize<AddLayoutPlaceholderResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("idx=1", parsed.Message);
+    }
+
+    [Fact]
+    public async Task pptx_list_masters_ReturnsMasterMetadata()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_list_masters(path);
+        var masters = JsonSerializer.Deserialize<SlideMasterInfo[]>(result);
+
+        Assert.NotNull(masters);
+        Assert.Single(masters);
+        Assert.Equal(0, masters[0].Index);
+        Assert.Equal(1, masters[0].LayoutCount);
+        Assert.Single(masters[0].LayoutNames);
+        Assert.Equal("Title Slide", masters[0].LayoutNames[0]);
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_Add_ReturnsStructuredJson()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Add);
+        var addResult = JsonSerializer.Deserialize<AddSlideResult>(result);
+
+        Assert.NotNull(addResult);
+        Assert.True(addResult.Success);
+        Assert.Equal(2, addResult.SlideNumber);
+        Assert.Contains("Added slide", addResult.Message);
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_AddFromLayout_ReturnsStructuredJson()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.AddFromLayout, layoutName: TemplateDeckHelper.TitleBodyLayoutName, placeholderValues: new Dictionary<string, string>
+        {
+            ["Title"] = "Agenda",
+            ["Body:1"] = "Wins",
+            ["Body:2"] = "Risks"
+        });
+        var addResult = JsonSerializer.Deserialize<AddSlideFromLayoutResult>(result);
+
+        Assert.NotNull(addResult);
+        Assert.True(addResult.Success);
+        Assert.Equal(2, addResult.SlideNumber);
+        Assert.Equal(3, addResult.PlaceholdersPopulated);
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_AddFromLayout_ReturnsStructuredFailureJson()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.AddFromLayout, layoutName: "Missing Layout");
+        var addResult = JsonSerializer.Deserialize<AddSlideFromLayoutResult>(result);
+
+        Assert.NotNull(addResult);
+        Assert.False(addResult.Success);
+        Assert.Contains("Missing Layout", addResult.Message);
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_Duplicate_ReturnsStructuredJson()
+    {
+        var path = CreateTemplatePptx();
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Duplicate, slideNumber: 1, placeholderValues: new Dictionary<string, string>
+        {
+            ["Title"] = "Duplicated Review"
+        });
+        var duplicateResult = JsonSerializer.Deserialize<DuplicateSlideResult>(result);
+
+        Assert.NotNull(duplicateResult);
+        Assert.True(duplicateResult.Success);
+        Assert.Equal(2, duplicateResult.NewSlideNumber);
+        Assert.Equal(1, duplicateResult.OverridesApplied);
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_DeleteSingle_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" });
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Delete, slideNumber: 2);
+        var deleteResult = JsonSerializer.Deserialize<DeleteSlidesResult>(result);
+
+        Assert.NotNull(deleteResult);
+        Assert.True(deleteResult.Success);
+        Assert.Equal(1, deleteResult.DeletedCount);
+        Assert.Equal([2], deleteResult.DeletedSlideNumbers);
+        Assert.Equal(["A", "C"], Service.GetSlides(path).Select(slide => slide.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_DeleteBatch_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" },
+            new TestSlideDefinition { TitleText = "D" },
+            new TestSlideDefinition { TitleText = "E" });
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.Delete, slideNumbers: [1, 3, 5]);
+        var deleteResult = JsonSerializer.Deserialize<DeleteSlidesResult>(result);
+
+        Assert.NotNull(deleteResult);
+        Assert.True(deleteResult.Success);
+        Assert.Equal(3, deleteResult.DeletedCount);
+        Assert.Equal([1, 3, 5], deleteResult.DeletedSlideNumbers);
+        Assert.Equal(["B", "D"], Service.GetSlides(path).Select(slide => slide.Title).ToArray());
+    }
+
+    [Fact]
+    public async Task pptx_manage_slides_DeleteAll_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" });
+
+        var result = await _tools.pptx_manage_slides(path, ManageSlidesAction.DeleteAll);
+        var deleteResult = JsonSerializer.Deserialize<DeleteSlidesResult>(result);
+
+        Assert.NotNull(deleteResult);
+        Assert.True(deleteResult.Success);
+        Assert.Equal(3, deleteResult.DeletedCount);
+        Assert.Empty(Service.GetSlides(path));
+    }
+
+    [Fact]
+    public async Task pptx_update_slide_data_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["12%"]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_update_slide_data(path, 1, "Revenue Value", null, string.Empty);
+        var updateResult = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
+
+        Assert.NotNull(updateResult);
+        Assert.True(updateResult.Success);
+        Assert.Equal("Revenue Value", updateResult.ResolvedShapeName);
+        Assert.Equal(string.Empty, updateResult.NewText);
+
+        var slideContent = Service.GetSlideContent(path, 0);
+        var updatedShape = Assert.Single(slideContent.Shapes, shape => shape.Name == "Revenue Value");
+        Assert.Equal(string.Empty, updatedShape.Text);
+    }
+
+    [Fact]
+    public async Task pptx_update_slide_data_ReturnsStructuredFailureJson()
+    {
+        var path = CreateMinimalPptx();
+
+        var result = await _tools.pptx_update_slide_data(path, 3, "Missing Shape", null, "Updated");
+        var updateResult = JsonSerializer.Deserialize<SlideDataUpdateResult>(result);
+
+        Assert.NotNull(updateResult);
+        Assert.False(updateResult.Success);
+        Assert.Contains("out of range", updateResult.Message);
+    }
+
+    [Fact]
+    public async Task pptx_batch_update_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition
+            {
+                TitleText = "Dashboard",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Revenue Value",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["12%"]
+                    }
+                ]
+            },
+            new TestSlideDefinition
+            {
+                TitleText = "Risks",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Risk Body",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs = ["Legacy blocker"]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_batch_update(path,
+        [
+            new BatchUpdateMutation(1, "Revenue Value", "15%"),
+            new BatchUpdateMutation(2, "Risk Body", "Mitigate EMEA churn")
+        ]);
+        var batchResult = JsonSerializer.Deserialize<BatchUpdateResult>(result);
+
+        Assert.NotNull(batchResult);
+        Assert.Equal(2, batchResult.TotalMutations);
+        Assert.Equal(2, batchResult.SuccessCount);
+        Assert.Equal(0, batchResult.FailureCount);
+        Assert.All(batchResult.Results, mutationResult =>
+        {
+            Assert.True(mutationResult.Success);
+            Assert.Equal("shapeName", mutationResult.MatchedBy);
+            Assert.Null(mutationResult.Error);
+        });
+
+        var firstSlideContent = Service.GetSlideContent(path, 0);
+        var secondSlideContent = Service.GetSlideContent(path, 1);
+        Assert.Equal("15%", Assert.Single(firstSlideContent.Shapes, shape => shape.Name == "Revenue Value").Text);
+        Assert.Equal("Mitigate EMEA churn", Assert.Single(secondSlideContent.Shapes, shape => shape.Name == "Risk Body").Text);
+    }
+
+    [Fact]
+    public async Task pptx_batch_update_FileNotFound_ReturnsStructuredFailureJson()
+    {
+        var result = await _tools.pptx_batch_update("C:\\does-not-exist\\file.pptx",
+        [
+            new BatchUpdateMutation(1, "Revenue Value", "Updated")
+        ]);
+        var batchResult = JsonSerializer.Deserialize<BatchUpdateResult>(result);
+
+        Assert.NotNull(batchResult);
+        Assert.Equal(1, batchResult.TotalMutations);
+        Assert.Equal(0, batchResult.SuccessCount);
+        Assert.Equal(1, batchResult.FailureCount);
+
+        var mutationResult = Assert.Single(batchResult.Results);
+        Assert.False(mutationResult.Success);
+        Assert.Null(mutationResult.MatchedBy);
+        Assert.Contains("File not found", mutationResult.Error);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_xml_ReturnsXml()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_get_slide_xml(path, 0);
+        Assert.Contains("sld", result);
+    }
+
+    [Fact]
+    public async Task pptx_insert_image_FileNotFound_ReturnsError()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_insert_image(path, 0, "C:\\does-not-exist\\image.png");
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_content_ReturnsJson()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_get_slide_content(path, 0);
+        Assert.Contains("SlideIndex", result);
+        Assert.Contains("LayoutName", result);
+        Assert.Contains("LayoutIndex", result);
+        Assert.Contains("Shapes", result);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_content_ContainsTitleText()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_get_slide_content(path, 0);
+        Assert.Contains("Test Slide", result);
+    }
+
+    [Fact]
+    public async Task pptx_get_slide_content_ContainsShapeType()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_get_slide_content(path, 0);
+        Assert.Contains("Text", result);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition
+            {
+                TitleText = "Launch Review",
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Launch completed in 3 regions",
+                            "Error rate dropped below 1%"
+                        ]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_extract_talking_points(path, 2);
+        var talkingPoints = JsonSerializer.Deserialize<List<SlideTalkingPoints>>(result);
+
+        Assert.NotNull(talkingPoints);
+        Assert.Single(talkingPoints);
+        Assert.Equal(0, talkingPoints[0].SlideIndex);
+        Assert.Equal(
+            [
+                "Launch completed in 3 regions",
+                "Error rate dropped below 1%"
+            ],
+            talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_DefaultsToFivePointsPerSlide()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition
+            {
+                TextShapes =
+                [
+                    new TestTextShapeDefinition
+                    {
+                        Name = "Body 1",
+                        PlaceholderType = PlaceholderValues.Body,
+                        Paragraphs =
+                        [
+                            "Point 1 has enough detail",
+                            "Point 2 has enough detail",
+                            "Point 3 has enough detail",
+                            "Point 4 has enough detail",
+                            "Point 5 has enough detail",
+                            "Point 6 has enough detail"
+                        ]
+                    }
+                ]
+            });
+
+        var result = await _tools.pptx_extract_talking_points(path);
+        var talkingPoints = JsonSerializer.Deserialize<List<SlideTalkingPoints>>(result);
+
+        Assert.NotNull(talkingPoints);
+        Assert.Equal(5, talkingPoints[0].Points.Count);
+        Assert.DoesNotContain("Point 6 has enough detail", talkingPoints[0].Points);
+    }
+
+    [Fact]
+    public async Task pptx_extract_talking_points_InvalidTopN_ReturnsError()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_extract_talking_points(path, 0);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_write_notes_CreatesNotes()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_write_notes(path, 0, "Citation: https://example.com");
+        Assert.False(result.StartsWith("Error:", StringComparison.Ordinal));
+        var slides = Service.GetSlides(path);
+        Assert.Equal("Citation: https://example.com", slides[0].Notes);
+    }
+
+    [Fact]
+    public async Task pptx_write_notes_Append_PreservesExistingNotes()
+    {
+        var path = CreatePptxWithSlides(new TestSlideDefinition
+        {
+            TitleText = "Slide",
+            SpeakerNotesText = "Original"
+        });
+        var result = await _tools.pptx_write_notes(path, 0, "Appended", append: true);
+        Assert.False(result.StartsWith("Error:", StringComparison.Ordinal));
+        var slides = Service.GetSlides(path);
+        Assert.NotNull(slides[0].Notes);
+        Assert.Contains("Original", slides[0].Notes);
+        Assert.Contains("Appended", slides[0].Notes);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_Move_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "Slide A" },
+            new TestSlideDefinition { TitleText = "Slide B" },
+            new TestSlideDefinition { TitleText = "Slide C" });
+
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Move, slideNumber: 1, targetPosition: 3);
+
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+        Assert.Equal("Move", parsed.Action);
+        var slides = Service.GetSlides(path);
+        Assert.Equal("Slide B", slides[0].Title);
+        Assert.Equal("Slide C", slides[1].Title);
+        Assert.Equal("Slide A", slides[2].Title);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_Move_InvalidSlideNumber_ReturnsError()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "Slide A" },
+            new TestSlideDefinition { TitleText = "Slide B" });
+
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Move, slideNumber: 5, targetPosition: 1);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+    }
+
+    [Fact]
+    public async Task pptx_delete_slide_ReturnsSuccessMessage()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "Keep" },
+            new TestSlideDefinition { TitleText = "Delete Me" });
+
+        var result = await _tools.pptx_delete_slide(path, 2);
+
+        Assert.Contains("successfully", result);
+        var slides = Service.GetSlides(path);
+        Assert.Single(slides);
+        Assert.Equal("Keep", slides[0].Title);
+    }
+
+    [Fact]
+    public async Task pptx_delete_slide_LastSlide_ReturnsError()
+    {
+        var path = CreateMinimalPptx();
+        var result = await _tools.pptx_delete_slide(path, 1);
+        Assert.StartsWith("Error:", result);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_Reorder_ReturnsStructuredJson()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "First" },
+            new TestSlideDefinition { TitleText = "Second" },
+            new TestSlideDefinition { TitleText = "Third" });
+
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Reorder, newOrder: [3, 1, 2]);
+
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+        Assert.Equal("Reorder", parsed.Action);
+        var slides = Service.GetSlides(path);
+        Assert.Equal("Third", slides[0].Title);
+        Assert.Equal("First", slides[1].Title);
+        Assert.Equal("Second", slides[2].Title);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_Reorder_InvalidOrder_ReturnsError()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" });
+
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Reorder, newOrder: [1, 1]);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+    }
+
+    [Fact]
+    public async Task pptx_reorder_slides_Reorder_WrongLength_ReturnsError()
+    {
+        var path = CreatePptxWithSlides(
+            new TestSlideDefinition { TitleText = "A" },
+            new TestSlideDefinition { TitleText = "B" },
+            new TestSlideDefinition { TitleText = "C" });
+
+        var result = await _tools.pptx_reorder_slides(path, ReorderSlidesAction.Reorder, newOrder: [1, 2]);
+        var parsed = JsonSerializer.Deserialize<SlideOrderResult>(result);
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+    }
+
+    #region pptx_replace_image tool tests
+
+    private static readonly byte[] ToolTestPngBytes = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nZxQAAAAASUVORK5CYII=");
+
+    private string CreatePptxWithPicture()
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".pptx");
+        TrackTempFile(path);
+        TestPptxHelper.CreatePresentation(path, [new TestSlideDefinition { TitleText = "Slide With Image", IncludeImage = true }]);
+        return path;
+    }
+
+    private string CreateTempImageFile(string extension = ".png")
+    {
+        var path = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+        TrackTempFile(path);
+        File.WriteAllBytes(path, ToolTestPngBytes);
+        return path;
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_ReturnsStructuredJson()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var imagePath = CreateTempImageFile();
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath);
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+    }
+
+    [Theory]
+    [InlineData(false, true, "File not found")]
+    [InlineData(true, false, "Image file not found")]
+    public async Task pptx_replace_image_MissingFile_ReturnsStructuredError(bool pptxExists, bool imageExists, string expectedMessage)
+    {
+        var pptxPath = pptxExists ? CreatePptxWithPicture() : "C:\\does-not-exist\\file.pptx";
+        var imagePath = imageExists ? CreateTempImageFile() : "C:\\does-not-exist\\image.png";
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath);
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains(expectedMessage, parsed.Message);
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_WithAltText_ReturnsInResult()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var imagePath = CreateTempImageFile();
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath, altText: "Team photo");
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.True(parsed.Success);
+        Assert.Equal("Team photo", parsed.AltText);
+    }
+
+    [Fact]
+    public async Task pptx_replace_image_Exception_ReturnsStructuredError()
+    {
+        var pptxPath = CreatePptxWithPicture();
+        var imagePath = CreateTempImageFile(".tiff");
+
+        var result = await _tools.pptx_replace_image(pptxPath, 1, shapeIndex: 0, imagePath: imagePath);
+        var parsed = JsonSerializer.Deserialize<ImageReplaceResult>(result);
+
+        Assert.NotNull(parsed);
+        Assert.False(parsed.Success);
+        Assert.Contains("Unsupported", parsed.Message);
+    }
+
+    #endregion
+}

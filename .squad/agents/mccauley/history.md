@@ -12,6 +12,51 @@
 
 ## Learnings
 
+### Notable State Review Process (2026-04-10)
+- McCauley identified critical config.json path mismatch during squad state audit
+- Scribe processed recommendations: wrote orchestration log, session log, merged decisions, updated agent history
+- config.json fix unblocks next agent spawn and restores coordinator path resolution
+- Squad state review workflow: audit → document → merge → cross-update → commit
+
+## Recent Updates
+
+📌 **2026-04-15:** Session complete — Issue triage #94 & #138 closure
+- **#94 verdict: CLOSE.** All 5 acceptance criteria satisfied. Research done (Nate: dual-mode GO), CLI fully implemented via #98–#104 (all closed). Only #105 (NuGet packaging) remains as separate distribution work. Parent issue is stale — recommend close.
+- **#138 verdict: SHIPPED.** Shiherlis completed all 4 documentation guides:
+  - EMU_GUIDE.md (5.5 KB) — English Metric Unit conversions, precision, tool reference
+  - SHAPE_RESOLUTION_GUIDE.md (11.2 KB) — Target shapes by name/index/placeholder, discovery methods, real-world scenarios
+  - TROUBLESHOOTING.md (13.2 KB) — 10 categories, quick reference for users/developers
+  - CONTRIBUTING.md (18.7 KB) — 5-step example for new tools, test patterns, CI/CD, code style
+  - README.md updated (+7 lines) with links to guides
+  - All 1,227 tests pass, zero regressions
+- **Gap closure:** CLI is now documented. Recommend README companion PR adding CLI quick-start (dual-mode intro, command examples) to close remaining visibility gap.
+- Decision documents merged: `.squad/decisions/inbox/` → `.squad/decisions.md` (both #94 and #138 decisions)
+- Orchestration logs written: `.squad/orchestration-log/2026-04-15T15-11-07Z-mccauley.md`, `.squad/orchestration-log/2026-04-15T15-11-07Z-shiherlis.md`
+- Session log written: `.squad/log/2026-04-15T15-11-07Z-issues-94-138.md`
+
+📌 **2026-04-11 (0000Z):** Squad state cleanup final pass completed
+- McCauley verified config.json (still good), refreshed now.md (focus_area + active_issues updated)
+- Audit: No additional tightly-coupled stale metadata found
+- Orchestration log: `.squad/orchestration-log/2026-04-11-000010-mccauley-squad-state-cleanup.md`
+- Session log: `.squad/log/2026-04-11-000010-squad-state-cleanup.md`
+- Decisions merged: `mccauley-squad-state-cleanup.md` integrated into decisions.md
+- Status: ✅ Complete, squad metadata now current and accurate
+
+📌 **2026-04-10 (2346Z):** Notable state review completed
+- McCauley's recommendations processed: config.json fix + now.md refresh tracked
+- Orchestration log: `.squad/orchestration-log/2026-04-10T23-46-16Z-mccauley-notable-state-review.md`
+- Session log: `.squad/log/2026-04-10T23-46-16Z-notable-state-recommendations.md`
+- Decisions merged: `mccauley-recommend-notable-state.md` integrated into decisions.md
+- Config fix: teamRoot corrected (D: → C:), path resolution functional
+- Status: ✅ Complete, ready for next agent spawn
+
+### Phase 4 Wave Decomposition & Sequencing (2026-03-24)
+- **3-Tier Wave Strategy:** Wave 1 (Core analysis: #80, #81, #82), Wave 2 (Enhancement & consolidation), Wave 3 (Polish & documentation)
+- **Squad Reassignments:** Cheritto → 3-tool implementation sprint (wave 1), Shiherlis → 92-test parallel validation, Nate → OpenXML research/skill capture, Coordinator → PR review & docs
+- **Risk Assessment:** Identified PAT permissions bottleneck for automated PR creation/label updates; contingency: manual intervention workflow
+- **Execution:** Wave 1 complete with all deliverables on branch/PR (0 blockers on implementation, all items ready for integration)
+- **Pattern Success:** Wave-based sequencing with parallel implementation/testing streams scales well for tooling work; allows PAT issues to surface early without blocking squad
+
 ### PRD Structure & Scope (2026-03-15)
 - Created PRD at `docs/PRD.md` based on PR #1 bootstrap and Jon's vision
 - Phase 1 (Content Reading) focuses on two high-value tools: extract talking points + export markdown
@@ -19,3 +64,64 @@
 - **Key decision:** Non-goals explicitly exclude GUI, legacy formats, and advanced design features to keep scope bounded
 - **Recommended 4 GitHub issues** for Phase 1: two tool implementations, one E2E test, one docs pass
 - Timeline estimate: 2–3 weeks Phase 1, 3–4 weeks Phase 2 (estimate includes +20% buffer)
+
+### Phase 1 Issue Creation & Triage (2026-03-16)
+- Created two GitHub milestones: Phase 1 (milestone #1) and Phase 2 (milestone #2)
+- Created 9 labels for issue organization: `tool`, `testing`, `documentation`, `phase-1`, `phase-2`, `squad`, and squad role labels
+- Created 4 GitHub issues for Phase 1 work:
+  - **#6 (Cheritto):** pptx_extract_talking_points implementation
+  - **#7 (Cheritto):** pptx_export_markdown implementation
+  - **#8 (Shiherlis):** E2E testing with real presentations
+  - **#9 (@copilot):** Phase 1 docs + example workflows
+- Assignment logic: Tool work → Cheritto (backend dev charter), testing → Shiherlis (tester charter), docs → @copilot (small features with specs, auto-assigned, requires review)
+- Dependency chain: #6 & #7 independent, #8 depends on both, #9 depends on both
+- Decision document written to `.squad/decisions/inbox/mccauley-prd-phase1-issues.md`
+- All issues reference PRD success criteria and use acceptance checklists for clarity
+
+### Phase 1 Documentation Strategy (2026-03-17)
+- Jon requested README rewrite and user-facing docs creation
+- Created 5 new documentation issues, all Phase 1 milestone, assigned to @copilot:
+  - **#10:** README rewrite — problem-centric structure (WHY + HOW + capabilities + use cases)
+  - **#11:** TOOL_REFERENCE.md — comprehensive tool reference with JSON examples
+  - **#12:** QUICKSTART.md — zero-to-working guide for new users
+  - **#13:** CLIENT_SETUP.md — MCP client configuration (Claude Desktop, VS Code, CLI, local LLMs)
+  - **#14:** EXAMPLES.md — real use case walkthroughs with agent prompts and tool workflows
+- **Scope clarity:** Documentation is user-facing only (no internal architecture or decision docs)
+- **Key decision:** Installation section notes future NuGet publishing; docs are future-proof
+- **No hard dependencies** between docs; can be done in parallel. Will grow richer as Phase 1 tools complete
+- Decision document written to `.squad/decisions/inbox/mccauley-phase1-documentation-issues.md`
+### Phase 2 Decomposition (2026-03-16)
+- Decomposed Phase 2 ("Content Writing & Intelligent Updates") into 5 GitHub issues (#15–#19)
+- **Core tool work:** Issue #19 (cheritto) implements `pptx_update_slide_data` tool for data-driven slide updates (Goal 2A)
+- **Testing:** Issue #17 (shiherlis) validates pptx_update_slide_data with real metric slides; Issue #15 (shiherlis) validates multi-source E2E scenario (Goal 2B)
+- **Docs & examples:** Issue #18 (copilot) designs composition pattern demo; Issue #16 (copilot) updates all documentation
+- **Dependency chain:** #19 → #17 → #15 + #18 → #16 (docs closes last)
+- All issues routed to appropriate team members; all assigned to "Phase 2 — Content Writing & Updates" milestone
+- Non-duplication verified: Phase 1 issues #6–#14 are independent; no overlap with Phase 2
+
+### Squad Configuration Review (2026-03-27)
+- **Item 1 (now.md):** Stale since bootstrap (2026-03-16). Generic "Initial setup" still in place; empty active_issues. **Low risk** — informational only, doesn't affect coordinator. Recommend refresh at next planning cycle to surface current focus (feature waves #115, #116, #121, #125) and improve squad orientation.
+- **Item 2 (config.json):** CRITICAL mismatch — `teamRoot` points to `D:\Users\Jon\Documents\GitHub\pptx-tools` but repo is at `C:\Users\Jon\...`. Coordinator uses this path to resolve `.squad/*` references. **Active blocker** — agents spawning will fail soft on charter/decisions resolution if not fixed. Fix immediately before next squad work.
+- **Coordinator impact:** config.json mismatch causes path resolution failures; agents degrade to reduced context (missing charter, team routing broken).
+
+### Squad State Cleanup — Final Pass (2026-04-11)
+- **config.json:** ✅ Verified still correct (teamRoot = `C:\Users\Jon\Documents\GitHub\pptx-tools`). No action needed.
+- **now.md:** ✅ Refreshed with current project state — Updated focus_area to "Advanced feature waves & test modernization (waves #125–#150)" and active_issues to [125, 135, 140, 150]. Timestamp updated to 2026-04-11.
+- **Additional cleanup audit:** Checked `.squad/identity/wisdom.md` (empty template—intended), `.squad/decisions/inbox/` (clean, previously merged), `.squad/casting-*.json` files (inert config—no cleanup needed), agent histories (all recently updated), `.squad/routing.md` and `.squad/team.md` (current). No additional low-risk cleanup items identified.
+- **Outcome:** Squad metadata now current and accurate. Coordinator and agent spawning fully functional.
+
+### Copilot PR Merge Review (2026-05-11)
+- **PR #182 (ModifyPlaceholder/AddPlaceholder):** Merged via squash. CI green, code clean, review feedback addressed. Adds layout placeholder editing to `pptx_manage_layouts`.
+- **PR #183 (Delete/DeleteAll slides):** Left open — still draft. Code solid but needs review cycle. `DeleteAllSlides` producing zero-slide presentations should be validated. Cheritto owns any service fixes, Shiherlis owns test expansion.
+- **Local push:** Rebased 7 squad-metadata commits + 1 doc commit onto origin/main (which had diverged significantly with PRs #176–#182 merged remotely). README merge conflict resolved.
+- **Pattern:** When local main diverges from origin due to Copilot-assigned issues merging remotely, always fetch+rebase before pushing local squad commits. Stash working tree changes first.
+- **Key files touched:** `src/PptxTools/Services/PresentationService.LayoutPlaceholders.cs` (new partial class for placeholder ops), `src/PptxTools/Tools/PptxTools.ManageSlides.cs` (Delete/DeleteAll routing), `docs/CONTRIBUTING.md`, `docs/EMU_GUIDE.md`, `docs/SHAPE_RESOLUTION_GUIDE.md`, `docs/TROUBLESHOOTING.md`.
+
+
+
+### PR Review Session (2026-05-11)
+- Reviewed PRs #182 (ModifyPlaceholder/AddPlaceholder) and #183 (Delete/DeleteAll slides)
+- **Decision:** Merged PR #182 squash. Code clean, addresses prior feedback, 531 additions, tests included.
+- **Decision:** Left PR #183 open (draft state). CI green, code solid, but needs review cycle and verification of zero-slide presentation validity.
+- **Decision:** Confirmed local docs (Issue #138) ready to merge. No conflicts with concurrent PRs, 1,227/1,227 tests passing.
+- **Output:** Documented PR review decision, identified PR #183 rebase recommendation for post-merge.

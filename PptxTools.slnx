@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/PptxTools/PptxTools.csproj" />
+  <Project Path="tests/PptxTools.Tests/PptxTools.Tests.csproj" />
+</Solution>

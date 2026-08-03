@@ -1,6 +1,6 @@
 # Squad Team
 
-> pptx-mcp
+> pptx-tools
 
 ## Coordinator
 
@@ -23,15 +23,15 @@
 ## Project Context
 
 - **Owner:** Jon Galloway
-- **Project:** pptx-mcp — .NET 10 MCP server exposing PowerPoint read/write operations via OpenXML SDK
+- **Project:** pptx-tools — .NET 10 MCP server exposing PowerPoint read/write operations via OpenXML SDK
 - **Stack:** .NET 10, C#, ModelContextProtocol SDK v1.1.0, DocumentFormat.OpenXml v3.3.0, xUnit v3 (MTP runner), Microsoft.Extensions.Hosting
-- **Repo:** jongalloway/pptx-mcp
+- **Repo:** jongalloway/pptx-tools
 - **Created:** 2026-03-16
 - **Reference repos:** jongalloway/dotnet-mcp (C# MCP patterns, testing, publishing), jongalloway/MarpToPptx (OpenXML PowerPoint manipulation)
 
 ## Issue Source
 
-- **Repository:** jongalloway/pptx-mcp
+- **Repository:** jongalloway/pptx-tools
 - **Connected:** 2026-03-16
 - **Filters:** open issues
 

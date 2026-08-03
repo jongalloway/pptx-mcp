@@ -11,7 +11,7 @@
 
 ## What I Own
 
-- Test suite (tests/PptxMcp.Tests/)
+- Test suite (tests/PptxTools.Tests/)
 - Test coverage and quality gates
 - Edge case identification
 - Code review from a testability perspective
@@ -20,7 +20,7 @@
 
 - Write tests that verify behavior, not implementation details
 - Use the Microsoft Testing Platform runner (not classic xUnit runner)
-- Test command: `dotnet test --solution PptxMcp.slnx --configuration Release --no-build` (use `--filter-method` not `--filter`)
+- Test command: `dotnet test --solution PptxTools.slnx --configuration Release --no-build` (use `--filter-method` not `--filter`)
 - Create test .pptx fixtures when needed for OpenXML operations
 - Tests should be independent — no shared mutable state between tests
 

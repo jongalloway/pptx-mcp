@@ -1,0 +1,30 @@
+name: Squad Docs — Build & Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [preview]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/squad-docs.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify docs
+        run: |
+          # pptx-tools uses static Markdown documentation in docs/
+          # No build step required — verify the docs directory exists
+          if [ -d "docs" ]; then
+            echo "docs/ found — $(find docs -name '*.md' | wc -l) Markdown files"
+          else
+            echo "::warning::docs/ directory not found"
+          fi
